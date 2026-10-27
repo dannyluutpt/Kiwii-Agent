@@ -41,9 +41,13 @@
   "vars": {
     "APP_URL": "https://kiwiiagent.com",
     "EMAIL_FROM": "Kiwii <no-reply@kiwiiagent.com>",
+    // Receiving account shown on every VietQR; public by nature, so it lives here.
+    "SEPAY_BANK_CODE": "ACB",
+    "SEPAY_BANK_ACCOUNT": "20097141",
+    "SEPAY_ACCOUNT_NAME": "LUU HOANG HIEP",
   },
   // Set in the dashboard (Settings → Variables and Secrets), never in this file:
-  //   variables: SEPAY_BANK_CODE (default MB), SEPAY_BANK_ACCOUNT, SEPAY_ACCOUNT_NAME, TURNSTILE_SITE_KEY
-  //   secrets:   OPENROUTER_API_KEY, SEPAY_API_KEY, TURNSTILE_SECRET_KEY, DOWNLOAD_SIGNING_SECRET
+  //   variables: TURNSTILE_SITE_KEY
+  //   secrets:   OPENROUTER_API_KEY, SEPAY_API_KEY, TURNSTILE_SECRET_KEY
   // Locally they go in .dev.vars.
 }

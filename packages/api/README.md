@@ -27,8 +27,11 @@ Cloudflare Workers Builds deploys the `kiwii-agent` Worker on every push to `mai
 Runtime configuration lives in the Worker's Settings → Variables and Secrets, never in
 `wrangler.jsonc` (`keep_vars` keeps dashboard values across deploys):
 
-- secrets: `OPENROUTER_API_KEY`, `SEPAY_API_KEY`, `DOWNLOAD_SIGNING_SECRET`, `TURNSTILE_SECRET_KEY`
-- variables: `SEPAY_BANK_CODE`, `SEPAY_BANK_ACCOUNT`, `SEPAY_ACCOUNT_NAME`, `TURNSTILE_SITE_KEY`
+- secrets: `OPENROUTER_API_KEY`, `SEPAY_API_KEY`, `TURNSTILE_SECRET_KEY`
+- variables: `TURNSTILE_SITE_KEY`
+
+The receiving bank account (`SEPAY_BANK_*`) is public information printed on every QR code, so it
+is versioned in `wrangler.jsonc`.
 
 For a manual deploy, `bun run deploy` from this directory.
 

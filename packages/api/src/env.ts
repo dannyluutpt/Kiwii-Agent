@@ -15,7 +15,6 @@ export type Env = {
   OPENROUTER_BASE_URL?: string
   SEPAY_API_KEY?: string
   TURNSTILE_SECRET_KEY?: string
-  DOWNLOAD_SIGNING_SECRET?: string
   LOG_EMAIL?: string
 }
 
