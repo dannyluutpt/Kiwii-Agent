@@ -32,3 +32,15 @@ Settings → Variables and Secrets. For a manual deploy, `bun run deploy` from t
 Edit `src/db/schema.ts`, run `bun db:generate`, then copy the generated `drizzle/*/migration.sql`
 into `migration/NNNN_name.sql`. Wrangler tracks applied files by name, so never edit a migration
 that has already been applied remotely.
+
+## Image generation
+
+`src/images/models.ts` holds the three models, their options and credit prices. GPT `xhigh` and
+`max` ship with `credits: null` (hidden in the UI) until measured. To price them against real
+OpenRouter costs and write the result to `app_config.image_models` on production D1:
+
+```sh
+OPENROUTER_API_KEY=sk-or-... bun script/calibrate-image-cost.ts --only gpt-image-2.5 --apply
+```
+
+The API merges that config on every request, so no deploy is needed after `--apply`.

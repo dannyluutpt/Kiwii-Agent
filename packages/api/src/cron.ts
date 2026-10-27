@@ -4,6 +4,7 @@ import { expireGrants } from "./credits/ledger"
 import { createDatabase } from "./db/client"
 import { password_resets, pending_signups, plan_orders, sessions } from "./db/schema"
 import type { Env } from "./env"
+import { reapStaleGenerations } from "./images/generate"
 
 // Runs daily at 00:00 Asia/Ho_Chi_Minh (see wrangler.jsonc). Every step is idempotent.
 export async function runDaily(env: Env) {
@@ -20,5 +21,6 @@ export async function runDaily(env: Env) {
   ])
   const grants = await expireGrants(db, now)
   const subs = await expireSubscriptions(db, now)
-  console.log(`[cron] expired grants=${grants} subscriptions=${subs}`)
+  const stale = await reapStaleGenerations(db, now)
+  console.log(`[cron] expired grants=${grants} subscriptions=${subs} stale generations=${stale}`)
 }
