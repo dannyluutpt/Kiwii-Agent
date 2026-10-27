@@ -62,17 +62,15 @@ export async function storeAttachment(db: Database, bucket: R2Bucket, userID: st
   const key = `u/${userID}/${id}-${file.name.replace(/[^A-Za-z0-9._-]+/g, "-").slice(0, 80)}`
   await bucket.put(key, text, { httpMetadata: { contentType: "text/plain; charset=utf-8" } })
   const mime = file.type || "text/plain"
-  await db
-    .insert(files)
-    .values({
-      id,
-      user_id: userID,
-      r2_key: key,
-      name: file.name.slice(0, 120),
-      mime,
-      size: file.size,
-      kind: "attachment",
-    })
+  await db.insert(files).values({
+    id,
+    user_id: userID,
+    r2_key: key,
+    name: file.name.slice(0, 120),
+    mime,
+    size: file.size,
+    kind: "attachment",
+  })
   return { id, name: file.name.slice(0, 120), mime, size: file.size }
 }
 

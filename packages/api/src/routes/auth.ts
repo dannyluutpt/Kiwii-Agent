@@ -9,6 +9,7 @@ import { hashPassword, needsRehash, validatePassword, verifyPassword } from "../
 import { clearSessionCookie, createSession, destroySession, SESSION_COOKIE, sessionCookie } from "../auth/session"
 import { todayUsage, loadPlan } from "../chat/quota"
 import { balance } from "../credits/ledger"
+import { grantTrial } from "../credits/trial"
 import { password_resets, pending_signups, users } from "../db/schema"
 import { clientIP, consumeWindow, rateLimitBy } from "../middleware/ratelimit"
 import { requireAuth } from "../middleware/auth"
@@ -123,6 +124,7 @@ auth.post("/signup/verify", async (c) => {
     }),
     db.delete(pending_signups).where(eq(pending_signups.email, body.email)),
   ])
+  await grantTrial(db, userID)
   const token = await createSession(db, {
     userID,
     ip: clientIP(c.req.raw.headers),
@@ -220,6 +222,9 @@ auth.post("/reset", async (c) => {
   ])
   return c.json({ ok: true })
 })
+
+// Public, unauthenticated settings the auth screens need before login.
+auth.get("/config", (c) => c.json({ turnstileSiteKey: c.env.TURNSTILE_SITE_KEY || null }))
 
 auth.get("/me", requireAuth, async (c) => {
   const user = c.get("user")

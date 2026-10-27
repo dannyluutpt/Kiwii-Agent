@@ -3,6 +3,7 @@ import { createSignal } from "solid-js"
 import { api } from "@/api"
 import { useAuth } from "@/context/auth"
 import { useLanguage } from "@/context/language"
+import { Turnstile } from "@/components/turnstile"
 import { AuthForm, Field } from "./form"
 
 export default function Login() {
@@ -10,6 +11,7 @@ export default function Login() {
   const auth = useAuth()
   const navigate = useNavigate()
   const [email, setEmail] = createSignal("")
+  const [turnstile, setTurnstile] = createSignal<string>()
   const [password, setPassword] = createSignal("")
 
   return (
@@ -17,7 +19,7 @@ export default function Login() {
       title={t("auth.login.title")}
       submit={t("auth.login")}
       onSubmit={async () => {
-        await api("/auth/login", { body: { email: email(), password: password() } })
+        await api("/auth/login", { body: { email: email(), password: password(), turnstile: turnstile() } })
         await auth.refresh()
         navigate("/chat")
       }}
@@ -51,6 +53,7 @@ export default function Login() {
         onInput={setPassword}
         autocomplete="current-password"
       />
+      <Turnstile onToken={setTurnstile} />
     </AuthForm>
   )
 }

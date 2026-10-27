@@ -73,6 +73,7 @@ export const dict = {
   "images.references.add": "Thêm ảnh",
   "images.references.hint": "Tối đa {{n}} ảnh, +{{extra}} credit mỗi lượt",
   "images.references.remove": "Bỏ ảnh",
+  "images.trial": "Bạn có {{n}} credit dùng thử với FLUX 3 Klein. Nâng cấp gói để mở Nano Banana 2.1 và GPT Image 2.5.",
   "images.locked.title": "Tạo ảnh dành cho gói trả phí",
   "images.locked.lead": "Nâng cấp để dùng FLUX 3, Nano Banana 2.1 và GPT Image 2.5 với credit hàng tháng.",
   "images.locked.cta": "Xem bảng giá",

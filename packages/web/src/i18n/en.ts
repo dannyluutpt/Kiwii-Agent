@@ -75,6 +75,7 @@ export const dict: Record<I18nKey, string> = {
   "images.references.add": "Add image",
   "images.references.hint": "Up to {{n}} images, +{{extra}} credit per run",
   "images.references.remove": "Remove",
+  "images.trial": "You have {{n}} trial credits for FLUX 3 Klein. Upgrade to unlock Nano Banana 2.1 and GPT Image 2.5.",
   "images.locked.title": "Image generation is for paid plans",
   "images.locked.lead": "Upgrade to use FLUX 3, Nano Banana 2.1 and GPT Image 2.5 with monthly credits.",
   "images.locked.cta": "See pricing",
