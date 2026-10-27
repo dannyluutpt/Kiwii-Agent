@@ -8,6 +8,7 @@ import { generateOTP, hashOTP, OTP_MAX_ATTEMPTS, OTP_RESEND_MS, OTP_TTL_MS, veri
 import { hashPassword, needsRehash, validatePassword, verifyPassword } from "../auth/password"
 import { clearSessionCookie, createSession, destroySession, SESSION_COOKIE, sessionCookie } from "../auth/session"
 import { todayUsage, loadPlan } from "../chat/quota"
+import { balance } from "../credits/ledger"
 import { password_resets, pending_signups, users } from "../db/schema"
 import { clientIP, consumeWindow, rateLimitBy } from "../middleware/ratelimit"
 import { requireAuth } from "../middleware/auth"
@@ -235,7 +236,7 @@ auth.get("/me", requireAuth, async (c) => {
       chatDailyMessages: plan.chat_daily_messages,
       chatMonthlyMessages: plan.chat_monthly_messages,
     },
-    credits: 0,
+    credits: await balance(db, user.id),
     chatToday: await todayUsage(db, user.id),
   })
 })

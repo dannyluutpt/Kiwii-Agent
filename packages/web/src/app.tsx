@@ -17,6 +17,8 @@ const Reset = lazy(() => import("@/pages/auth/reset"))
 const Chat = lazy(() => import("@/pages/chat"))
 const Images = lazy(() => import("@/pages/images"))
 const Pricing = lazy(() => import("@/pages/pricing"))
+const Checkout = lazy(() => import("@/pages/checkout"))
+const Account = lazy(() => import("@/pages/account"))
 
 function Providers(props: ParentProps) {
   return (
@@ -69,6 +71,8 @@ export function App() {
         <Route path="/images" component={Images} />
         <Route path="/images/assets" component={Images} />
         <Route path="/pricing" component={Pricing} />
+        <Route path="/pricing/checkout/:orderId" component={Checkout} />
+        <Route path="/account" component={Account} />
       </Route>
       <Route path="*" component={() => <Navigate href="/chat" />} />
     </Router>

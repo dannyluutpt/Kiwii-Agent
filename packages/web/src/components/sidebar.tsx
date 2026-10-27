@@ -124,6 +124,9 @@ export function Sidebar() {
               </DropdownMenu.Trigger>
               <DropdownMenu.Portal>
                 <DropdownMenu.Content>
+                  <DropdownMenu.Item onSelect={() => navigate("/account")}>
+                    <DropdownMenu.ItemLabel>{t("nav.account")}</DropdownMenu.ItemLabel>
+                  </DropdownMenu.Item>
                   <DropdownMenu.Item onSelect={() => navigate("/pricing")}>
                     <DropdownMenu.ItemLabel>{t("nav.upgrade")}</DropdownMenu.ItemLabel>
                   </DropdownMenu.Item>
