@@ -1,8 +1,8 @@
 {
   // Kiwii web app: one Worker serves /api/* from src/index.ts and everything else from the
-  // built SolidJS frontend in ../web/dist. Deploy with `bun run deploy` from this directory.
+  // built SolidJS frontend in ../web/dist. Deployed by Cloudflare Workers Builds on every push to main (root directory `packages/api`).
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "kiwii-app",
+  "name": "kiwii-agent",
   "main": "src/index.ts",
   "compatibility_date": "2026-09-22",
   "compatibility_flags": ["nodejs_compat"],

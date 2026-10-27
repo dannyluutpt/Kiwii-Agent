@@ -18,10 +18,14 @@ mock server when testing streaming offline.
 
 ## Deploying
 
-1. `wrangler d1 create kiwii` once and paste the id into `wrangler.jsonc`.
-2. `wrangler r2 bucket create kiwii-files` once.
-3. `wrangler secret put OPENROUTER_API_KEY` (and the other secrets listed in `wrangler.jsonc`).
-4. `bun db:migrate` then `bun run deploy`.
+Cloudflare Workers Builds deploys the `kiwii-agent` Worker on every push to `main`:
+
+- Root directory: `packages/api`
+- Build command: `bun run --cwd ../web build && bunx wrangler d1 migrations apply kiwii --remote`
+- Deploy command: `bunx wrangler deploy`
+
+Secrets (`OPENROUTER_API_KEY`, `DOWNLOAD_SIGNING_SECRET`, …) live in the Worker's
+Settings → Variables and Secrets. For a manual deploy, `bun run deploy` from this directory.
 
 ## Schema changes
 
