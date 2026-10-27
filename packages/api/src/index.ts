@@ -56,9 +56,32 @@ app.get("/api/health", (c) =>
   }),
 )
 // Everything outside /api is the SPA; routing through the Worker keeps the host redirect above.
-app.notFound((c) => {
+// HTML responses get a CSP that allows only the origins the app actually talks to.
+const CSP = [
+  "default-src 'self'",
+  // wasm-unsafe-eval: shiki highlights code blocks with a WebAssembly build of Oniguruma.
+  "script-src 'self' 'wasm-unsafe-eval' https://challenges.cloudflare.com",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: blob: https://img.vietqr.io",
+  "font-src 'self' data:",
+  "connect-src 'self' https://challenges.cloudflare.com",
+  "frame-src https://challenges.cloudflare.com",
+  "worker-src 'self' blob:",
+  "object-src 'none'",
+  "base-uri 'self'",
+  "form-action 'self'",
+  "frame-ancestors 'none'",
+].join("; ")
+
+app.notFound(async (c) => {
   if (c.req.path.startsWith("/api/")) return c.json({ error: { code: "NOT_FOUND", message: "Không tìm thấy" } }, 404)
-  return c.env.ASSETS.fetch(c.req.raw)
+  const res = await c.env.ASSETS.fetch(c.req.raw)
+  if (!res.headers.get("content-type")?.includes("text/html")) return res
+  const headers = new Headers(res.headers)
+  headers.set("content-security-policy", CSP)
+  headers.set("x-content-type-options", "nosniff")
+  headers.set("referrer-policy", "strict-origin-when-cross-origin")
+  return new Response(res.body, { status: res.status, headers })
 })
 
 app.onError((error, c) => {
