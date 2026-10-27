@@ -205,7 +205,11 @@ function presentOrder(
     expiresAt: order.expires_at,
     paidAt: order.paid_at,
     createdAt: order.created_at,
-    bank: { code: env.SEPAY_BANK_CODE ?? "MB", account: env.SEPAY_BANK_ACCOUNT ?? "", name: env.SEPAY_ACCOUNT_NAME ?? null },
+    bank: {
+      code: env.SEPAY_BANK_CODE ?? "MB",
+      account: env.SEPAY_BANK_ACCOUNT ?? "",
+      name: env.SEPAY_ACCOUNT_NAME ?? null,
+    },
     qrUrl: vietQRUrl({
       bank: env.SEPAY_BANK_CODE ?? "MB",
       account: env.SEPAY_BANK_ACCOUNT ?? "",
