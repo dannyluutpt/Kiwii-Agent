@@ -74,6 +74,9 @@ jobs:
       - name: llm
         run: bun test --timeout 30000 --only-failures
         working-directory: packages/llm
+      - name: api
+        run: bun test --only-failures
+        working-directory: packages/api
       - name: codemode
         run: bun test --only-failures
         working-directory: packages/codemode

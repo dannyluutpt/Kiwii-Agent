@@ -1,0 +1,14 @@
+@import "@kiwii/ui/styles/tailwind";
+@import "tw-animate-css";
+@import "./markdown.css";
+
+@media (display-mode: standalone) {
+  #root {
+    height: 100vh;
+  }
+}
+
+[data-component="chat-textarea"] {
+  field-sizing: content;
+  max-height: 40dvh;
+}

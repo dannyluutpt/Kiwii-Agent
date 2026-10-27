@@ -1,0 +1,47 @@
+{
+  // Kiwii web app: one Worker serves /api/* from src/index.ts and everything else from the
+  // built SolidJS frontend in ../web/dist. Deployed by Cloudflare Workers Builds on every push to main (root directory `packages/api`).
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "kiwii-agent",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-09-22",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": "../web/dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"],
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "kiwii",
+      "database_id": "c44b82e1-ebca-433a-a5a0-378e594f8186",
+      "migrations_dir": "migration",
+    },
+  ],
+  "r2_buckets": [{ "binding": "BUCKET", "bucket_name": "kiwii-files" }],
+  "send_email": [{ "name": "EMAIL" }],
+  "ratelimits": [
+    { "name": "RL_IP", "namespace_id": "1", "simple": { "limit": 60, "period": 60 } },
+    { "name": "RL_AUTH", "namespace_id": "2", "simple": { "limit": 10, "period": 60 } },
+  ],
+  // 00:00 Asia/Ho_Chi_Minh
+  "triggers": { "crons": ["0 17 * * *"] },
+  "limits": { "cpu_ms": 30000 },
+  // Both hostnames attach to this Worker; the Worker redirects www to the apex.
+  "routes": [
+    { "pattern": "kiwiiagent.com", "custom_domain": true },
+    { "pattern": "www.kiwiiagent.com", "custom_domain": true },
+  ],
+  "observability": { "enabled": true },
+  "vars": {
+    "APP_URL": "https://kiwiiagent.com",
+    "EMAIL_FROM": "Kiwii <no-reply@kiwiiagent.com>",
+    "SEPAY_BANK_CODE": "MB",
+    "SEPAY_BANK_ACCOUNT": "",
+    "TURNSTILE_SITE_KEY": "",
+  },
+  // Secrets (`wrangler secret put`): OPENROUTER_API_KEY, SEPAY_API_KEY, TURNSTILE_SECRET_KEY,
+  // DOWNLOAD_SIGNING_SECRET. Locally put them in .dev.vars.
+}
