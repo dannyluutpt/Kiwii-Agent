@@ -84,7 +84,7 @@ export function ChatPromptBar(props: {
           ref={fileInput}
           type="file"
           multiple
-          accept=".txt,.md,.csv,.tsv,.json,.xml,.yaml,.yml,.html,.css,.js,.ts,.tsx,.jsx,.py,.rb,.go,.rs,.java,.c,.h,.cpp,.cs,.php,.sql,.sh,.toml,.log,text/*"
+          accept=".pdf,application/pdf,.txt,.md,.csv,.tsv,.json,.xml,.yaml,.yml,.html,.css,.js,.ts,.tsx,.jsx,.py,.rb,.go,.rs,.java,.c,.h,.cpp,.cs,.php,.sql,.sh,.toml,.log,text/*"
           class="hidden"
           onChange={(event) => void upload(event.currentTarget.files)}
         />

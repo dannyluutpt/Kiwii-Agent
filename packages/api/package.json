@@ -19,6 +19,7 @@
     "drizzle-orm": "catalog:",
     "hono": "catalog:",
     "ulid": "catalog:",
+    "unpdf": "1.9.1",
     "xlsx": "0.18.5",
     "zod": "catalog:"
   },

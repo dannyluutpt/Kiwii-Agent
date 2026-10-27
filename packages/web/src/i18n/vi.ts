@@ -49,7 +49,7 @@ export const dict = {
   "chat.thinking": "Kiwii đang nghĩ…",
   "chat.quotaDaily": "Hết lượt hôm nay. Lượt mới lúc {{time}}.",
   "chat.attach": "Đính kèm tệp văn bản",
-  "chat.attach.hint": "Tối đa 5 tệp, mỗi tệp 1 MB: txt, md, csv, json, code",
+  "chat.attach.hint": "Tối đa 5 tệp: PDF (5 MB), txt, md, csv, json, code (1 MB)",
   "chat.attach.remove": "Bỏ tệp",
   "chat.creatingFile": "Kiwii đang tạo tệp…",
   "chat.download": "Tải về",

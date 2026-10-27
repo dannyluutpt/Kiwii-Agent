@@ -51,7 +51,7 @@ export const dict: Record<I18nKey, string> = {
   "chat.thinking": "Kiwii is thinking…",
   "chat.quotaDaily": "Out of messages for today. Resets at {{time}}.",
   "chat.attach": "Attach a text file",
-  "chat.attach.hint": "Up to 5 files, 1 MB each: txt, md, csv, json, code",
+  "chat.attach.hint": "Up to 5 files: PDF (5 MB), txt, md, csv, json, code (1 MB)",
   "chat.attach.remove": "Remove file",
   "chat.creatingFile": "Kiwii is creating a file…",
   "chat.download": "Download",
