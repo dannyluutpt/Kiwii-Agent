@@ -40,7 +40,21 @@ app.route("/api/billing", billing)
 app.route("/api/account", account)
 app.route("/api/images", images)
 
-app.get("/api/health", (c) => c.json({ ok: true, time: Date.now() }))
+// Reports which optional settings are present (never their values) so a misplaced secret is
+// visible without reading Worker logs.
+app.get("/api/health", (c) =>
+  c.json({
+    ok: true,
+    time: Date.now(),
+    config: {
+      openrouter: Boolean(c.env.OPENROUTER_API_KEY),
+      sepayWebhook: Boolean(c.env.SEPAY_API_KEY),
+      sepayBank: Boolean(c.env.SEPAY_BANK_ACCOUNT),
+      turnstile: Boolean(c.env.TURNSTILE_SITE_KEY && c.env.TURNSTILE_SECRET_KEY),
+      email: Boolean(c.env.EMAIL),
+    },
+  }),
+)
 // Everything outside /api is the SPA; routing through the Worker keeps the host redirect above.
 app.notFound((c) => {
   if (c.req.path.startsWith("/api/")) return c.json({ error: { code: "NOT_FOUND", message: "Không tìm thấy" } }, 404)
