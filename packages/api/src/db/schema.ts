@@ -247,3 +247,51 @@ export const credit_ledger = sqliteTable(
     index("credit_ledger_generation").on(t.generation_id),
   ],
 )
+
+export const GenerationStatus = ["running", "done", "failed"] as const
+
+export const generations = sqliteTable(
+  "generations",
+  {
+    id: text().primaryKey(),
+    user_id: text().notNull(),
+    status: text({ enum: GenerationStatus }).notNull(),
+    // Kiwii model id (see src/images/models.ts), not the OpenRouter slug.
+    model: text().notNull(),
+    // Resolution tier for FLUX / Nano Banana, quality for GPT.
+    option: text().notNull(),
+    aspect_ratio: text().notNull(),
+    n: integer().notNull(),
+    prompt_raw: text().notNull(),
+    prompt_enhanced: text(),
+    enhance: integer().notNull().default(1),
+    // JSON array of files.id used as references.
+    reference_file_ids: text().notNull().default("[]"),
+    credits_reserved: integer().notNull(),
+    credits_final: integer(),
+    cost_usd: real(),
+    error: text(),
+    finished_at: integer(),
+    ...Timestamps,
+  },
+  (t) => [
+    index("generations_user").on(t.user_id, t.created_at),
+    index("generations_status").on(t.status, t.created_at),
+  ],
+)
+
+export const generation_images = sqliteTable(
+  "generation_images",
+  {
+    id: text().primaryKey(),
+    generation_id: text().notNull(),
+    user_id: text().notNull(),
+    file_id: text().notNull(),
+    position: integer().notNull(),
+    ...Timestamps,
+  },
+  (t) => [
+    index("generation_images_generation").on(t.generation_id),
+    index("generation_images_user").on(t.user_id, t.created_at),
+  ],
+)

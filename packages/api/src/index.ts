@@ -9,6 +9,7 @@ import { account } from "./routes/account"
 import { auth } from "./routes/auth"
 import { billing } from "./routes/billing"
 import { chat } from "./routes/chat"
+import { images } from "./routes/images"
 
 const app = createApp()
 
@@ -37,6 +38,7 @@ app.route("/api/auth", auth)
 app.route("/api/chat", chat)
 app.route("/api/billing", billing)
 app.route("/api/account", account)
+app.route("/api/images", images)
 
 app.get("/api/health", (c) => c.json({ ok: true, time: Date.now() }))
 // Everything outside /api is the SPA; routing through the Worker keeps the host redirect above.

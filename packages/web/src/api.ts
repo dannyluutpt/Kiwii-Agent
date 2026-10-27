@@ -65,3 +65,12 @@ export async function* apiStream(path: string, body: unknown, signal?: AbortSign
     }
   }
 }
+
+// multipart upload; the browser sets the boundary so no content-type header here.
+export async function apiUpload<T>(path: string, form: FormData, signal?: AbortSignal): Promise<T> {
+  const res = await fetch(`/api${path}`, { method: "POST", body: form, credentials: "same-origin", signal })
+  if (res.ok) return (await res.json()) as T
+  const body = (await res.json().catch(() => ({}))) as ErrorBody
+  const { code, message, ...extra } = body.error ?? {}
+  throw new ApiError(res.status, code ?? "UNKNOWN", message ?? `Lỗi ${res.status}`, extra)
+}
