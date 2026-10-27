@@ -164,3 +164,86 @@ export const app_config = sqliteTable("app_config", {
   value: text().notNull(),
   updated_at: integer().notNull(),
 })
+
+export const OrderKind = ["plan", "topup"] as const
+export const OrderStatus = ["pending", "paid", "expired", "pending_review"] as const
+
+export const plan_orders = sqliteTable(
+  "plan_orders",
+  {
+    id: text().primaryKey(),
+    user_id: text().notNull(),
+    kind: text({ enum: OrderKind }).notNull(),
+    // plan id for kind=plan, top-up pack id for kind=topup
+    item_id: text().notNull(),
+    amount_vnd: integer().notNull(),
+    // Short code the customer writes in the bank transfer memo; SePay echoes it back.
+    memo: text().notNull(),
+    status: text({ enum: OrderStatus }).notNull().default("pending"),
+    expires_at: integer().notNull(),
+    paid_at: integer(),
+    bank_event_id: text(),
+    ...Timestamps,
+  },
+  (t) => [uniqueIndex("plan_orders_memo").on(t.memo), index("plan_orders_user").on(t.user_id, t.status)],
+)
+
+export const bank_events = sqliteTable("bank_events", {
+  // SePay transaction id; the primary key makes webhook retries idempotent.
+  sepay_id: text().primaryKey(),
+  order_id: text(),
+  amount: integer().notNull(),
+  content: text().notNull(),
+  raw: text().notNull(),
+  received_at: integer().notNull(),
+})
+
+export const plan_events = sqliteTable(
+  "plan_events",
+  {
+    id: text().primaryKey(),
+    user_id: text().notNull(),
+    type: text({ enum: ["activated", "renewed", "upgraded", "expired", "topup"] }).notNull(),
+    order_id: text(),
+    payload: text().notNull(),
+    ...Timestamps,
+  },
+  (t) => [index("plan_events_user").on(t.user_id, t.created_at)],
+)
+
+export const GrantSource = ["plan", "topup", "bonus"] as const
+
+export const credit_grants = sqliteTable(
+  "credit_grants",
+  {
+    id: text().primaryKey(),
+    user_id: text().notNull(),
+    source: text({ enum: GrantSource }).notNull(),
+    amount: integer().notNull(),
+    remaining: integer().notNull(),
+    expires_at: integer().notNull(),
+    ...Timestamps,
+  },
+  (t) => [index("credit_grants_user").on(t.user_id, t.expires_at)],
+)
+
+export const LedgerType = ["grant", "reserve", "settle", "refund", "expire"] as const
+
+export const credit_ledger = sqliteTable(
+  "credit_ledger",
+  {
+    id: text().primaryKey(),
+    user_id: text().notNull(),
+    grant_id: text(),
+    generation_id: text(),
+    type: text({ enum: LedgerType }).notNull(),
+    delta: integer().notNull(),
+    balance_after: integer().notNull(),
+    reason: text().notNull(),
+    ...Timestamps,
+  },
+  (t) => [
+    index("credit_ledger_user").on(t.user_id, t.created_at),
+    index("credit_ledger_generation").on(t.generation_id),
+  ],
+)

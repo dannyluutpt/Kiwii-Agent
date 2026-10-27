@@ -1,12 +1,13 @@
-import { lt } from "drizzle-orm"
 import { HTTPException } from "hono/http-exception"
 import { z } from "zod"
 import { ApiError, createApp } from "./app"
+import { runDaily } from "./cron"
 import { createDatabase } from "./db/client"
-import { password_resets, pending_signups, sessions } from "./db/schema"
 import type { Env } from "./env"
 import { rateLimitBy } from "./middleware/ratelimit"
+import { account } from "./routes/account"
 import { auth } from "./routes/auth"
+import { billing } from "./routes/billing"
 import { chat } from "./routes/chat"
 
 const app = createApp()
@@ -34,9 +35,15 @@ app.use(
 
 app.route("/api/auth", auth)
 app.route("/api/chat", chat)
+app.route("/api/billing", billing)
+app.route("/api/account", account)
 
 app.get("/api/health", (c) => c.json({ ok: true, time: Date.now() }))
-app.notFound((c) => c.json({ error: { code: "NOT_FOUND", message: "Không tìm thấy" } }, 404))
+// Everything outside /api is the SPA; routing through the Worker keeps the host redirect above.
+app.notFound((c) => {
+  if (c.req.path.startsWith("/api/")) return c.json({ error: { code: "NOT_FOUND", message: "Không tìm thấy" } }, 404)
+  return c.env.ASSETS.fetch(c.req.raw)
+})
 
 app.onError((error, c) => {
   if (error instanceof ApiError) {
@@ -53,12 +60,6 @@ app.onError((error, c) => {
 export default {
   fetch: app.fetch,
   async scheduled(_controller: ScheduledController, env: Env) {
-    const db = createDatabase(env.DB)
-    const now = Date.now()
-    await db.batch([
-      db.delete(pending_signups).where(lt(pending_signups.expires_at, now)),
-      db.delete(password_resets).where(lt(password_resets.expires_at, now)),
-      db.delete(sessions).where(lt(sessions.expires_at, now)),
-    ])
+    await runDaily(env)
   },
 } satisfies ExportedHandler<Env>
