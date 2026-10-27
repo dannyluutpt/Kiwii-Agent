@@ -11,6 +11,17 @@ import { chat } from "./routes/chat"
 
 const app = createApp()
 
+// One canonical host: www and the workers.dev hostname redirect to APP_URL.
+app.use("*", async (c, next) => {
+  const canonical = new URL(c.env.APP_URL)
+  const url = new URL(c.req.url)
+  if (canonical.hostname === "localhost" || url.hostname === canonical.hostname) return next()
+  if (url.hostname !== `www.${canonical.hostname}` && !url.hostname.endsWith(".workers.dev")) return next()
+  url.host = canonical.host
+  url.protocol = canonical.protocol
+  return c.redirect(url.toString(), 301)
+})
+
 app.use("/api/*", async (c, next) => {
   c.set("db", createDatabase(c.env.DB))
   c.header("cache-control", "no-store")

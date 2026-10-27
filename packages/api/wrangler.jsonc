@@ -29,10 +29,15 @@
   // 00:00 Asia/Ho_Chi_Minh
   "triggers": { "crons": ["0 17 * * *"] },
   "limits": { "cpu_ms": 30000 },
+  // Both hostnames attach to this Worker; the Worker redirects www to the apex.
+  "routes": [
+    { "pattern": "kiwiiagent.com", "custom_domain": true },
+    { "pattern": "www.kiwiiagent.com", "custom_domain": true },
+  ],
   "observability": { "enabled": true },
   "vars": {
-    "APP_URL": "http://localhost:5173",
-    "EMAIL_FROM": "Kiwii <no-reply@kiwii.luuhoanghiep.com>",
+    "APP_URL": "https://kiwiiagent.com",
+    "EMAIL_FROM": "Kiwii <no-reply@kiwiiagent.com>",
     "SEPAY_BANK_CODE": "MB",
     "SEPAY_BANK_ACCOUNT": "",
     "TURNSTILE_SITE_KEY": "",
