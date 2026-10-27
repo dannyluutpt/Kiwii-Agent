@@ -53,9 +53,10 @@ OPENROUTER_API_KEY=sk-or-... bun script/calibrate-image-cost.ts --only gpt-image
 
 The API merges that config on every request, so no deploy is needed after `--apply`.
 
-Until the script has run, production carries a provisional `image_models` row (XHigh 22, Max 45
-credits: double and quadruple the measured High cost plus a safety margin). `--apply` replaces it
-with measured prices.
+Measured on 2026-10-27 through production (1:1 is the most expensive ratio): low 0.008, medium
+0.018, high 0.057, xhigh 0.098, max 0.215 USD per image. The sold ladder keeps the agreed
+High = 10 and sets XHigh = 15, Max = 28 in `app_config.image_models`; the formula alone would
+give 1 / 1 / 3 / 5 / 10, so every GPT tier carries a wide margin.
 
 ## Chat tools and attachments
 
