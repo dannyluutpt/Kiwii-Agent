@@ -6,13 +6,16 @@ import { Spinner } from "@kiwii/ui/spinner"
 import { showToast } from "@kiwii/ui/toast"
 import { Tooltip } from "@kiwii/ui/tooltip"
 import { api, ApiError, apiStream } from "@/api"
-import { ChatPromptBar } from "@/components/chat-prompt-bar"
+import { ChatPromptBar, type Attachment } from "@/components/chat-prompt-bar"
 import { Markdown } from "@/components/markdown"
 import { useAuth } from "@/context/auth"
 import { useLanguage } from "@/context/language"
 
 type Conversation = { id: string; title: string; lastMessageAt: number }
-type Part = { type: "text"; text: string } | { type: "file"; name: string } | { type: "tool"; name: string }
+type Part =
+  | { type: "text"; text: string }
+  | { type: "file"; file_id: string; name: string; mime: string; size: number }
+  | { type: "tool"; name: string }
 type Message = { id: string; role: "user" | "assistant"; parts: Part[]; createdAt: number }
 
 const NEW_TITLE = "Hội thoại mới"
@@ -29,6 +32,7 @@ export default function Chat() {
   const [thread, setThread] = createStore<{ id?: string; messages: Message[] }>({ messages: [] })
   const [loading, setLoading] = createSignal(false)
   const [streaming, setStreaming] = createSignal<string>()
+  const [creating, setCreating] = createSignal(false)
   let controller: AbortController | undefined
 
   createEffect(
@@ -52,6 +56,7 @@ export default function Chat() {
   const run = async (id: string, path: string, body: unknown) => {
     controller = new AbortController()
     setStreaming("")
+    setCreating(false)
     let text = ""
     try {
       for await (const event of apiStream(path, body, controller.signal)) {
@@ -60,19 +65,30 @@ export default function Chat() {
           setStreaming(text)
           continue
         }
+        if (event.event === "tool-call") {
+          setCreating(true)
+          continue
+        }
+        if (event.event === "tool-result") {
+          setCreating(false)
+          const data = event.data as { error: string | null }
+          if (data.error) showToast({ title: data.error, variant: "error" })
+          if (text) text += "\n\n"
+          continue
+        }
         if (event.event === "error") {
           showToast({ title: (event.data as { message: string }).message, variant: "error" })
           continue
         }
         if (event.event === "finish") {
-          const data = event.data as { messageID: string }
+          const data = event.data as { messageID: string; parts?: Part[] }
           if (thread.id === id) {
             setThread(
               produce((s) => {
                 s.messages.push({
                   id: data.messageID,
                   role: "assistant",
-                  parts: [{ type: "text", text }],
+                  parts: data.parts ?? [{ type: "text", text }],
                   createdAt: Date.now(),
                 })
               }),
@@ -86,20 +102,23 @@ export default function Chat() {
       showToast({ title: error instanceof ApiError ? error.message : t("error.network"), variant: "error" })
     } finally {
       setStreaming(undefined)
+      setCreating(false)
     }
   }
 
-  const send = async (text: string) => {
+  const send = async (text: string, attachments: Attachment[]) => {
     let id = thread.id
     if (!id) {
-      const created = await api<Conversation>("/chat/conversations", { body: { title: text.slice(0, 60) } })
+      const created = await api<Conversation>("/chat/conversations", {
+        body: { title: (text || attachments[0]?.name || "").slice(0, 60) },
+      })
       mutateConversations((list) => [created, ...(list ?? [])])
       id = created.id
       setThread({ id, messages: [] })
       navigate(`/chat/${id}`)
     }
     const current = id
-    if (thread.messages.length === 0) {
+    if (thread.messages.length === 0 && text) {
       const title = text.slice(0, 60)
       mutateConversations((list) => list?.map((c) => (c.id === current && c.title === NEW_TITLE ? { ...c, title } : c)))
       void api(`/chat/conversations/${current}`, { method: "PATCH", body: { title } }).catch(() => {})
@@ -109,12 +128,21 @@ export default function Chat() {
         s.messages.push({
           id: `local-${Date.now()}`,
           role: "user",
-          parts: [{ type: "text", text }],
+          parts: [
+            ...(text ? [{ type: "text" as const, text }] : []),
+            ...attachments.map((a) => ({
+              type: "file" as const,
+              file_id: a.id,
+              name: a.name,
+              mime: a.mime,
+              size: a.size,
+            })),
+          ],
           createdAt: Date.now(),
         })
       }),
     )
-    await run(current, `/chat/conversations/${current}/messages`, { text })
+    await run(current, `/chat/conversations/${current}/messages`, { text, fileIDs: attachments.map((a) => a.id) })
     void refetchConversations()
   }
 
@@ -232,6 +260,11 @@ export default function Chat() {
                   >
                     <Markdown text={streaming()!} />
                   </Show>
+                  <Show when={creating()}>
+                    <span class="flex items-center gap-2 text-13-regular text-text-weak">
+                      <Spinner class="size-3" /> {t("chat.creatingFile")}
+                    </span>
+                  </Show>
                 </div>
               </Show>
             </div>
@@ -246,7 +279,7 @@ export default function Chat() {
           <ChatPromptBar
             busy={busy()}
             disabled={quotaExhausted()}
-            onSend={(text) => void send(text)}
+            onSend={(text, attachments) => void send(text, attachments)}
             onStop={() => controller?.abort()}
           />
           <p class="mt-2 text-center text-12-regular text-text-weaker">{t("chat.disclaimer")}</p>
@@ -260,21 +293,38 @@ function MessageView(props: { message: Message; last: boolean; onRegenerate: () 
   const { t } = useLanguage()
   const text = () =>
     props.message.parts
-      .map((part) => (part.type === "text" ? part.text : part.type === "file" ? `[${part.name}]` : ""))
+      .map((part) => (part.type === "text" ? part.text : ""))
+      .filter(Boolean)
       .join("\n\n")
+  const files = () =>
+    props.message.parts.filter((part): part is Extract<Part, { type: "file" }> => part.type === "file")
   return (
     <Show
       when={props.message.role === "assistant"}
       fallback={
-        <div class="flex justify-end">
-          <div class="max-w-[85%] whitespace-pre-wrap rounded-2xl rounded-br-md bg-surface-raised-strong px-4 py-2.5 text-14-regular text-text-strong">
-            {text()}
-          </div>
+        <div class="flex flex-col items-end gap-1.5">
+          <Show when={files().length > 0}>
+            <div class="flex max-w-[85%] flex-wrap justify-end gap-1.5">
+              <For each={files()}>{(file) => <FileCard file={file} />}</For>
+            </div>
+          </Show>
+          <Show when={text()}>
+            <div class="max-w-[85%] whitespace-pre-wrap rounded-2xl rounded-br-md bg-surface-raised-strong px-4 py-2.5 text-14-regular text-text-strong">
+              {text()}
+            </div>
+          </Show>
         </div>
       }
     >
       <div class="group/message flex flex-col gap-1.5">
-        <Markdown text={text()} />
+        <Show when={text()}>
+          <Markdown text={text()} />
+        </Show>
+        <Show when={files().length > 0}>
+          <div class="flex flex-wrap gap-1.5">
+            <For each={files()}>{(file) => <FileCard file={file} />}</For>
+          </div>
+        </Show>
         <Show when={props.last}>
           <div class="flex items-center gap-1">
             <Tooltip value={t("chat.regenerate")}>
@@ -290,5 +340,31 @@ function MessageView(props: { message: Message; last: boolean; onRegenerate: () 
         </Show>
       </div>
     </Show>
+  )
+}
+
+function FileCard(props: { file: Extract<Part, { type: "file" }> }) {
+  const { t } = useLanguage()
+  const size = () =>
+    props.file.size > 1024 * 1024
+      ? `${(props.file.size / 1024 / 1024).toFixed(1)} MB`
+      : `${Math.max(1, Math.round(props.file.size / 1024))} KB`
+  return (
+    <a
+      href={`/api/chat/files/${props.file.file_id}`}
+      download={props.file.name}
+      class="flex items-center gap-2.5 rounded-xl border border-border-weak-base bg-surface-raised-base px-3 py-2 hover:border-border-base hover:bg-surface-raised-base-hover"
+      title={t("chat.download")}
+    >
+      <span class="flex size-8 shrink-0 items-center justify-center rounded-md bg-surface-brand-base text-11-medium uppercase text-text-on-brand-base">
+        {props.file.name.includes(".") ? props.file.name.split(".").pop()!.slice(0, 4) : "file"}
+      </span>
+      <span class="flex min-w-0 flex-col">
+        <span class="max-w-56 truncate text-13-medium text-text-strong">{props.file.name}</span>
+        <span class="text-11-regular text-text-weak">
+          {size()} · {t("chat.download")}
+        </span>
+      </span>
+    </a>
   )
 }

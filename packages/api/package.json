@@ -15,9 +15,11 @@
     "test": "bun test --only-failures"
   },
   "dependencies": {
+    "docx": "9.14.0",
     "drizzle-orm": "catalog:",
     "hono": "catalog:",
     "ulid": "catalog:",
+    "xlsx": "0.18.5",
     "zod": "catalog:"
   },
   "devDependencies": {
