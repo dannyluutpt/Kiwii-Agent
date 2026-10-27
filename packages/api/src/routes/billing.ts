@@ -48,8 +48,14 @@ billing.get("/plans", async (c) => {
 billing.post("/webhook/sepay", async (c) => {
   const expected = c.env.SEPAY_API_KEY
   if (!expected) throw new ApiError(500, "SEPAY_NOT_CONFIGURED", "Thiếu SEPAY_API_KEY")
-  const header = c.req.header("authorization") ?? ""
-  if (!timingSafeEqual(header, `Apikey ${expected}`)) throw new ApiError(401, "BAD_WEBHOOK_KEY", "Sai khoá webhook")
+  // SePay sends `Authorization: Apikey <key>`; the scheme is matched case-insensitively and both
+  // sides are trimmed so a stray space or newline pasted into the dashboard does not reject it.
+  const header = (c.req.header("authorization") ?? "").trim()
+  const [scheme = "", ...rest] = header.split(/\s+/)
+  const presented = rest.join(" ")
+  if (!/^(apikey|bearer)$/i.test(scheme) || !timingSafeEqual(presented, expected.trim())) {
+    throw new ApiError(401, "BAD_WEBHOOK_KEY", "Sai khoá webhook")
+  }
   const raw = await c.req.text()
   const parsed = SepayWebhook.safeParse(JSON.parse(raw))
   if (!parsed.success) throw new ApiError(400, "BAD_WEBHOOK_BODY", "Payload không hợp lệ")
