@@ -18,7 +18,9 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version-file: package.json
-      - run: bun install --frozen-lockfile
+      # tree-sitter-powershell occasionally falls back to node-gyp (absent on the runner) when its
+      # prebuilt download fails; a second attempt gets the prebuilt binary.
+      - run: bun install --frozen-lockfile || bun install --frozen-lockfile
       - run: bun typecheck
 
   # oxlint exits nonzero on errors only, so this enforces a clean error count while the existing
@@ -30,7 +32,9 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version-file: package.json
-      - run: bun install --frozen-lockfile
+      # tree-sitter-powershell occasionally falls back to node-gyp (absent on the runner) when its
+      # prebuilt download fails; a second attempt gets the prebuilt binary.
+      - run: bun install --frozen-lockfile || bun install --frozen-lockfile
       - run: bun lint
 
   test:
@@ -41,7 +45,9 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version-file: package.json
-      - run: bun install --frozen-lockfile
+      # tree-sitter-powershell occasionally falls back to node-gyp (absent on the runner) when its
+      # prebuilt download fails; a second attempt gets the prebuilt binary.
+      - run: bun install --frozen-lockfile || bun install --frozen-lockfile
       - name: core
         run: bun test --only-failures
         working-directory: packages/core
@@ -97,7 +103,9 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version-file: package.json
-      - run: bun install --frozen-lockfile
+      # tree-sitter-powershell occasionally falls back to node-gyp (absent on the runner) when its
+      # prebuilt download fails; a second attempt gets the prebuilt binary.
+      - run: bun install --frozen-lockfile || bun install --frozen-lockfile
       - name: core
         run: bun test --timeout 30000 --only-failures
         working-directory: packages/core
