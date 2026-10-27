@@ -35,14 +35,15 @@
     { "pattern": "www.kiwiiagent.com", "custom_domain": true },
   ],
   "observability": { "enabled": true },
+  // Plain-text variables set in the dashboard survive deploys; without this, every deploy
+  // replaces them with the `vars` below. Only values that belong in git live here.
+  "keep_vars": true,
   "vars": {
     "APP_URL": "https://kiwiiagent.com",
     "EMAIL_FROM": "Kiwii <no-reply@kiwiiagent.com>",
-    "SEPAY_BANK_CODE": "MB",
-    "SEPAY_BANK_ACCOUNT": "",
-    "SEPAY_ACCOUNT_NAME": "",
-    "TURNSTILE_SITE_KEY": "",
   },
-  // Secrets (`wrangler secret put`): OPENROUTER_API_KEY, SEPAY_API_KEY, TURNSTILE_SECRET_KEY,
-  // DOWNLOAD_SIGNING_SECRET. Locally put them in .dev.vars.
+  // Set in the dashboard (Settings → Variables and Secrets), never in this file:
+  //   variables: SEPAY_BANK_CODE (default MB), SEPAY_BANK_ACCOUNT, SEPAY_ACCOUNT_NAME, TURNSTILE_SITE_KEY
+  //   secrets:   OPENROUTER_API_KEY, SEPAY_API_KEY, TURNSTILE_SECRET_KEY, DOWNLOAD_SIGNING_SECRET
+  // Locally they go in .dev.vars.
 }

@@ -193,7 +193,7 @@ billing.get("/orders", async (c) => {
 
 function presentOrder(
   order: typeof plan_orders.$inferSelect,
-  env: { SEPAY_BANK_CODE: string; SEPAY_BANK_ACCOUNT: string; SEPAY_ACCOUNT_NAME?: string },
+  env: { SEPAY_BANK_CODE?: string; SEPAY_BANK_ACCOUNT?: string; SEPAY_ACCOUNT_NAME?: string },
 ) {
   return {
     id: order.id,
@@ -205,10 +205,10 @@ function presentOrder(
     expiresAt: order.expires_at,
     paidAt: order.paid_at,
     createdAt: order.created_at,
-    bank: { code: env.SEPAY_BANK_CODE, account: env.SEPAY_BANK_ACCOUNT, name: env.SEPAY_ACCOUNT_NAME ?? null },
+    bank: { code: env.SEPAY_BANK_CODE ?? "MB", account: env.SEPAY_BANK_ACCOUNT ?? "", name: env.SEPAY_ACCOUNT_NAME ?? null },
     qrUrl: vietQRUrl({
-      bank: env.SEPAY_BANK_CODE,
-      account: env.SEPAY_BANK_ACCOUNT,
+      bank: env.SEPAY_BANK_CODE ?? "MB",
+      account: env.SEPAY_BANK_ACCOUNT ?? "",
       amount: order.amount_vnd,
       memo: order.memo,
       name: env.SEPAY_ACCOUNT_NAME,
