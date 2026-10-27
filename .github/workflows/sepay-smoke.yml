@@ -1,0 +1,33 @@
+name: SePay webhook smoke
+
+# Posts a SePay-shaped webhook with a memo that matches no order, so the only
+# thing it proves is that the SEPAY_API_KEY stored in GitHub matches the one the
+# Worker holds. A matching key answers {"ok":true,"ignored":"no matching order"}.
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: Worker origin
+        default: https://kiwiiagent.com
+        required: true
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Post test webhook
+        env:
+          SEPAY_API_KEY: ${{ secrets.SEPAY_API_KEY }}
+          BASE_URL: ${{ inputs.base_url }}
+        run: |
+          set -euo pipefail
+          if [ -z "$SEPAY_API_KEY" ]; then
+            echo "::error::SEPAY_API_KEY secret is not set in this repository"
+            exit 1
+          fi
+          id="smoke-$(date +%s)"
+          body=$(printf '{"id":"%s","gateway":"ACB","transactionDate":"%s","accountNumber":"","code":null,"content":"KIWII SMOKE no order","transferType":"in","transferAmount":1,"accumulated":0,"subAccount":null,"referenceCode":"%s","description":""}' "$id" "$(date '+%Y-%m-%d %H:%M:%S')" "$id")
+          code=$(curl -sS -o response.json -w '%{http_code}' -X POST "$BASE_URL/api/billing/webhook/sepay" \
+            -H "authorization: Apikey $SEPAY_API_KEY" -H 'content-type: application/json' -d "$body")
+          echo "HTTP $code"; cat response.json; echo
+          [ "$code" = "200" ] && grep -q '"no matching order"' response.json
