@@ -6,6 +6,7 @@ import { z } from "zod"
 import { ApiError, createApp, type AppEnv } from "../app"
 import { loadPlan } from "../chat/quota"
 import { balance, reserve } from "../credits/ledger"
+import { TRIAL_MODELS } from "../credits/trial"
 import { files, generation_images, generations } from "../db/schema"
 import { enhancePrompt } from "../images/enhance"
 import { reapStaleGenerations, runGeneration, type GenerationEvent } from "../images/generate"
@@ -45,14 +46,19 @@ images.get("/models", async (c) => {
   const db = c.get("db")
   const user = c.get("user")
   const plan = await loadPlan(db, user)
-  const models = await loadImageModels(db)
+  const credits = await balance(db, user.id)
+  const access = imageAccess(plan.parallel_limit, credits)
+  const models = (await loadImageModels(db)).filter(
+    (model) => access.models === null || access.models.includes(model.id),
+  )
   return c.json({
-    canGenerate: plan.parallel_limit > 0,
-    parallelLimit: plan.parallel_limit,
+    canGenerate: access.parallelLimit > 0,
+    trial: access.trial,
+    parallelLimit: access.parallelLimit,
     maxImages: MAX_IMAGES_PER_RUN,
     maxReferences: MAX_REFERENCES,
     referenceSurcharge: REFERENCE_SURCHARGE,
-    credits: await balance(db, user.id),
+    credits,
     models: models.map((model) => ({
       id: model.id,
       name: model.name,
@@ -117,8 +123,12 @@ images.post("/generations", async (c) => {
   if (!apiKey) throw new ApiError(500, "LLM_NOT_CONFIGURED", "Thiếu OPENROUTER_API_KEY")
 
   const plan = await loadPlan(db, user)
-  if (plan.parallel_limit === 0) {
+  const access = imageAccess(plan.parallel_limit, await balance(db, user.id))
+  if (access.parallelLimit === 0) {
     throw new ApiError(403, "IMAGE_REQUIRES_PAID", "Tạo ảnh dành cho gói trả phí. Hãy nâng cấp gói.")
+  }
+  if (access.models && !access.models.includes(body.model)) {
+    throw new ApiError(403, "IMAGE_REQUIRES_PAID", "Credit dùng thử chỉ dùng được với FLUX 3 Klein. Hãy nâng cấp gói.")
   }
   const models = await loadImageModels(db)
   const model = models.find((m) => m.id === body.model)!
@@ -142,9 +152,9 @@ images.post("/generations", async (c) => {
     .from(generations)
     .where(and(eq(generations.user_id, user.id), eq(generations.status, "running")))
     .get()
-  if ((running?.count ?? 0) >= plan.parallel_limit) {
-    throw new ApiError(429, "PARALLEL_LIMIT", `Gói của bạn chạy tối đa ${plan.parallel_limit} lượt tạo ảnh cùng lúc`, {
-      limit: plan.parallel_limit,
+  if ((running?.count ?? 0) >= access.parallelLimit) {
+    throw new ApiError(429, "PARALLEL_LIMIT", `Gói của bạn chạy tối đa ${access.parallelLimit} lượt tạo ảnh cùng lúc`, {
+      limit: access.parallelLimit,
     })
   }
 
@@ -318,6 +328,14 @@ images.get("/assets", async (c) => {
 })
 
 type Ctx = Context<AppEnv>
+
+// Paid plans use their plan limit and every model. A free account with leftover trial (or
+// top-up) credits may run one generation at a time on the trial models only.
+export function imageAccess(parallelLimit: number, credits: number) {
+  if (parallelLimit > 0) return { parallelLimit, models: null as readonly string[] | null, trial: false }
+  if (credits > 0) return { parallelLimit: 1, models: TRIAL_MODELS as readonly string[], trial: true }
+  return { parallelLimit: 0, models: TRIAL_MODELS as readonly string[], trial: false }
+}
 
 const db = (c: Ctx) => c.get("db")
 

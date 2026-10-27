@@ -207,6 +207,16 @@ export default function Images() {
     <div class="flex h-full min-h-0 flex-col">
       <div class="flex-1 overflow-y-auto">
         <div class="mx-auto flex w-full max-w-5xl flex-col gap-4 px-4 py-6">
+          <Show when={config()?.trial}>
+            <div class="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-border-weak-base bg-surface-raised-base px-4 py-3">
+              <p class="text-13-regular text-text-base">{t("images.trial", { n: config()?.credits ?? 0 })}</p>
+              <A href="/pricing">
+                <Button variant="secondary" size="small">
+                  {t("images.locked.cta")}
+                </Button>
+              </A>
+            </div>
+          </Show>
           <Show when={locked()}>
             <div class="flex flex-col items-start gap-2 rounded-2xl border border-border-weak-base bg-surface-raised-base p-5">
               <h2 class="text-16-medium text-text-strong">{t("images.locked.title")}</h2>

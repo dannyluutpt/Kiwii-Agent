@@ -12,6 +12,7 @@ export type ImageModel = {
 }
 export type ModelsResponse = {
   canGenerate: boolean
+  trial: boolean
   parallelLimit: number
   maxImages: number
   maxReferences: number
