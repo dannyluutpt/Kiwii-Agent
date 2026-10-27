@@ -24,8 +24,13 @@ Cloudflare Workers Builds deploys the `kiwii-agent` Worker on every push to `mai
 - Build command: `bun run --cwd ../web build && bunx wrangler d1 migrations apply kiwii --remote`
 - Deploy command: `bunx wrangler deploy`
 
-Secrets (`OPENROUTER_API_KEY`, `DOWNLOAD_SIGNING_SECRET`, …) live in the Worker's
-Settings → Variables and Secrets. For a manual deploy, `bun run deploy` from this directory.
+Runtime configuration lives in the Worker's Settings → Variables and Secrets, never in
+`wrangler.jsonc` (`keep_vars` keeps dashboard values across deploys):
+
+- secrets: `OPENROUTER_API_KEY`, `SEPAY_API_KEY`, `DOWNLOAD_SIGNING_SECRET`, `TURNSTILE_SECRET_KEY`
+- variables: `SEPAY_BANK_CODE`, `SEPAY_BANK_ACCOUNT`, `SEPAY_ACCOUNT_NAME`, `TURNSTILE_SITE_KEY`
+
+For a manual deploy, `bun run deploy` from this directory.
 
 ## Schema changes
 
@@ -44,3 +49,11 @@ OPENROUTER_API_KEY=sk-or-... bun script/calibrate-image-cost.ts --only gpt-image
 ```
 
 The API merges that config on every request, so no deploy is needed after `--apply`.
+
+## Chat tools and attachments
+
+Paid plans chat with MiMo and get three function-calling tools (`src/chat/tools/`):
+`create_docx`, `create_xlsx` and `create_code_file`. Results are stored in R2 under `u/<user>/`
+and returned as `file` message parts; `GET /api/chat/files/:id` serves them owner-checked.
+Users can attach up to five text-like files (1 MB each) through `POST /api/chat/files`; their
+content is inlined into the model context. Free models never receive tools.
