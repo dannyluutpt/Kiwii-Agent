@@ -7,10 +7,10 @@ export type Env = {
   RL_AUTH: RateLimit
   APP_URL: string
   EMAIL_FROM: string
-  SEPAY_BANK_CODE: string
-  SEPAY_BANK_ACCOUNT: string
+  SEPAY_BANK_CODE?: string
+  SEPAY_BANK_ACCOUNT?: string
   SEPAY_ACCOUNT_NAME?: string
-  TURNSTILE_SITE_KEY: string
+  TURNSTILE_SITE_KEY?: string
   OPENROUTER_API_KEY?: string
   OPENROUTER_BASE_URL?: string
   SEPAY_API_KEY?: string
