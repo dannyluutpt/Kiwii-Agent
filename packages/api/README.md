@@ -53,6 +53,10 @@ OPENROUTER_API_KEY=sk-or-... bun script/calibrate-image-cost.ts --only gpt-image
 
 The API merges that config on every request, so no deploy is needed after `--apply`.
 
+Until the script has run, production carries a provisional `image_models` row (XHigh 22, Max 45
+credits: double and quadruple the measured High cost plus a safety margin). `--apply` replaces it
+with measured prices.
+
 ## Chat tools and attachments
 
 Paid plans chat with MiMo and get three function-calling tools (`src/chat/tools/`):
