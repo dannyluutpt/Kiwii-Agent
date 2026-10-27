@@ -42,8 +42,9 @@ function body(request: ImageRequest, stream: boolean) {
     resolution: request.resolution,
     quality: request.quality,
     input_references: request.references.length ? request.references : undefined,
-    output_format: "jpeg",
-    output_compression: 92,
+    // No output_format / output_compression: OpenRouter rejects parameters an endpoint does not
+    // list (FLUX 3 answers 400), so the provider's default encoding is used and media_type is
+    // trusted on the way back.
     stream,
   })
 }
