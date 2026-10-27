@@ -16,8 +16,7 @@
     {
       "binding": "DB",
       "database_name": "kiwii",
-      // Create with `wrangler d1 create kiwii` and paste the id here.
-      "database_id": "00000000-0000-0000-0000-000000000000",
+      "database_id": "c44b82e1-ebca-433a-a5a0-378e594f8186",
       "migrations_dir": "migration",
     },
   ],
