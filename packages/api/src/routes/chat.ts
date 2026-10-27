@@ -173,9 +173,14 @@ async function respond(c: Ctx, conversation: typeof conversations.$inferSelect, 
       }
       if (event.type === "provider-error") {
         failed = true
+        console.error(`[chat] provider error ${event.status}: ${event.message}`)
         await stream.writeSSE({
           event: "error",
-          data: JSON.stringify({ message: friendlyProviderError(event.status, plan.id) }),
+          data: JSON.stringify({
+            message: friendlyProviderError(event.status, event.message, plan.id),
+            status: event.status,
+            detail: event.message.slice(0, 200),
+          }),
         })
         continue
       }
@@ -215,7 +220,8 @@ async function respond(c: Ctx, conversation: typeof conversations.$inferSelect, 
   })
 }
 
-function friendlyProviderError(status: number, tier: string) {
+function friendlyProviderError(status: number, message: string, tier: string) {
+  if (/data policy|privacy/i.test(message)) return "Dịch vụ AI chưa bật quyền dùng model này, vui lòng báo quản trị viên"
   if (status === 429 && tier === "free") return "Hệ thống miễn phí đang quá tải, thử lại sau vài phút hoặc nâng gói"
   if (status === 429) return "Model đang bận, thử lại sau ít giây"
   if (status === 401 || status === 402) return "Dịch vụ AI đang gián đoạn, vui lòng báo quản trị viên"
