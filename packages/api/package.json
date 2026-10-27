@@ -1,0 +1,30 @@
+{
+  "name": "@kiwii/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Kiwii web app backend: Cloudflare Worker serving the API and the built frontend.",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "bun run --cwd ../web build && wrangler deploy",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "wrangler d1 migrations apply kiwii --remote",
+    "db:migrate:local": "wrangler d1 migrations apply kiwii --local",
+    "typecheck": "tsgo --noEmit",
+    "test": "bun test --only-failures"
+  },
+  "dependencies": {
+    "drizzle-orm": "catalog:",
+    "hono": "catalog:",
+    "ulid": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "catalog:",
+    "@types/bun": "catalog:",
+    "@typescript/native-preview": "catalog:",
+    "drizzle-kit": "catalog:",
+    "typescript": "catalog:",
+    "wrangler": "4.152.0"
+  }
+}

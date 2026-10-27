@@ -1,0 +1,166 @@
+import { index, integer, primaryKey, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core"
+
+export const Tier = ["free", "starter", "plus", "ultra"] as const
+export type Tier = (typeof Tier)[number]
+
+export const Timestamps = {
+  created_at: integer()
+    .notNull()
+    .$default(() => Date.now()),
+}
+
+export const users = sqliteTable(
+  "users",
+  {
+    id: text().primaryKey(),
+    email: text().notNull(),
+    password_hash: text().notNull(),
+    password_salt: text().notNull(),
+    password_iterations: integer().notNull(),
+    tier: text({ enum: Tier }).notNull().default("free"),
+    tier_until: integer(),
+    locale: text().notNull().default("vi"),
+    ...Timestamps,
+  },
+  (t) => [uniqueIndex("users_email").on(t.email)],
+)
+
+export const pending_signups = sqliteTable("pending_signups", {
+  email: text().primaryKey(),
+  password_hash: text().notNull(),
+  password_salt: text().notNull(),
+  password_iterations: integer().notNull(),
+  otp_hash: text().notNull(),
+  attempts: integer().notNull().default(0),
+  expires_at: integer().notNull(),
+  last_sent_at: integer().notNull(),
+})
+
+export const password_resets = sqliteTable("password_resets", {
+  email: text().primaryKey(),
+  otp_hash: text().notNull(),
+  attempts: integer().notNull().default(0),
+  expires_at: integer().notNull(),
+  last_sent_at: integer().notNull(),
+})
+
+export const sessions = sqliteTable(
+  "sessions",
+  {
+    token_hash: text().primaryKey(),
+    user_id: text().notNull(),
+    expires_at: integer().notNull(),
+    ip: text(),
+    user_agent: text(),
+    ...Timestamps,
+  },
+  (t) => [index("sessions_user").on(t.user_id)],
+)
+
+export const conversations = sqliteTable(
+  "conversations",
+  {
+    id: text().primaryKey(),
+    user_id: text().notNull(),
+    title: text().notNull(),
+    model: text().notNull(),
+    archived: integer().notNull().default(0),
+    last_message_at: integer().notNull(),
+    ...Timestamps,
+  },
+  (t) => [index("conversations_user").on(t.user_id, t.last_message_at)],
+)
+
+export const MessageRole = ["user", "assistant"] as const
+
+export const messages = sqliteTable(
+  "messages",
+  {
+    id: text().primaryKey(),
+    conversation_id: text().notNull(),
+    role: text({ enum: MessageRole }).notNull(),
+    // JSON array of parts: {type:"text",text} | {type:"file",file_id,name,mime,size} | {type:"tool",name,input,output}
+    parts: text().notNull(),
+    model: text(),
+    input_tokens: integer().notNull().default(0),
+    output_tokens: integer().notNull().default(0),
+    cost_usd: real().notNull().default(0),
+    ...Timestamps,
+  },
+  (t) => [index("messages_conversation").on(t.conversation_id, t.created_at)],
+)
+
+export const FileKind = ["attachment", "generated", "reference", "image"] as const
+
+export const files = sqliteTable(
+  "files",
+  {
+    id: text().primaryKey(),
+    user_id: text().notNull(),
+    r2_key: text().notNull(),
+    name: text().notNull(),
+    mime: text().notNull(),
+    size: integer().notNull(),
+    kind: text({ enum: FileKind }).notNull(),
+    message_id: text(),
+    generation_id: text(),
+    ...Timestamps,
+  },
+  (t) => [index("files_user").on(t.user_id, t.created_at)],
+)
+
+export const chat_usage = sqliteTable(
+  "chat_usage",
+  {
+    user_id: text().notNull(),
+    // YYYY-MM-DD in Asia/Ho_Chi_Minh
+    day: text().notNull(),
+    messages: integer().notNull().default(0),
+    input_tokens: integer().notNull().default(0),
+    output_tokens: integer().notNull().default(0),
+    cost_usd: real().notNull().default(0),
+  },
+  (t) => [primaryKey({ columns: [t.user_id, t.day] })],
+)
+
+export const plans = sqliteTable("plans", {
+  id: text({ enum: Tier }).primaryKey(),
+  name_vi: text().notNull(),
+  name_en: text().notNull(),
+  price_vnd: integer().notNull(),
+  price_usd: real().notNull(),
+  credits: integer().notNull(),
+  chat_daily_messages: integer(),
+  chat_monthly_messages: integer(),
+  chat_monthly_tokens: integer(),
+  chat_context_tokens: integer().notNull(),
+  parallel_limit: integer().notNull(),
+  active: integer().notNull().default(1),
+})
+
+export const subscriptions = sqliteTable(
+  "subscriptions",
+  {
+    id: text().primaryKey(),
+    user_id: text().notNull(),
+    plan_id: text({ enum: Tier }).notNull(),
+    period_start: integer().notNull(),
+    period_end: integer().notNull(),
+    status: text({ enum: ["active", "expired", "cancelled"] }).notNull(),
+    order_id: text(),
+    ...Timestamps,
+  },
+  (t) => [index("subscriptions_user").on(t.user_id, t.status)],
+)
+
+export const rate_limits = sqliteTable("rate_limits", {
+  key: text().primaryKey(),
+  window_start: integer().notNull(),
+  count: integer().notNull(),
+})
+
+export const app_config = sqliteTable("app_config", {
+  key: text().primaryKey(),
+  value: text().notNull(),
+  updated_at: integer().notNull(),
+})
