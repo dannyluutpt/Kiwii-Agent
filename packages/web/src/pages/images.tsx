@@ -149,7 +149,14 @@ export default function Images() {
     const key = from?.id ?? "composer"
     if (starting().includes(key)) return
     setStarting([...starting(), key])
-    const started = () => setStarting(starting().filter((k) => k !== key))
+    // Clears this run's mark once; a later press may have set the same key again by the time the
+    // run ends.
+    let waiting = true
+    const started = () => {
+      if (!waiting) return
+      waiting = false
+      setStarting(starting().filter((k) => k !== key))
+    }
     const body = from
       ? {
           model: from.model,
