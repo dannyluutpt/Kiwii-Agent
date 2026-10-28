@@ -21,6 +21,19 @@ test("a suggestion fills the composer and the answer streams in", async ({ page 
   await expect(page.getByRole("button", { name: "Tạo lại" })).toBeEnabled()
 })
 
+test("finishing an answer refreshes the quota without reloading the screen", async ({ page }) => {
+  await page.goto("/chat/e2e-conv-1")
+  await expect(page.getByRole("heading", { level: 1, name: "Kế hoạch du lịch Đà Lạt" })).toBeVisible()
+  // A remount would replace this element; the mark proves the screen stayed in place.
+  await page.locator("main").evaluate((el) => (el.dataset.mark = "kept"))
+  const refreshed = page.waitForResponse((response) => response.url().endsWith("/api/auth/me"))
+  await composer(page).fill("Xin chào Kiwii")
+  await page.keyboard.press("Enter")
+  await expect(page.getByText("Gạch đầu dòng hai")).toBeVisible()
+  await refreshed
+  await expect(page.locator('main[data-mark="kept"]')).toHaveCount(1)
+})
+
 test("long answers keep the latest line in view until the person scrolls up", async ({ page, isMobile }) => {
   await page.goto("/chat")
   await composer(page).fill("Kể một câu chuyện dài")
