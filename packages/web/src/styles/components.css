@@ -62,6 +62,26 @@
   }
 }
 
+/* Picture viewer: settles in from a slightly smaller scale, like opening a photo. */
+.k-lightbox[data-expanded] {
+  animation: k-lightbox-in var(--motion-enter) var(--ease-decelerate) both;
+}
+.k-lightbox[data-closed] {
+  animation: k-lightbox-out var(--motion-exit) var(--ease-accelerate) both;
+}
+@keyframes k-lightbox-in {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+}
+@keyframes k-lightbox-out {
+  to {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+}
+
 /* Sheets */
 .k-sheet[data-side="left"][data-expanded] {
   animation: k-sheet-left-in var(--motion-enter) var(--ease-decelerate) both;

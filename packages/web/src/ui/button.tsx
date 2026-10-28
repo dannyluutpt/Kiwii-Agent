@@ -17,13 +17,20 @@ const VARIANTS: Record<ButtonVariant, string> = {
 // Touch screens get 44px tall buttons, the minimum comfortable target; pointer devices keep a
 // denser 32/40/48 scale.
 const SIZES: Record<ButtonSize, string> = {
-  sm: "h-8 gap-1.5 rounded-[10px] px-3 text-subhead pointer-coarse:h-9",
-  md: "h-10 gap-2 rounded-control px-4 text-callout pointer-coarse:h-11",
-  lg: "h-12 gap-2 rounded-[14px] px-5 text-headline",
+  sm: "h-8 gap-1.5 px-3 text-subhead pointer-coarse:h-9",
+  md: "h-10 gap-2 px-4 text-callout pointer-coarse:h-11",
+  lg: "h-12 gap-2 px-5 text-headline",
 }
+const RADII: Record<ButtonSize, string> = { sm: "rounded-[10px]", md: "rounded-control", lg: "rounded-[14px]" }
 
-// Shared so links (<A>) can look like buttons without nesting a <button> inside an <a>.
-export function buttonClass(variant: ButtonVariant = "secondary", size: ButtonSize = "md", extra?: string) {
+// Shared so links (<A>) can look like buttons without nesting a <button> inside an <a>. Capsules
+// (`pill`) sit among the rounded chips of a toolbar.
+export function buttonClass(
+  variant: ButtonVariant = "secondary",
+  size: ButtonSize = "md",
+  extra?: string,
+  pill?: boolean,
+) {
   return [
     "relative inline-flex shrink-0 select-none items-center justify-center whitespace-nowrap font-semibold",
     "transition-[background-color,color,box-shadow,transform,filter,opacity] duration-(--motion-micro) ease-standard",
@@ -32,6 +39,7 @@ export function buttonClass(variant: ButtonVariant = "secondary", size: ButtonSi
     "aria-disabled:pointer-events-none aria-disabled:opacity-45",
     VARIANTS[variant],
     SIZES[size],
+    pill ? "rounded-full" : RADII[size],
     extra ?? "",
   ].join(" ")
 }
@@ -42,6 +50,7 @@ export function Button(
     size?: ButtonSize
     loading?: boolean
     block?: boolean
+    pill?: boolean
     leading?: JSX.Element
     trailing?: JSX.Element
   },
@@ -51,6 +60,7 @@ export function Button(
     "size",
     "loading",
     "block",
+    "pill",
     "leading",
     "trailing",
     "class",
@@ -64,7 +74,7 @@ export function Button(
       type={local.type ?? "button"}
       disabled={local.disabled || local.loading}
       aria-busy={local.loading ? "true" : undefined}
-      class={buttonClass(local.variant, local.size, `${local.block ? "w-full" : ""} ${local.class ?? ""}`)}
+      class={buttonClass(local.variant, local.size, `${local.block ? "w-full" : ""} ${local.class ?? ""}`, local.pill)}
     >
       <Show when={local.loading} fallback={local.leading}>
         <Spinner class="size-4" />

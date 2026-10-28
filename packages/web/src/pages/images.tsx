@@ -1,21 +1,47 @@
 import { A, useNavigate, useSearchParams } from "@solidjs/router"
-import { createEffect, createMemo, createResource, createSignal, For, on, Show } from "solid-js"
+import { createEffect, createMemo, createResource, createSignal, For, on, Show, type JSX } from "solid-js"
 import { createStore, produce } from "solid-js/store"
 import { api, ApiError, apiStream } from "@/api"
 import { GenerationCard } from "@/components/generation-card"
-import { Lightbox } from "@/components/lightbox"
-import { StudioPromptBar, type StudioSettings } from "@/components/studio-prompt-bar"
+import { IconGlobe, IconImage, IconPencil, IconSparkles } from "@/components/icons"
+import { Lightbox, type LightboxItem } from "@/components/lightbox"
+import { LoadMore } from "@/components/load-more"
+import { StudioPromptBar } from "@/components/studio-prompt-bar"
 import { TopBar } from "@/components/top-bar"
 import { useAuth } from "@/context/auth"
 import { useLanguage } from "@/context/language"
-import type { Generation, ModelsResponse, Reference } from "@/images"
+import type { I18nKey } from "@/i18n/vi"
+import { altFor, type Generation, type ModelsResponse, type Reference, type StudioSettings } from "@/images"
 import { errorMessage } from "@/lib/errors"
-import { Button, buttonClass } from "@/ui/button"
+import { buttonClass } from "@/ui/button"
 import { askConfirm } from "@/ui/confirm"
 import { Skeleton } from "@/ui/skeleton"
 import { toast } from "@/ui/toast"
 
 const SETTINGS_KEY = "kiwii-studio"
+
+const SUGGESTIONS: Array<{ icon: () => JSX.Element; title: I18nKey; prompt: I18nKey }> = [
+  {
+    icon: () => <IconImage class="size-5" />,
+    title: "images.suggest.photo.title",
+    prompt: "images.suggest.photo.prompt",
+  },
+  {
+    icon: () => <IconSparkles class="size-5" />,
+    title: "images.suggest.product.title",
+    prompt: "images.suggest.product.prompt",
+  },
+  {
+    icon: () => <IconPencil class="size-5" />,
+    title: "images.suggest.illustration.title",
+    prompt: "images.suggest.illustration.prompt",
+  },
+  {
+    icon: () => <IconGlobe class="size-5" />,
+    title: "images.suggest.poster.title",
+    prompt: "images.suggest.poster.prompt",
+  },
+]
 
 function loadSettings(): StudioSettings {
   try {
@@ -48,7 +74,7 @@ export default function Images() {
     cursor: null,
     loading: true,
   })
-  const [open, setOpen] = createSignal<{ generation: Generation; index: number }>()
+  const [viewer, setViewer] = createSignal<{ id: string; index: number }>()
   const [running, setRunning] = createSignal(0)
 
   const patch = (next: Partial<StudioSettings>) => {
@@ -113,18 +139,29 @@ export default function Images() {
       }),
     )
 
-  const generate = async () => {
+  // A new run from the composer, or the same run again when `from` (a failed one) is retried.
+  const generate = async (from?: Generation) => {
     const cfg = config()
     if (!cfg) return
-    const body = {
-      model: settings.model,
-      option: settings.option,
-      aspectRatio: settings.aspectRatio,
-      n: settings.n,
-      prompt: prompt().trim(),
-      enhance: settings.enhance,
-      referenceFileIDs: references().map((r) => r.id),
-    }
+    const body = from
+      ? {
+          model: from.model,
+          option: from.option,
+          aspectRatio: from.aspectRatio,
+          n: from.n,
+          prompt: from.prompt,
+          enhance: from.enhance,
+          referenceFileIDs: from.referenceFileIDs,
+        }
+      : {
+          model: settings.model,
+          option: settings.option,
+          aspectRatio: settings.aspectRatio,
+          n: settings.n,
+          prompt: prompt().trim(),
+          enhance: settings.enhance,
+          referenceFileIDs: references().map((r) => r.id),
+        }
     setRunning(running() + 1)
     let id: string | undefined
     try {
@@ -133,7 +170,8 @@ export default function Images() {
           const g = event.data as Generation
           id = g.id
           setList(produce((s) => s.items.unshift({ ...g, images: [], previews: {} })))
-          setPrompt("")
+          if (!from) setPrompt("")
+          feed?.scrollTo({ top: 0, behavior: "smooth" })
           continue
         }
         if (!id) continue
@@ -154,13 +192,14 @@ export default function Images() {
             })
           })
         }
+        // Previews stay until the page is left: each frame keeps its blurred preview under the final
+        // picture until that picture has loaded.
         if (event.event === "done") {
           const data = event.data as { creditsFinal: number; refunded: number }
           update(id, (g) => {
             g.status = "done"
             g.creditsFinal = data.creditsFinal
             g.refunded = data.refunded
-            g.previews = {}
           })
           void auth.refresh()
         }
@@ -170,9 +209,7 @@ export default function Images() {
             g.status = "failed"
             g.errorMessage = data.message
             g.refunded = data.refunded
-            g.previews = {}
           })
-          toast.error(data.message)
           void auth.refresh()
         }
       }
@@ -193,7 +230,7 @@ export default function Images() {
   const reuse = (g: Generation) => {
     setPrompt(g.prompt)
     patch({ model: g.model, option: g.option, aspectRatio: g.aspectRatio, n: g.n })
-    setOpen(undefined)
+    setViewer(undefined)
     // The feed is the scroller here, not the window; bring the prompt into view and focus it.
     feed?.scrollTo({ top: 0, behavior: "smooth" })
     requestAnimationFrame(() => document.querySelector<HTMLTextAreaElement>("[data-studio-prompt]")?.focus())
@@ -212,17 +249,33 @@ export default function Images() {
       .catch((error: unknown) => toast.error(errorMessage(error, t("error.generic"))))
   }
 
+  const opened = () => list.items.find((g) => g.id === viewer()?.id)
+  const viewerItems = (): LightboxItem[] => {
+    const g = opened()
+    if (!g) return []
+    return g.images
+      .slice()
+      .sort((a, b) => a.position - b.position)
+      .map((img) => ({
+        src: img.url,
+        alt: altFor(g),
+        caption: g.promptEnhanced ?? g.prompt,
+        download: `${img.url}?download`,
+      }))
+  }
+
   const locked = () => config()?.canGenerate === false
   const busy = () => running() >= (config()?.parallelLimit ?? 1)
+  const empty = () => !list.loading && list.items.length === 0
 
   return (
     <div class="flex h-full min-h-0 flex-col pb-tabbar">
       <TopBar heading title={t("nav.images")} />
-      <div ref={feed} class="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-        <div class="mx-auto flex w-full max-w-5xl flex-col gap-4 px-4 py-4 md:px-6 md:py-6">
+      <div ref={feed} data-scroller class="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+        <div class="mx-auto flex min-h-full w-full max-w-3xl flex-col gap-4 px-4 py-4 md:px-6 md:py-6">
           <Show when={config()?.trial}>
-            <div class="flex flex-wrap items-center justify-between gap-3 rounded-card bg-accent-soft px-4 py-3">
-              <p class="text-subhead text-label">{t("images.trial", { n: config()?.credits ?? 0 })}</p>
+            <div class="flex flex-wrap items-center gap-3 rounded-card bg-accent-soft px-4 py-3">
+              <p class="min-w-0 flex-1 text-subhead text-label">{t("images.trial", { n: config()?.credits ?? 0 })}</p>
               <A href="/pricing" class={buttonClass("primary", "sm")}>
                 {t("images.locked.cta")}
               </A>
@@ -230,6 +283,9 @@ export default function Images() {
           </Show>
           <Show when={locked()}>
             <div class="flex flex-col items-start gap-2 rounded-card bg-surface p-5 shadow-raised">
+              <span class="flex size-10 items-center justify-center rounded-[12px] bg-accent-soft text-accent">
+                <IconSparkles class="size-5" />
+              </span>
               <h2 class="text-title-3 text-label">{t("images.locked.title")}</h2>
               <p class="text-callout text-label-2">{t("images.locked.lead")}</p>
               <A href="/pricing" class={buttonClass("primary", "md", "mt-2")}>
@@ -237,10 +293,39 @@ export default function Images() {
               </A>
             </div>
           </Show>
-          <Show when={!list.loading && list.items.length === 0 && !locked()}>
-            <div class="flex flex-col items-center justify-center gap-2 py-16 text-center md:py-24">
-              <h2 class="text-title-2 text-label">{t("images.empty.title")}</h2>
-              <p class="max-w-md text-callout text-label-2">{t("images.empty.lead")}</p>
+          <Show when={empty() && !locked()}>
+            <div class="mx-auto flex w-full max-w-2xl flex-1 flex-col justify-center gap-8 py-6">
+              <div class="flex flex-col items-center gap-2 text-center">
+                <span class="mb-1 flex size-14 items-center justify-center rounded-[16px] bg-accent-soft text-accent shadow-raised">
+                  <IconImage class="size-7" />
+                </span>
+                <h2 class="text-title-1 text-label">{t("images.empty.title")}</h2>
+                <p class="max-w-md text-callout text-label-2">{t("images.empty.lead")}</p>
+              </div>
+              <ul class="grid gap-2.5 sm:grid-cols-2" aria-label={t("images.suggest.label")}>
+                <For each={SUGGESTIONS}>
+                  {(item) => (
+                    <li>
+                      <button
+                        type="button"
+                        class="flex h-full w-full items-start gap-3 rounded-card bg-surface p-3.5 text-left shadow-raised transition-[background-color,transform] duration-(--motion-micro) ease-standard hover:bg-surface-2 active:scale-[0.99]"
+                        onClick={() => {
+                          setPrompt(t(item.prompt))
+                          document.querySelector<HTMLTextAreaElement>("[data-studio-prompt]")?.focus()
+                        }}
+                      >
+                        <span class="flex size-9 shrink-0 items-center justify-center rounded-[10px] bg-accent-soft text-accent">
+                          {item.icon()}
+                        </span>
+                        <span class="flex min-w-0 flex-col gap-0.5">
+                          <span class="text-subhead font-semibold text-label">{t(item.title)}</span>
+                          <span class="line-clamp-2 text-footnote text-label-2">{t(item.prompt)}</span>
+                        </span>
+                      </button>
+                    </li>
+                  )}
+                </For>
+              </ul>
             </div>
           </Show>
           <For each={list.items}>
@@ -248,8 +333,9 @@ export default function Images() {
               <GenerationCard
                 generation={g}
                 model={config()?.models.find((m) => m.id === g.model)}
-                onOpen={(index) => setOpen({ generation: g, index })}
+                onOpen={(index) => setViewer({ id: g.id, index })}
                 onReuse={() => reuse(g)}
+                onRetry={() => void generate(g)}
                 onDelete={() => void remove(g)}
               />
             )}
@@ -261,23 +347,22 @@ export default function Images() {
                   <div class="flex flex-col gap-3 rounded-card bg-surface p-4 shadow-raised">
                     <Skeleton class="h-4 w-2/3" />
                     <Skeleton class="h-3 w-1/3" />
-                    <Skeleton class="aspect-square w-full max-w-xl rounded-[14px]" />
+                    <Skeleton class="aspect-square w-full max-w-sm rounded-[14px]" />
                   </div>
                 )}
               </For>
             </div>
           </Show>
-          <Show when={list.cursor && !list.loading}>
-            <div class="flex justify-center">
-              <Button variant="secondary" onClick={() => void load(list.cursor)}>
-                {t("images.loadMore")}
-              </Button>
-            </div>
+          <Show when={list.items.length > 0}>
+            <LoadMore more={!!list.cursor} loading={list.loading} onLoad={() => void load(list.cursor)} />
           </Show>
         </div>
       </div>
       <div class="px-3 pt-1 pb-3 md:px-6 md:pb-4">
-        <Show when={config()}>
+        <Show
+          when={config()}
+          fallback={<Skeleton class="mx-auto h-[104px] w-full max-w-3xl rounded-panel" aria-hidden="true" />}
+        >
           {(cfg) => (
             <StudioPromptBar
               config={cfg()}
@@ -295,24 +380,16 @@ export default function Images() {
           )}
         </Show>
       </div>
-      <Show when={open()}>
-        {(state) => {
-          const image = () => state().generation.images.find((img) => img.position === state().index)
-          return (
-            <Show when={image()}>
-              {(img) => (
-                <Lightbox
-                  src={img().url}
-                  downloadHref={`${img().url}?download`}
-                  caption={state().generation.promptEnhanced ?? state().generation.prompt}
-                  onClose={() => setOpen(undefined)}
-                  onReuse={() => reuse(state().generation)}
-                />
-              )}
-            </Show>
-          )
+      <Lightbox
+        items={viewerItems()}
+        index={viewer()?.index}
+        onIndex={(index) => setViewer((current) => current && { ...current, index })}
+        onClose={() => setViewer(undefined)}
+        onReuse={() => {
+          const g = opened()
+          if (g) reuse(g)
         }}
-      </Show>
+      />
     </div>
   )
 }

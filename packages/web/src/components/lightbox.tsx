@@ -1,82 +1,175 @@
-import { onCleanup, onMount, Show } from "solid-js"
+import { Dialog as KDialog } from "@kobalte/core/dialog"
+import { createEffect, createSignal, Show } from "solid-js"
 import { useLanguage } from "@/context/language"
-import { iconButtonClass, IconButton } from "@/ui/icon-button"
-import { IconClose, IconDownload, IconRefresh } from "./icons"
+import { IconButton, iconButtonClass } from "@/ui/icon-button"
+import { IconChevronLeft, IconChevronRight, IconClose, IconDownload, IconRefresh } from "./icons"
 
+export type LightboxItem = { src: string; alt: string; caption: string; download: string }
+
+// Full-screen viewer over a set of pictures: arrow keys, the side buttons or a horizontal swipe step
+// through them; Escape, the close button or a tap on the backdrop leave. Kobalte traps focus, locks
+// scrolling and hands focus back to the picture that opened it.
 export function Lightbox(props: {
-  src: string
-  downloadHref: string
-  caption?: string
+  items: LightboxItem[]
+  // The open picture, or undefined while closed.
+  index: number | undefined
+  onIndex: (index: number) => void
   onClose: () => void
-  onReuse?: () => void
+  onReuse?: (index: number) => void
 }) {
   const { t } = useLanguage()
-  let closeButton: HTMLButtonElement | undefined
-  const previous = document.activeElement instanceof HTMLElement ? document.activeElement : undefined
-  const onKey = (event: KeyboardEvent) => {
-    if (event.key === "Escape") props.onClose()
+  // Keep showing the last picture while the viewer animates out after `index` is cleared.
+  const [shown, setShown] = createSignal<{ items: LightboxItem[]; index: number }>()
+  createEffect(() => {
+    const index = props.index
+    if (index !== undefined && props.items[index]) setShown({ items: props.items, index })
+  })
+  const item = () => {
+    const state = shown()
+    return state ? state.items[state.index] : undefined
   }
-  onMount(() => {
-    document.addEventListener("keydown", onKey)
-    closeButton?.focus()
+  const count = () => shown()?.items.length ?? 0
+  const position = () => shown()?.index ?? 0
+  const step = (delta: number) => {
+    const next = position() + delta
+    if (props.index === undefined || next < 0 || next >= count()) return
+    props.onIndex(next)
+  }
+
+  // Preload the neighbours so stepping through feels instant.
+  createEffect(() => {
+    const state = shown()
+    if (!state || props.index === undefined) return
+    for (const neighbour of [state.items[state.index - 1], state.items[state.index + 1]]) {
+      if (neighbour) new Image().src = neighbour.src
+    }
   })
-  onCleanup(() => {
-    document.removeEventListener("keydown", onKey)
-    previous?.focus()
-  })
+
+  let content: HTMLDivElement | undefined
+  let opener: HTMLElement | undefined
+  let touch: { x: number; y: number } | undefined
+
   return (
-    <div
-      class="fixed inset-0 z-(--z-lightbox) flex flex-col bg-black/90 pt-safe pb-safe animate-fade-in"
-      role="dialog"
-      aria-modal={true}
-      aria-label={props.caption ?? t("images.download")}
-      onClick={() => props.onClose()}
-    >
-      <div class="flex items-center justify-end gap-2 p-3" onClick={(event) => event.stopPropagation()}>
-        <Show when={props.onReuse}>
-          <IconButton
-            label={t("images.reuse")}
-            variant="overlay"
-            size="lg"
-            circle
-            icon={<IconRefresh class="size-5" />}
-            onClick={() => props.onReuse?.()}
-          />
-        </Show>
-        <a
-          href={props.downloadHref}
-          download=""
-          aria-label={t("images.download")}
-          class={iconButtonClass("overlay", "lg", undefined, true)}
+    <KDialog open={props.index !== undefined} onOpenChange={(open) => !open && props.onClose()}>
+      <KDialog.Portal>
+        <KDialog.Overlay class="k-overlay fixed inset-0 z-(--z-lightbox) bg-black" />
+        <KDialog.Content
+          ref={content}
+          class="k-lightbox fixed inset-0 z-(--z-lightbox) flex flex-col pt-safe pb-safe text-white outline-none"
+          // Focus the viewer itself: screen readers announce the picture, arrow keys work at once, and
+          // no button tooltip pops up over the photo. With no trigger for Kobalte to return to, focus
+          // goes back by hand to whatever opened the viewer, unless an action already moved it on
+          // (Reuse focuses the prompt while the viewer fades out).
+          onOpenAutoFocus={(event: Event) => {
+            event.preventDefault()
+            opener = document.activeElement instanceof HTMLElement ? document.activeElement : undefined
+            content?.focus()
+          }}
+          onCloseAutoFocus={(event: Event) => {
+            event.preventDefault()
+            const claimed = document.activeElement && document.activeElement !== document.body
+            if (!claimed && opener?.isConnected) opener.focus({ preventScroll: true })
+          }}
+          onKeyDown={(event: KeyboardEvent) => {
+            if (event.key === "ArrowLeft") step(-1)
+            if (event.key === "ArrowRight") step(1)
+          }}
         >
-          <IconDownload class="size-5" />
-        </a>
-        <IconButton
-          ref={closeButton}
-          label={t("common.close")}
-          variant="overlay"
-          size="lg"
-          circle
-          icon={<IconClose class="size-5" />}
-          onClick={() => props.onClose()}
-        />
-      </div>
-      <div class="flex min-h-0 flex-1 items-center justify-center px-4 pb-4">
-        <img
-          src={props.src}
-          alt={props.caption?.slice(0, 120) ?? ""}
-          class="max-h-full max-w-full rounded-[14px] object-contain shadow-overlay"
-          onClick={(event) => event.stopPropagation()}
-        />
-      </div>
-      <Show when={props.caption}>
-        <p
-          class="line-clamp-2 px-6 pb-5 text-center text-footnote text-white/70"
-          onClick={(event) => event.stopPropagation()}
-        >
-          {props.caption}
-        </p>
-      </Show>
-    </div>
+          <KDialog.Title class="sr-only">{item()?.alt}</KDialog.Title>
+          <div class="flex items-center gap-2 p-3">
+            <p class="flex-1 pl-2 text-subhead text-white/70 tabular-nums" aria-live="polite">
+              <Show when={count() > 1}>{t("images.position", { n: position() + 1, total: count() })}</Show>
+            </p>
+            <Show when={props.onReuse}>
+              <IconButton
+                label={t("images.reuse")}
+                variant="overlay"
+                size="xl"
+                circle
+                icon={<IconRefresh class="size-5" />}
+                onClick={() => props.onReuse?.(position())}
+              />
+            </Show>
+            <a
+              href={item()?.download}
+              download=""
+              aria-label={t("images.download")}
+              class={iconButtonClass("overlay", "xl", undefined, true)}
+            >
+              <IconDownload class="size-5" />
+            </a>
+            <IconButton
+              label={t("common.close")}
+              keys="Esc"
+              variant="overlay"
+              size="xl"
+              circle
+              icon={<IconClose class="size-5" />}
+              onClick={() => props.onClose()}
+            />
+          </div>
+
+          <div
+            class="relative flex min-h-0 flex-1 items-center justify-center px-4 pb-2"
+            onClick={(event) => event.target === event.currentTarget && props.onClose()}
+            onTouchStart={(event) => {
+              const point = event.touches[0]
+              touch = event.touches.length === 1 && point ? { x: point.clientX, y: point.clientY } : undefined
+            }}
+            onTouchEnd={(event) => {
+              const point = event.changedTouches[0]
+              if (!touch || !point) return
+              const dx = point.clientX - touch.x
+              const dy = point.clientY - touch.y
+              touch = undefined
+              if (Math.abs(dx) > 48 && Math.abs(dx) > Math.abs(dy) * 1.5) step(dx < 0 ? 1 : -1)
+            }}
+          >
+            <Show when={item()} keyed>
+              {(current) => (
+                <img
+                  src={current.src}
+                  alt={current.alt}
+                  draggable={false}
+                  class="max-h-full max-w-full touch-pinch-zoom select-none rounded-[14px] object-contain shadow-overlay animate-fade-in"
+                />
+              )}
+            </Show>
+            <Show when={count() > 1}>
+              <span class="absolute top-1/2 left-3 hidden -translate-y-1/2 pointer-fine:block">
+                <IconButton
+                  label={t("images.previous")}
+                  keys="←"
+                  variant="overlay"
+                  size="xl"
+                  circle
+                  disabled={position() === 0}
+                  icon={<IconChevronLeft class="size-5" weight={2.25} />}
+                  onClick={() => step(-1)}
+                />
+              </span>
+              <span class="absolute top-1/2 right-3 hidden -translate-y-1/2 pointer-fine:block">
+                <IconButton
+                  label={t("images.next")}
+                  keys="→"
+                  variant="overlay"
+                  size="xl"
+                  circle
+                  disabled={position() === count() - 1}
+                  icon={<IconChevronRight class="size-5" weight={2.25} />}
+                  onClick={() => step(1)}
+                />
+              </span>
+            </Show>
+          </div>
+
+          <Show when={item()?.caption}>
+            <p class="mx-auto line-clamp-3 max-w-2xl px-6 pt-2 pb-5 text-center text-footnote text-white/70">
+              {item()?.caption}
+            </p>
+          </Show>
+        </KDialog.Content>
+      </KDialog.Portal>
+    </KDialog>
   )
 }

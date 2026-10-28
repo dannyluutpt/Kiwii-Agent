@@ -31,6 +31,7 @@ export type Generation = {
   n: number
   prompt: string
   promptEnhanced: string | null
+  enhance: boolean
   referenceFileIDs: string[]
   creditsReserved: number
   creditsFinal: number | null
@@ -47,3 +48,32 @@ export type Generation = {
 export type Reference = { id: string; url: string; name: string }
 
 export const aspectStyle = (ratio: string) => ({ "aspect-ratio": ratio.replace(":", " / ") })
+
+// Columns for a run's pictures, and a width cap so tall frames stay within the screen instead of
+// stretching to the full card width.
+export function gridFor(n: number, ratio: string) {
+  const [w = 1, h = 1] = ratio.split(":").map(Number)
+  const layout =
+    n === 1
+      ? { columns: "grid-cols-1", across: 1, height: 60, cap: "32rem" }
+      : n === 2
+        ? { columns: "grid-cols-2", across: 2, height: 50, cap: "100%" }
+        : n === 3
+          ? { columns: "grid-cols-3", across: 3, height: 45, cap: "100%" }
+          : { columns: "grid-cols-2", across: 2, height: 32, cap: "32rem" }
+  return {
+    class: layout.columns,
+    style: { "max-width": `min(100%, ${layout.cap}, calc(${layout.across} * ${layout.height}dvh * ${w} / ${h}))` },
+  }
+}
+
+// Screen readers hear what the picture shows: the prompt Kiwii actually used, kept short.
+export const altFor = (g: Pick<Generation, "prompt" | "promptEnhanced">) => (g.promptEnhanced ?? g.prompt).slice(0, 120)
+
+export type StudioSettings = {
+  model: string
+  option: string
+  aspectRatio: string
+  n: number
+  enhance: boolean
+}
