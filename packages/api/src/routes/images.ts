@@ -356,6 +356,7 @@ function presentGeneration(
     n: g.n,
     prompt: g.prompt_raw,
     promptEnhanced: g.prompt_enhanced,
+    enhance: g.enhance === 1,
     referenceFileIDs: JSON.parse(g.reference_file_ids) as string[],
     creditsReserved: g.credits_reserved,
     creditsFinal: g.credits_final,

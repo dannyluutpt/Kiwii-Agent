@@ -4,7 +4,8 @@
 @import "./styles/components.css";
 @import "./markdown.css";
 
-[data-component="chat-textarea"] {
+[data-component="chat-textarea"],
+[data-component="studio-textarea"] {
   field-sizing: content;
   max-height: 40dvh;
 }

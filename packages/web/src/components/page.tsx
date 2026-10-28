@@ -33,7 +33,7 @@ export function Page(props: {
   })
 
   return (
-    <div ref={scroller} class="h-full overflow-y-auto overscroll-contain pb-tabbar">
+    <div ref={scroller} data-scroller class="h-full overflow-y-auto overscroll-contain pb-tabbar">
       <TopBar title={props.title} titleHidden={!scrolled()} leading={props.leading} trailing={props.actions} />
       <div class={`mx-auto w-full px-4 pb-12 md:px-6 ${WIDTHS[props.width ?? "content"]}`}>
         <header class="pt-1 pb-6 md:pt-4 md:pb-8" classList={{ "text-center": props.align === "center" }}>

@@ -1,27 +1,25 @@
-import { createSignal, For, Show, type JSX } from "solid-js"
+import { A } from "@solidjs/router"
+import { createSignal, For, Show } from "solid-js"
 import { apiUpload } from "@/api"
 import { useLanguage } from "@/context/language"
-import type { ImageModel, ModelsResponse, Reference } from "@/images"
+import { useLayout } from "@/context/layout"
+import type { ImageModel, ModelsResponse, Reference, StudioSettings } from "@/images"
 import { errorMessage } from "@/lib/errors"
-import { Button } from "@/ui/button"
+import { Button, buttonClass } from "@/ui/button"
 import { IconButton } from "@/ui/icon-button"
+import { Menu, MenuContent, MenuRadioGroup } from "@/ui/menu"
+import { Popover, PopoverContent } from "@/ui/popover"
+import { Sheet } from "@/ui/sheet"
 import { Spinner } from "@/ui/spinner"
 import { toast } from "@/ui/toast"
-import { IconClose, IconImage } from "./icons"
+import { IconChevronDown, IconClose, IconImage, IconSliders, IconSparkles } from "./icons"
+import { StudioOptions } from "./studio-options"
 
-export type StudioSettings = {
-  model: string
-  option: string
-  aspectRatio: string
-  n: number
-  enhance: boolean
-}
+const CHIP =
+  "inline-flex h-9 min-w-0 items-center gap-1.5 rounded-full bg-fill px-3 text-subhead font-medium text-label transition-[background-color] duration-(--motion-micro) hover:bg-fill-2 data-[expanded]:bg-fill-2 pointer-coarse:h-10"
 
-const pill = (active: boolean) =>
-  `h-8 rounded-full px-3 text-subhead font-medium transition-[color,background-color] duration-(--motion-micro) pointer-coarse:h-9 ${
-    active ? "bg-label text-canvas" : "bg-fill text-label-2 hover:bg-fill-2 hover:text-label"
-  }`
-
+// The studio composer: references, the prompt, then one toolbar row with the model, a summary of
+// the run options and the generate button showing what the run will cost.
 export function StudioPromptBar(props: {
   config: ModelsResponse
   settings: StudioSettings
@@ -36,12 +34,22 @@ export function StudioPromptBar(props: {
   onGenerate: () => void
 }) {
   const { t } = useLanguage()
+  const layout = useLayout()
   const [uploading, setUploading] = createSignal(false)
+  const [sheet, setSheet] = createSignal(false)
   let fileInput: HTMLInputElement | undefined
-  let textarea: HTMLTextAreaElement | undefined
 
   const model = () => props.config.models.find((m) => m.id === props.settings.model)
   const maxReferences = () => model()?.maxReferences ?? props.config.maxReferences
+  const option = () => model()?.options.find((o) => o.id === props.settings.option)
+  const summary = () =>
+    [option()?.label, props.settings.aspectRatio, t("images.countShort", { n: props.settings.n })]
+      .filter(Boolean)
+      .join(" · ")
+  const phoneSummary = () =>
+    [props.settings.aspectRatio, props.settings.n > 1 ? t("images.countShort", { n: props.settings.n }) : ""]
+      .filter(Boolean)
+      .join(" · ")
 
   const pick = (next: ImageModel) => {
     const option = next.options.some((o) => o.id === props.settings.option)
@@ -52,10 +60,11 @@ export function StudioPromptBar(props: {
     if (props.references.length > next.maxReferences) props.onReferences(props.references.slice(0, next.maxReferences))
   }
 
-  const upload = async (list: FileList | null) => {
-    if (!list || list.length === 0) return
+  const upload = async (list: FileList | File[]) => {
     const room = maxReferences() - props.references.length
-    const picked = Array.from(list).slice(0, Math.max(0, room))
+    const picked = Array.from(list)
+      .filter((file) => file.type.startsWith("image/"))
+      .slice(0, Math.max(0, room))
     if (picked.length === 0) return
     setUploading(true)
     const added: Reference[] = []
@@ -74,42 +83,36 @@ export function StudioPromptBar(props: {
   }
 
   const canGenerate = () => !props.busy && !props.locked && props.prompt.trim().length > 0 && props.cost !== undefined
+  const options = (withModels?: boolean) => (
+    <Show when={model()}>
+      {(m) => (
+        <StudioOptions
+          config={props.config}
+          model={m()}
+          settings={props.settings}
+          onSettings={props.onSettings}
+          onPickModel={withModels ? pick : undefined}
+          cost={props.cost}
+        />
+      )}
+    </Show>
+  )
 
   return (
     <form
-      class="mx-auto flex w-full max-w-5xl flex-col gap-3 rounded-panel bg-surface p-3 shadow-floating"
+      class="mx-auto flex w-full max-w-3xl flex-col rounded-panel bg-surface shadow-floating transition-shadow duration-(--motion-micro) focus-within:shadow-[var(--k-shadow-floating),0_0_0_1.5px_var(--k-focus)]"
       onSubmit={(event) => {
         event.preventDefault()
         if (canGenerate()) props.onGenerate()
       }}
     >
-      <div class="grid gap-2 sm:grid-cols-3">
-        <For each={props.config.models}>
-          {(m) => (
-            <button
-              type="button"
-              class="flex flex-col items-start gap-0.5 rounded-[14px] px-3 py-2 text-left transition-[color,background-color] duration-(--motion-micro)"
-              classList={{
-                "bg-accent-soft shadow-[inset_0_0_0_1.5px_var(--k-accent)]": m.id === props.settings.model,
-                "bg-fill hover:bg-fill-2": m.id !== props.settings.model,
-              }}
-              aria-pressed={m.id === props.settings.model}
-              onClick={() => pick(m)}
-            >
-              <span class="text-subhead font-semibold text-label">{m.name}</span>
-              <span class="text-caption text-label-2">{m.tagline}</span>
-            </button>
-          )}
-        </For>
-      </div>
-
-      <Show when={props.references.length > 0}>
-        <div class="flex flex-wrap gap-2">
+      <Show when={props.references.length > 0 || uploading()}>
+        <ul class="flex gap-2 overflow-x-auto px-3 pt-3" aria-label={t("images.references")}>
           <For each={props.references}>
             {(ref) => (
-              <div class="relative size-16 overflow-hidden rounded-[12px] shadow-raised">
+              <li class="relative size-14 shrink-0 overflow-hidden rounded-[12px] bg-fill animate-fade-in">
                 <img src={ref.url} alt={ref.name} class="size-full object-cover" />
-                <span class="absolute top-1 right-1">
+                <span class="absolute top-0.5 right-0.5">
                   <IconButton
                     label={`${t("images.references.remove")}: ${ref.name}`}
                     variant="overlay"
@@ -120,130 +123,161 @@ export function StudioPromptBar(props: {
                     onClick={() => props.onReferences(props.references.filter((r) => r.id !== ref.id))}
                   />
                 </span>
-              </div>
+              </li>
             )}
           </For>
-        </div>
+          <Show when={uploading()}>
+            <li class="flex size-14 shrink-0 items-center justify-center rounded-[12px] bg-fill text-label-2">
+              <Spinner class="size-5" label={t("chat.uploading")} />
+            </li>
+          </Show>
+        </ul>
       </Show>
 
-      <div class="flex items-end gap-2">
-        <textarea
-          ref={textarea}
-          class="min-h-12 flex-1 resize-none bg-transparent px-1 py-2 text-body text-label outline-none placeholder:text-label-3"
-          aria-label={t("images.placeholder")}
-          enterkeyhint="go"
-          data-studio-prompt
-          rows={2}
-          placeholder={t("images.placeholder")}
-          value={props.prompt}
-          disabled={props.locked}
-          onInput={(event) => props.onPrompt(event.currentTarget.value)}
-          onKeyDown={(event) => {
-            if (event.key === "Enter" && !event.shiftKey && !event.isComposing) {
-              event.preventDefault()
-              if (canGenerate()) props.onGenerate()
-            }
-          }}
-        />
-      </div>
+      <textarea
+        data-component="studio-textarea"
+        data-studio-prompt
+        class="min-h-12 w-full resize-none bg-transparent px-4 pt-3 pb-1 text-body text-label outline-none placeholder:text-label-3 disabled:cursor-not-allowed"
+        aria-label={t("images.placeholder")}
+        enterkeyhint="go"
+        rows={2}
+        placeholder={t("images.placeholder")}
+        value={props.prompt}
+        disabled={props.locked}
+        onInput={(event) => props.onPrompt(event.currentTarget.value)}
+        onPaste={(event) => {
+          const files = Array.from(event.clipboardData?.files ?? []).filter((file) => file.type.startsWith("image/"))
+          if (files.length === 0) return
+          event.preventDefault()
+          void upload(files)
+        }}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" && !event.shiftKey && !event.isComposing) {
+            event.preventDefault()
+            if (canGenerate()) props.onGenerate()
+          }
+        }}
+      />
 
-      <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
-        <Group label={t("images.quality")}>
-          <For each={model()?.options ?? []}>
-            {(o) => (
-              <button
-                type="button"
-                class={pill(o.id === props.settings.option)}
-                aria-pressed={o.id === props.settings.option}
-                onClick={() => props.onSettings({ option: o.id })}
+      <div class="flex items-center gap-1 p-1.5 pt-1">
+        <input
+          ref={fileInput}
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          multiple
+          class="hidden"
+          onChange={(event) => event.currentTarget.files && void upload(event.currentTarget.files)}
+        />
+        <IconButton
+          label={t("images.references.addHint", { n: maxReferences(), extra: props.config.referenceSurcharge })}
+          size="lg"
+          icon={<IconImage class="size-[22px]" />}
+          disabled={props.locked || uploading() || props.references.length >= maxReferences()}
+          onClick={() => fileInput?.click()}
+        />
+
+        <Show
+          when={layout.phone()}
+          fallback={
+            <>
+              <Show
+                when={props.config.models.length > 1}
+                fallback={<span class={`${CHIP} pointer-events-none`}>{model()?.name}</span>}
               >
-                {o.label} <span class="opacity-70">· {o.credits}</span>
-              </button>
-            )}
-          </For>
-        </Group>
-        <Group label={t("images.aspect")}>
-          <For each={model()?.aspectRatios ?? []}>
-            {(ratio) => (
-              <button
-                type="button"
-                class={pill(ratio === props.settings.aspectRatio)}
-                aria-pressed={ratio === props.settings.aspectRatio}
-                onClick={() => props.onSettings({ aspectRatio: ratio })}
-              >
-                {ratio}
-              </button>
-            )}
-          </For>
-        </Group>
-        <Group label={t("images.count")}>
-          <For each={Array.from({ length: props.config.maxImages }, (_, i) => i + 1)}>
-            {(n) => (
-              <button
-                type="button"
-                class={pill(n === props.settings.n)}
-                aria-pressed={n === props.settings.n}
-                onClick={() => props.onSettings({ n })}
-              >
-                {n}
-              </button>
-            )}
-          </For>
-        </Group>
-        <label
-          class="flex cursor-pointer items-center gap-2 text-subhead text-label-2"
-          title={t("images.enhance.hint")}
+                <Menu placement="top-start" gutter={8}>
+                  <Menu.Trigger
+                    class={CHIP}
+                    disabled={props.locked}
+                    aria-label={t("images.modelPick", { name: model()?.name ?? "" })}
+                  >
+                    <span class="truncate">{model()?.name}</span>
+                    <IconChevronDown class="size-3.5 shrink-0 text-label-2" weight={2.25} />
+                  </Menu.Trigger>
+                  <MenuContent class="w-[min(340px,calc(100vw-24px))]">
+                    <MenuRadioGroup
+                      closeOnSelect
+                      label={t("images.model")}
+                      value={props.settings.model}
+                      onChange={(id) => {
+                        const next = props.config.models.find((m) => m.id === id)
+                        if (next) pick(next)
+                      }}
+                      options={props.config.models.map((m) => ({ value: m.id, label: m.name, description: m.tagline }))}
+                    />
+                  </MenuContent>
+                </Menu>
+              </Show>
+              <Popover placement="top-start" gutter={8}>
+                <Popover.Trigger
+                  class={CHIP}
+                  disabled={props.locked}
+                  aria-label={`${t("images.options")}: ${summary()}`}
+                >
+                  <IconSliders class="size-4 shrink-0 text-label-2" />
+                  <span class="truncate">{summary()}</span>
+                </Popover.Trigger>
+                <PopoverContent label={t("images.options")}>{options()}</PopoverContent>
+              </Popover>
+            </>
+          }
         >
-          <input
-            type="checkbox"
-            class="size-4 accent-[var(--k-accent)]"
-            checked={props.settings.enhance}
-            onChange={(event) => props.onSettings({ enhance: event.currentTarget.checked })}
-          />
-          {t("images.enhance")}
-        </label>
-        <div
-          class="flex items-center gap-1 text-subhead text-label-2"
-          title={t("images.references.hint", { n: maxReferences(), extra: props.config.referenceSurcharge })}
+          {/* Phones have room for one chip: the model leads, and the sheet holds every choice. */}
+          <button
+            type="button"
+            class={CHIP}
+            disabled={props.locked}
+            aria-haspopup="dialog"
+            aria-label={`${t("images.options")}: ${model()?.name ?? ""}, ${summary()}`}
+            onClick={() => setSheet(true)}
+          >
+            <IconSliders class="size-4 shrink-0 text-label-2" />
+            <span class="truncate">
+              {model()?.name}
+              <span class="text-label-2"> · {phoneSummary()}</span>
+            </span>
+          </button>
+          <Sheet side="bottom" open={sheet()} onOpenChange={setSheet} label={t("images.options")}>
+            <div class="grid grid-cols-[1fr_auto_1fr] items-center px-4 pt-1 pb-3">
+              <span />
+              <p class="text-headline text-label" aria-hidden="true">
+                {t("images.options")}
+              </p>
+              <button
+                type="button"
+                class="justify-self-end px-1 py-2 text-callout font-semibold text-accent"
+                onClick={() => setSheet(false)}
+              >
+                {t("common.done")}
+              </button>
+            </div>
+            <div class="overflow-y-auto px-4 pb-4">{options(true)}</div>
+          </Sheet>
+        </Show>
+
+        <span class="flex-1" />
+
+        <Show
+          when={!props.locked}
+          fallback={
+            <A href="/pricing" class={buttonClass("primary", "md")}>
+              {t("images.locked.cta")}
+            </A>
+          }
         >
-          <input
-            ref={fileInput}
-            type="file"
-            accept="image/jpeg,image/png,image/webp"
-            multiple
-            class="hidden"
-            onChange={(event) => void upload(event.currentTarget.files)}
-          />
-          <Show when={!uploading()} fallback={<Spinner class="size-4" label={t("chat.uploading")} />}>
-            <IconButton
-              icon={<IconImage class="size-[18px]" />}
-              size="sm"
-              label={t("images.references.add")}
-              disabled={props.locked || props.references.length >= maxReferences()}
-              onClick={() => fileInput?.click()}
-            />
-          </Show>
-          <span>
-            {t("images.references")} {props.references.length}/{maxReferences()}
-          </span>
-        </div>
-        <div class="flex-1" />
-        <Button type="submit" variant="primary" disabled={!canGenerate()} loading={props.busy}>
-          <Show when={!props.busy} fallback={t("images.generating")}>
-            {t("images.generate")}
-            <Show when={props.cost !== undefined}> · {t("images.cost", { n: props.cost ?? 0 })}</Show>
-          </Show>
-        </Button>
+          <Button
+            type="submit"
+            variant="primary"
+            pill
+            disabled={!canGenerate()}
+            loading={props.busy}
+            leading={<IconSparkles class="size-[18px]" />}
+            aria-label={t("images.generateFor", { n: props.cost ?? 0 })}
+          >
+            <span class="hidden sm:inline">{t("images.generateCost", { n: props.cost ?? "–" })}</span>
+            <span class="sm:hidden">{props.cost ?? "–"}</span>
+          </Button>
+        </Show>
       </div>
     </form>
-  )
-}
-
-function Group(props: { label: string; children: JSX.Element }) {
-  return (
-    <div class="flex flex-wrap items-center gap-1.5" role="group" aria-label={props.label}>
-      <span class="text-footnote text-label-2">{props.label}</span>
-      <div class="flex flex-wrap gap-1">{props.children}</div>
-    </div>
   )
 }
