@@ -2,14 +2,22 @@ import { eq } from "drizzle-orm"
 import { getCookie } from "hono/cookie"
 import { ulid } from "ulid"
 import { z } from "zod"
-import { ApiError, createApp } from "../app"
+import { ApiError, createApp, type User } from "../app"
 import { otpEmail, sendEmail } from "../auth/email"
 import { generateOTP, hashOTP, OTP_MAX_ATTEMPTS, OTP_RESEND_MS, OTP_TTL_MS, verifyOTP } from "../auth/otp"
 import { hashPassword, needsRehash, validatePassword, verifyPassword } from "../auth/password"
-import { clearSessionCookie, createSession, destroySession, SESSION_COOKIE, sessionCookie } from "../auth/session"
+import {
+  clearSessionCookie,
+  createSession,
+  destroySession,
+  resolveSession,
+  SESSION_COOKIE,
+  sessionCookie,
+} from "../auth/session"
 import { todayUsage, loadPlan } from "../chat/quota"
 import { balance } from "../credits/ledger"
 import { grantTrial } from "../credits/trial"
+import type { Database } from "../db/client"
 import { password_resets, pending_signups, users } from "../db/schema"
 import { clientIP, consumeWindow, rateLimitBy } from "../middleware/ratelimit"
 import { requireAuth } from "../middleware/auth"
@@ -226,11 +234,19 @@ auth.post("/reset", async (c) => {
 // Public, unauthenticated settings the auth screens need before login.
 auth.get("/config", (c) => c.json({ turnstileSiteKey: c.env.TURNSTILE_SITE_KEY || null }))
 
-auth.get("/me", requireAuth, async (c) => {
-  const user = c.get("user")
-  const db = c.get("db")
+auth.get("/me", requireAuth, async (c) => c.json(await describe(c.get("db"), c.get("user"))))
+
+// The same answer for the web app's first request, except that a visitor without a session gets
+// 200 null instead of 401: being signed out is a normal state there, not an error for the console.
+auth.get("/session", async (c) => {
+  const token = getCookie(c, SESSION_COOKIE)
+  const user = token ? await resolveSession(c.get("db"), token) : null
+  return c.json(user ? await describe(c.get("db"), user) : null)
+})
+
+async function describe(db: Database, user: User) {
   const plan = await loadPlan(db, user)
-  return c.json({
+  return {
     user: { id: user.id, email: user.email, locale: user.locale, createdAt: user.created_at },
     tier: plan.id,
     tierUntil: user.tier_until,
@@ -243,8 +259,8 @@ auth.get("/me", requireAuth, async (c) => {
     },
     credits: await balance(db, user.id),
     chatToday: await todayUsage(db, user.id),
-  })
-})
+  }
+}
 
 async function assertOtpSendAllowed(db: Parameters<typeof consumeWindow>[0], email: string) {
   const daily = await consumeWindow(db, { key: `otp:${email}`, limit: 5, windowMs: 24 * 60 * 60 * 1000 })

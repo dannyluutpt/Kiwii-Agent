@@ -61,6 +61,23 @@ test("a run streams into the feed and its pictures open in the viewer", async ({
   await expect(prompt(page)).toBeFocused()
 })
 
+test("the options sheet closes when its top bar is dragged down", async ({ page, isMobile }) => {
+  test.skip(!isMobile, "the sheet is the phone layout")
+  await page.goto("/images")
+  await page.getByRole("button", { name: /^Tuỳ chọn:/ }).click()
+  const sheet = page.getByRole("dialog", { name: "Tuỳ chọn" })
+  await expect(sheet).toBeVisible()
+  await page.waitForTimeout(400)
+  const handle = await sheet.locator("[data-sheet-handle]").first().boundingBox()
+  if (!handle) throw new Error("sheet handle not laid out")
+  const x = handle.x + handle.width / 2
+  await page.mouse.move(x, handle.y + handle.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(x, handle.y + 420, { steps: 10 })
+  await page.mouse.up()
+  await expect(sheet).toBeHidden()
+})
+
 test("a run can be reused, retried after a failure and deleted", async ({ page }, info) => {
   // Each project gets its own prompt: runs from the other project stay in the shared history.
   const text = `Ảnh lỗi FAIL để thử lại ${info.project.name}`

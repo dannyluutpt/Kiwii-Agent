@@ -25,6 +25,32 @@ test.describe("phone", () => {
     await expect(page.getByRole("heading", { level: 1, name: "Kế hoạch du lịch Đà Lạt" })).toBeVisible()
   })
 
+  test("the drawer follows a drag and closes once let go far enough", async ({ page }) => {
+    await page.goto("/chat")
+    await page.getByRole("button", { name: "Mở menu" }).click()
+    const drawer = page.getByRole("dialog", { name: "Mở menu" })
+    await expect(drawer).toBeVisible()
+    await page.waitForTimeout(400)
+
+    // A short, slow drag springs back and does not open the row it started on.
+    await page.mouse.move(240, 420)
+    await page.mouse.down()
+    for (const x of [234, 228, 222, 216]) {
+      await page.mouse.move(x, 420)
+      await page.waitForTimeout(40)
+    }
+    await page.mouse.up()
+    await expect(drawer).toBeVisible()
+    await expect(page).toHaveURL(/\/chat$/)
+
+    await page.mouse.move(240, 420)
+    await page.mouse.down()
+    await page.mouse.move(40, 424, { steps: 8 })
+    await page.mouse.up()
+    await expect(drawer).toBeHidden()
+    await expect(page).toHaveURL(/\/chat$/)
+  })
+
   test("screens other than chat leave navigation to the tab bar", async ({ page }) => {
     await page.goto("/account")
     await expect(page.getByRole("heading", { level: 1, name: "Tài khoản" })).toBeVisible()

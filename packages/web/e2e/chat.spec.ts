@@ -26,7 +26,7 @@ test("finishing an answer refreshes the quota without reloading the screen", asy
   await expect(page.getByRole("heading", { level: 1, name: "Kế hoạch du lịch Đà Lạt" })).toBeVisible()
   // A remount would replace this element; the mark proves the screen stayed in place.
   await page.locator("main").evaluate((el) => (el.dataset.mark = "kept"))
-  const refreshed = page.waitForResponse((response) => response.url().endsWith("/api/auth/me"))
+  const refreshed = page.waitForResponse((response) => response.url().endsWith("/api/auth/session"))
   await composer(page).fill("Xin chào Kiwii")
   await page.keyboard.press("Enter")
   await expect(page.getByText("Gạch đầu dòng hai")).toBeVisible()

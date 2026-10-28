@@ -17,10 +17,11 @@ export type Me = {
   chatToday: number
 }
 
-// A signed-out visitor gets 401. Anything else (rate limit, a dropped connection, a cold start) is
-// retried twice with a short back-off before the app shows the offline screen.
+// A signed-out visitor gets null (the session endpoint answers 200 rather than 401, so nothing is
+// logged as an error). Anything else (rate limit, a dropped connection, a cold start) is retried
+// twice with a short back-off before the app shows the offline screen.
 async function fetchMe(attempt = 0): Promise<Me | null> {
-  return api<Me>("/auth/me").catch(async (error: unknown) => {
+  return api<Me | null>("/auth/session").catch(async (error: unknown) => {
     if (error instanceof ApiError && error.status === 401) return null
     if (attempt >= 2) throw error
     await new Promise((resolve) => setTimeout(resolve, 1000 * (attempt + 1)))

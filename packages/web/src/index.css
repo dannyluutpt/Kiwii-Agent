@@ -1,4 +1,4 @@
-@import "@kiwii/ui/styles/tailwind";
+@import "./styles/tailwind.css";
 @import "./styles/tokens.css";
 @import "./styles/theme.css";
 @import "./styles/components.css";

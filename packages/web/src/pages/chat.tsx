@@ -1,6 +1,7 @@
 import { useNavigate, useParams } from "@solidjs/router"
 import { createEffect, createSignal, For, on, Show } from "solid-js"
 import { createStore, produce } from "solid-js/store"
+import { MarkedProvider } from "@kiwii/ui/context/marked"
 import { createAutoScroll } from "@kiwii/ui/hooks"
 import { api, apiStream } from "@/api"
 import { ChatEmpty } from "@/components/chat-empty"
@@ -25,7 +26,17 @@ import { toast } from "@/ui/toast"
 // Title the API gives a conversation created without one; replaced by the first message.
 const DEFAULT_TITLE = "Hội thoại mới"
 
+// The markdown stack (marked, Shiki, KaTeX) loads with this screen rather than with the app shell,
+// so every other screen starts lighter.
 export default function Chat() {
+  return (
+    <MarkedProvider>
+      <ChatScreen />
+    </MarkedProvider>
+  )
+}
+
+function ChatScreen() {
   const { t } = useLanguage()
   const auth = useAuth()
   const layout = useLayout()
