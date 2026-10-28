@@ -34,6 +34,9 @@ test("a question about today sends Kiwii to the web and the answer cites its sou
   const source = page.getByRole("main").getByRole("link", { name: "Giá vàng hôm nay", exact: true })
   await expect(source).toBeVisible()
   await expect(source).toHaveAttribute("href", "https://example.com/gia-vang")
+  // A source opens on its own so the conversation stays put, in the Home Screen app too.
+  await expect(source).toHaveAttribute("target", "_blank")
+  await expect(source).toHaveAttribute("rel", "noopener noreferrer")
   await expect(page.getByText("150 triệu đồng")).toBeVisible()
   await context.close()
 })
