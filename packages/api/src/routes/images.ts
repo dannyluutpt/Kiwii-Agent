@@ -73,6 +73,7 @@ images.get("/models", async (c) => {
         })),
       aspectRatios: model.aspectRatios,
       maxReferences: Math.min(model.maxReferences, MAX_REFERENCES),
+      maxReferenceEdge: model.maxReferenceEdge,
     })),
   })
 })

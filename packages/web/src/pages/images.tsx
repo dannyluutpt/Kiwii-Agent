@@ -2,16 +2,25 @@ import { A, useNavigate, useSearchParams } from "@solidjs/router"
 import { createEffect, createMemo, createResource, createSignal, For, on, Show, type JSX } from "solid-js"
 import { createStore, produce } from "solid-js/store"
 import { api, ApiError, apiStream } from "@/api"
-import { GenerationCard } from "@/components/generation-card"
+import { GenerationTile } from "@/components/generation-tile"
 import { IconGlobe, IconImage, IconPencil, IconSparkles } from "@/components/icons"
 import { Lightbox, type LightboxItem } from "@/components/lightbox"
 import { LoadMore } from "@/components/load-more"
+import { StudioPanel } from "@/components/studio-panel"
 import { StudioPromptBar } from "@/components/studio-prompt-bar"
 import { TopBar } from "@/components/top-bar"
 import { useAuth } from "@/context/auth"
 import { useLanguage } from "@/context/language"
+import { useLayout } from "@/context/layout"
 import type { I18nKey } from "@/i18n/vi"
-import { altFor, type Generation, type ModelsResponse, type Reference, type StudioSettings } from "@/images"
+import {
+  altFor,
+  aspectStyle,
+  type Generation,
+  type ModelsResponse,
+  type Reference,
+  type StudioSettings,
+} from "@/images"
 import { errorMessage } from "@/lib/errors"
 import { buttonClass } from "@/ui/button"
 import { askConfirm } from "@/ui/confirm"
@@ -19,6 +28,7 @@ import { Skeleton } from "@/ui/skeleton"
 import { toast } from "@/ui/toast"
 
 const SETTINGS_KEY = "kiwii-studio"
+const PLACEHOLDER_RATIOS = ["1:1", "3:4", "16:9", "1:1", "9:16", "4:3"]
 
 const SUGGESTIONS: Array<{ icon: () => JSX.Element; title: I18nKey; prompt: I18nKey }> = [
   {
@@ -58,9 +68,13 @@ function loadSettings(): StudioSettings {
   return { model: "gpt-image-2.5", option: "medium", aspectRatio: "1:1", n: 1 }
 }
 
+// The studio: a control panel beside a gallery of runs on wide screens, the gallery over a docked
+// composer on phones. A run shows up in the gallery the moment it is asked for, shimmering while
+// the server prepares and renders it.
 export default function Images() {
   const { t } = useLanguage()
   const auth = useAuth()
+  const layout = useLayout()
   const navigate = useNavigate()
   let feed: HTMLDivElement | undefined
   const [search, setSearch] = useSearchParams<{ prompt?: string; model?: string }>()
@@ -75,10 +89,6 @@ export default function Images() {
   })
   const [viewer, setViewer] = createSignal<{ id: string; index: number }>()
   const [running, setRunning] = createSignal(0)
-  // Runs asked for but not yet accepted by the server ("composer", or the id of a run being
-  // retried). Preparing a run takes a few seconds, so the button shows it is working at once and a
-  // second press does not start a second run.
-  const [starting, setStarting] = createSignal<string[]>([])
 
   const patch = (next: Partial<StudioSettings>) => {
     setSettings(next)
@@ -141,22 +151,24 @@ export default function Images() {
         if (g) fn(g)
       }),
     )
+  // Swaps the run the person is looking at (a placeholder, or a failed run being retried) for the
+  // one the server just accepted, in the same spot.
+  const replace = (id: string, next: Generation) =>
+    setList(
+      produce((s) => {
+        const at = s.items.findIndex((item) => item.id === id)
+        if (at >= 0) s.items[at] = next
+        if (at < 0) s.items.unshift(next)
+      }),
+    )
+  const preparing = () => list.items.some((g) => g.id.startsWith("pending-"))
 
-  // A new run from the composer, or the same run again when `from` (a failed one) is retried.
+  // A new run from the composer, or the same run again when `from` (a failed one) is retried. The
+  // gallery shows the run at once; the server takes a few seconds to prepare the prompt and the
+  // references before it answers, and that wait must look like work, not like nothing.
   const generate = async (from?: Generation) => {
     const cfg = config()
-    if (!cfg) return
-    const key = from?.id ?? "composer"
-    if (starting().includes(key)) return
-    setStarting([...starting(), key])
-    // Clears this run's mark once; a later press may have set the same key again by the time the
-    // run ends.
-    let waiting = true
-    const started = () => {
-      if (!waiting) return
-      waiting = false
-      setStarting(starting().filter((k) => k !== key))
-    }
+    if (!cfg || (from ? from.preparing : preparing())) return
     const body = from
       ? {
           model: from.model,
@@ -174,6 +186,29 @@ export default function Images() {
           prompt: prompt().trim(),
           referenceFileIDs: references().map((r) => r.id),
         }
+    const pending = from?.id ?? `pending-${Date.now()}`
+    if (from) update(from.id, (g) => (g.preparing = true))
+    if (!from) {
+      setList(
+        produce((s) =>
+          s.items.unshift({
+            ...body,
+            id: pending,
+            status: "running",
+            creditsReserved: cost() ?? 0,
+            creditsFinal: null,
+            error: null,
+            createdAt: Date.now(),
+            finishedAt: null,
+            images: [],
+            previews: {},
+            preparing: true,
+          }),
+        ),
+      )
+      setPrompt("")
+      feed?.scrollTo({ top: 0, behavior: "smooth" })
+    }
     setRunning(running() + 1)
     let id: string | undefined
     try {
@@ -181,10 +216,7 @@ export default function Images() {
         if (event.event === "start") {
           const g = event.data as Generation
           id = g.id
-          started()
-          setList(produce((s) => s.items.unshift({ ...g, images: [], previews: {} })))
-          if (!from) setPrompt("")
-          feed?.scrollTo({ top: 0, behavior: "smooth" })
+          replace(pending, { ...g, images: [], previews: {} })
           continue
         }
         if (!id) continue
@@ -235,8 +267,13 @@ export default function Images() {
       }
       if (!insufficient) toast.error(errorMessage(error, t("error.network")))
       if (id) update(id, (g) => (g.status = "failed"))
+      // The server never took the run: hand the prompt back rather than leave a failed tile.
+      if (!id && !from) {
+        setList("items", (items) => items.filter((g) => g.id !== pending))
+        setPrompt(body.prompt)
+      }
     } finally {
-      started()
+      if (!id && from) update(from.id, (g) => (g.preparing = false))
       setRunning(running() - 1)
     }
   }
@@ -245,8 +282,8 @@ export default function Images() {
     setPrompt(g.prompt)
     patch({ model: g.model, option: g.option, aspectRatio: g.aspectRatio, n: g.n })
     setViewer(undefined)
-    // The feed is the scroller here, not the window; bring the prompt into view and focus it.
-    feed?.scrollTo({ top: 0, behavior: "smooth" })
+    // The gallery is the scroller here, not the window; bring the prompt into view and focus it.
+    if (layout.phone()) feed?.scrollTo({ top: 0, behavior: "smooth" })
     requestAnimationFrame(() => document.querySelector<HTMLTextAreaElement>("[data-studio-prompt]")?.focus())
   }
 
@@ -279,122 +316,148 @@ export default function Images() {
   }
 
   const locked = () => config()?.canGenerate === false
-  const busy = () => running() >= (config()?.parallelLimit ?? 1)
+  const busy = () => running() >= (config()?.parallelLimit ?? 1) || preparing()
   const empty = () => !list.loading && list.items.length === 0
+
+  const controls = (cfg: ModelsResponse) => ({
+    config: cfg,
+    settings,
+    onSettings: patch,
+    prompt: prompt(),
+    onPrompt: setPrompt,
+    references: references(),
+    onReferences: setReferences,
+    cost: cost(),
+    busy: busy(),
+    locked: locked(),
+    onGenerate: () => void generate(),
+  })
+
+  const gallery = (
+    <div ref={feed} data-scroller class="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+      <div class="flex min-h-full w-full flex-col gap-4 px-3 py-3 md:px-5 md:py-5">
+        <Show when={config()?.trial}>
+          <div class="flex flex-wrap items-center gap-3 rounded-card bg-accent-soft px-4 py-3">
+            <p class="min-w-0 flex-1 text-subhead text-label">{t("images.trial", { n: config()?.credits ?? 0 })}</p>
+            <A href="/pricing" class={buttonClass("primary", "sm")}>
+              {t("images.locked.cta")}
+            </A>
+          </div>
+        </Show>
+        <Show when={locked()}>
+          <div class="flex flex-col items-start gap-2 rounded-card bg-surface p-5 shadow-raised">
+            <span class="flex size-10 items-center justify-center rounded-[12px] bg-accent-soft text-accent">
+              <IconSparkles class="size-5" />
+            </span>
+            <h2 class="text-title-3 text-label">{t("images.locked.title")}</h2>
+            <p class="text-callout text-label-2">{t("images.locked.lead")}</p>
+            <A href="/pricing" class={buttonClass("primary", "md", "mt-2")}>
+              {t("images.locked.cta")}
+            </A>
+          </div>
+        </Show>
+        <Show when={empty() && !locked()}>
+          <div class="mx-auto flex w-full max-w-2xl flex-1 flex-col justify-center gap-8 py-6">
+            <div class="flex flex-col items-center gap-2 text-center">
+              <span class="mb-1 flex size-14 items-center justify-center rounded-[16px] bg-accent-soft text-accent shadow-raised">
+                <IconImage class="size-7" />
+              </span>
+              <h2 class="text-title-1 text-label">{t("images.empty.title")}</h2>
+              <p class="max-w-md text-callout text-label-2">{t("images.empty.lead")}</p>
+            </div>
+            <ul class="grid gap-2.5 sm:grid-cols-2" aria-label={t("images.suggest.label")}>
+              <For each={SUGGESTIONS}>
+                {(item) => (
+                  <li>
+                    <button
+                      type="button"
+                      class="flex h-full w-full items-start gap-3 rounded-card bg-surface p-3.5 text-left shadow-raised transition-[background-color,transform] duration-(--motion-micro) ease-standard hover:bg-surface-2 active:scale-[0.99]"
+                      onClick={() => {
+                        setPrompt(t(item.prompt))
+                        document.querySelector<HTMLTextAreaElement>("[data-studio-prompt]")?.focus()
+                      }}
+                    >
+                      <span class="flex size-9 shrink-0 items-center justify-center rounded-[10px] bg-accent-soft text-accent">
+                        {item.icon()}
+                      </span>
+                      <span class="flex min-w-0 flex-col gap-0.5">
+                        <span class="text-subhead font-semibold text-label">{t(item.title)}</span>
+                        <span class="line-clamp-2 text-footnote text-label-2">{t(item.prompt)}</span>
+                      </span>
+                    </button>
+                  </li>
+                )}
+              </For>
+            </ul>
+          </div>
+        </Show>
+        <Show when={list.items.length > 0 || list.loading}>
+          <div class="columns-2 gap-2 md:gap-3 lg:columns-3 2xl:columns-4" aria-label={t("images.gallery")}>
+            <For each={list.items}>
+              {(g) => (
+                <GenerationTile
+                  generation={g}
+                  model={config()?.models.find((m) => m.id === g.model)}
+                  onOpen={(index) => setViewer({ id: g.id, index })}
+                  onReuse={() => reuse(g)}
+                  onRetry={() => void generate(g)}
+                  onDelete={() => void remove(g)}
+                />
+              )}
+            </For>
+            <Show when={list.loading && list.items.length === 0}>
+              <For each={PLACEHOLDER_RATIOS}>
+                {(ratio) => (
+                  <div class="mb-2 break-inside-avoid md:mb-3" style={aspectStyle(ratio)} aria-hidden="true">
+                    <Skeleton class="size-full rounded-[14px]" />
+                  </div>
+                )}
+              </For>
+            </Show>
+          </div>
+        </Show>
+        <Show when={list.items.length > 0}>
+          <LoadMore more={!!list.cursor} loading={list.loading} onLoad={() => void load(list.cursor)} />
+        </Show>
+      </div>
+    </div>
+  )
 
   return (
     <div class="flex h-full min-h-0 flex-col pb-tabbar">
       <TopBar heading title={t("nav.images")} />
-      <div ref={feed} data-scroller class="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-        <div class="mx-auto flex min-h-full w-full max-w-3xl flex-col gap-4 px-4 py-4 md:px-6 md:py-6">
-          <Show when={config()?.trial}>
-            <div class="flex flex-wrap items-center gap-3 rounded-card bg-accent-soft px-4 py-3">
-              <p class="min-w-0 flex-1 text-subhead text-label">{t("images.trial", { n: config()?.credits ?? 0 })}</p>
-              <A href="/pricing" class={buttonClass("primary", "sm")}>
-                {t("images.locked.cta")}
-              </A>
+      <Show
+        when={!layout.phone()}
+        fallback={
+          <>
+            {gallery}
+            <div class="px-3 pt-1 pb-3">
+              <Show
+                when={config()}
+                fallback={<Skeleton class="mx-auto h-[104px] w-full max-w-3xl rounded-panel" aria-hidden="true" />}
+              >
+                {(cfg) => <StudioPromptBar {...controls(cfg())} />}
+              </Show>
             </div>
-          </Show>
-          <Show when={locked()}>
-            <div class="flex flex-col items-start gap-2 rounded-card bg-surface p-5 shadow-raised">
-              <span class="flex size-10 items-center justify-center rounded-[12px] bg-accent-soft text-accent">
-                <IconSparkles class="size-5" />
-              </span>
-              <h2 class="text-title-3 text-label">{t("images.locked.title")}</h2>
-              <p class="text-callout text-label-2">{t("images.locked.lead")}</p>
-              <A href="/pricing" class={buttonClass("primary", "md", "mt-2")}>
-                {t("images.locked.cta")}
-              </A>
-            </div>
-          </Show>
-          <Show when={empty() && !locked()}>
-            <div class="mx-auto flex w-full max-w-2xl flex-1 flex-col justify-center gap-8 py-6">
-              <div class="flex flex-col items-center gap-2 text-center">
-                <span class="mb-1 flex size-14 items-center justify-center rounded-[16px] bg-accent-soft text-accent shadow-raised">
-                  <IconImage class="size-7" />
-                </span>
-                <h2 class="text-title-1 text-label">{t("images.empty.title")}</h2>
-                <p class="max-w-md text-callout text-label-2">{t("images.empty.lead")}</p>
+          </>
+        }
+      >
+        <div class="flex min-h-0 flex-1">
+          <Show
+            when={config()}
+            fallback={
+              <div class="flex w-[340px] shrink-0 flex-col gap-4 border-r border-separator bg-surface p-4 lg:w-[380px]">
+                <Skeleton class="h-28 w-full rounded-[14px]" />
+                <Skeleton class="h-40 w-full rounded-[14px]" />
+                <Skeleton class="h-14 w-full rounded-[12px]" />
               </div>
-              <ul class="grid gap-2.5 sm:grid-cols-2" aria-label={t("images.suggest.label")}>
-                <For each={SUGGESTIONS}>
-                  {(item) => (
-                    <li>
-                      <button
-                        type="button"
-                        class="flex h-full w-full items-start gap-3 rounded-card bg-surface p-3.5 text-left shadow-raised transition-[background-color,transform] duration-(--motion-micro) ease-standard hover:bg-surface-2 active:scale-[0.99]"
-                        onClick={() => {
-                          setPrompt(t(item.prompt))
-                          document.querySelector<HTMLTextAreaElement>("[data-studio-prompt]")?.focus()
-                        }}
-                      >
-                        <span class="flex size-9 shrink-0 items-center justify-center rounded-[10px] bg-accent-soft text-accent">
-                          {item.icon()}
-                        </span>
-                        <span class="flex min-w-0 flex-col gap-0.5">
-                          <span class="text-subhead font-semibold text-label">{t(item.title)}</span>
-                          <span class="line-clamp-2 text-footnote text-label-2">{t(item.prompt)}</span>
-                        </span>
-                      </button>
-                    </li>
-                  )}
-                </For>
-              </ul>
-            </div>
+            }
+          >
+            {(cfg) => <StudioPanel {...controls(cfg())} />}
           </Show>
-          <For each={list.items}>
-            {(g) => (
-              <GenerationCard
-                generation={g}
-                model={config()?.models.find((m) => m.id === g.model)}
-                onOpen={(index) => setViewer({ id: g.id, index })}
-                onReuse={() => reuse(g)}
-                retrying={starting().includes(g.id)}
-                onRetry={() => void generate(g)}
-                onDelete={() => void remove(g)}
-              />
-            )}
-          </For>
-          <Show when={list.loading}>
-            <div class="flex flex-col gap-4" aria-hidden="true">
-              <For each={[0, 1]}>
-                {() => (
-                  <div class="flex flex-col gap-3 rounded-card bg-surface p-4 shadow-raised">
-                    <Skeleton class="h-4 w-2/3" />
-                    <Skeleton class="h-3 w-1/3" />
-                    <Skeleton class="aspect-square w-full max-w-sm rounded-[14px]" />
-                  </div>
-                )}
-              </For>
-            </div>
-          </Show>
-          <Show when={list.items.length > 0}>
-            <LoadMore more={!!list.cursor} loading={list.loading} onLoad={() => void load(list.cursor)} />
-          </Show>
+          {gallery}
         </div>
-      </div>
-      <div class="px-3 pt-1 pb-3 md:px-6 md:pb-4">
-        <Show
-          when={config()}
-          fallback={<Skeleton class="mx-auto h-[104px] w-full max-w-3xl rounded-panel" aria-hidden="true" />}
-        >
-          {(cfg) => (
-            <StudioPromptBar
-              config={cfg()}
-              settings={settings}
-              onSettings={patch}
-              prompt={prompt()}
-              onPrompt={setPrompt}
-              references={references()}
-              onReferences={setReferences}
-              cost={cost()}
-              busy={busy() || starting().includes("composer")}
-              locked={locked()}
-              onGenerate={() => void generate()}
-            />
-          )}
-        </Show>
-      </div>
+      </Show>
       <Lightbox
         items={viewerItems()}
         index={viewer()?.index}

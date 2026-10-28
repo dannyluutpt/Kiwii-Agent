@@ -46,6 +46,12 @@ Layout: phones (< 768px) get the bottom tab bar, tablets open the sidebar as a d
 `components/page.tsx`; screens with their own scroller use `components/top-bar.tsx` directly and pad
 by `pb-tabbar`.
 
+The image studio (`pages/images.tsx`) is a control panel (`components/studio-panel.tsx`) beside a
+masonry gallery of runs (`components/generation-tile.tsx`) from 768px, and the gallery over a docked
+composer with a bottom sheet (`components/studio-prompt-bar.tsx`) on phones. A run appears in the
+gallery the moment it is asked for. Reference photos are scaled in the browser to the chosen model's
+longest edge (`lib/image.ts`, `components/references.tsx`) before they are uploaded.
+
 ## End-to-end tests
 
 `e2e/` drives the real app with Playwright against a local Worker on :8790. The global setup writes a

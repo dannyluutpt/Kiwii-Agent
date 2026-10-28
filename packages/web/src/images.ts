@@ -9,6 +9,7 @@ export type ImageModel = {
   options: ImageOption[]
   aspectRatios: string[]
   maxReferences: number
+  maxReferenceEdge: number
 }
 export type ModelsResponse = {
   canGenerate: boolean
@@ -37,13 +38,17 @@ export type Generation = {
   createdAt: number
   finishedAt: number | null
   images: GenerationImage[]
-  // Client-only: streamed previews (data URLs) and the refund reported by the stream.
+  // Client-only: streamed previews (data URLs), the refund reported by the stream, and a run the
+  // server has not accepted yet (the prompt is being prepared).
   previews?: Record<number, string>
   refunded?: number
   errorMessage?: string
+  preparing?: boolean
 }
 
-export type Reference = { id: string; url: string; name: string }
+// `edge` is the longest side of the stored copy, so a model with a smaller limit can be served a
+// smaller copy.
+export type Reference = { id: string; url: string; name: string; edge: number }
 
 export const aspectStyle = (ratio: string) => ({ "aspect-ratio": ratio.replace(":", " / ") })
 

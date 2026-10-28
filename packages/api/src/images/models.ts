@@ -24,6 +24,10 @@ export type ImageModel = {
   options: ImageOption[]
   aspectRatios: string[]
   maxReferences: number
+  // Longest edge, in pixels, a reference may have; the browser scales photos down to it before
+  // uploading. FLUX refuses anything over 20 megapixels, Gemini tiles inputs at 768px so more
+  // detail is wasted, GPT Image takes large files but gains nothing past this.
+  maxReferenceEdge: number
   // Providers that only take n=1 get one request per image.
   multiImage: boolean
   streaming: boolean
@@ -46,6 +50,7 @@ export const IMAGE_MODELS: ImageModel[] = [
     ],
     aspectRatios: ["1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3", "21:9"],
     maxReferences: 4,
+    maxReferenceEdge: 4096,
     multiImage: false,
     streaming: false,
   },
@@ -63,6 +68,7 @@ export const IMAGE_MODELS: ImageModel[] = [
     ],
     aspectRatios: ["1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3", "21:9"],
     maxReferences: 4,
+    maxReferenceEdge: 3072,
     multiImage: false,
     streaming: false,
   },
@@ -82,6 +88,7 @@ export const IMAGE_MODELS: ImageModel[] = [
     ],
     aspectRatios: ["1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3", "21:9"],
     maxReferences: 4,
+    maxReferenceEdge: 4096,
     multiImage: true,
     streaming: true,
   },
