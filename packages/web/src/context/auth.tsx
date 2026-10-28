@@ -36,8 +36,11 @@ export const { use: useAuth, provider: AuthProvider } = createSimpleContext({
     const [me, { refetch, mutate }] = createResource(() => fetchMe())
     return {
       // Reading an errored resource throws; guards check `failed` first and never get here then.
-      me: () => (me.error ? undefined : me()),
-      ready: () => me.state === "ready" || me.state === "errored",
+      // `latest` keeps the last answer during a refresh without suspending the screen that reads it.
+      me: () => (me.error ? undefined : me.latest),
+      // Ready once the first answer is in. A refresh (after each chat answer or image run) must not
+      // count as loading, or the route guards would swap the whole app for the splash and remount it.
+      ready: () => me.state === "ready" || me.state === "refreshing" || me.state === "errored",
       failed: () => !!me.error,
       refresh: () => refetch(),
       clear: () => mutate(null),
