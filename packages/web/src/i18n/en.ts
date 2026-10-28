@@ -111,8 +111,7 @@ export const dict: Record<I18nKey, string> = {
   "chat.suggest.explain.prompt": "Explain compound interest with a simple example using 10 million đồng.",
   "images.title": "Kiwii Image",
   "images.empty.title": "Describe the image you want",
-  "images.empty.lead":
-    "Pick a model, quality and aspect ratio, then hit Generate. Kiwii polishes your prompt before rendering.",
+  "images.empty.lead": "Pick a model, quality and aspect ratio, then hit Generate.",
   "images.placeholder": "Describe the image… e.g. a woman in áo dài in Hội An old town at sunset",
   "images.generate": "Generate",
   "images.generating": "Generating…",
@@ -121,8 +120,6 @@ export const dict: Record<I18nKey, string> = {
   "images.quality": "Quality",
   "images.aspect": "Aspect",
   "images.count": "Images",
-  "images.enhance": "Enhance prompt",
-  "images.enhance.hint": "Kiwii rewrites the prompt in English with lighting and composition before rendering.",
   "images.references": "Reference images",
   "images.references.add": "Add image",
   "images.references.hint": "Up to {{n}} images, +{{extra}} credit per run",

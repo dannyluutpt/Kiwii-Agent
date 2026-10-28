@@ -109,8 +109,7 @@ export const dict = {
   "chat.suggest.explain.prompt": "Giải thích lãi kép bằng một ví dụ đơn giản với số tiền 10 triệu đồng.",
   "images.title": "Kiwii Image",
   "images.empty.title": "Mô tả bức ảnh bạn muốn",
-  "images.empty.lead":
-    "Chọn model, chất lượng và tỷ lệ khung, rồi bấm Tạo ảnh. Kiwii sẽ tự sửa prompt cho đẹp hơn trước khi tạo.",
+  "images.empty.lead": "Chọn model, chất lượng và tỷ lệ khung, rồi bấm Tạo ảnh.",
   "images.placeholder": "Mô tả bức ảnh… ví dụ: cô gái áo dài giữa phố cổ Hội An lúc hoàng hôn",
   "images.generate": "Tạo ảnh",
   "images.generating": "Đang tạo…",
@@ -119,8 +118,6 @@ export const dict = {
   "images.quality": "Chất lượng",
   "images.aspect": "Tỷ lệ",
   "images.count": "Số ảnh",
-  "images.enhance": "Sửa prompt",
-  "images.enhance.hint": "Kiwii viết lại prompt bằng tiếng Anh, thêm ánh sáng, bố cục trước khi tạo.",
   "images.references": "Ảnh tham chiếu",
   "images.references.add": "Thêm ảnh",
   "images.references.hint": "Tối đa {{n}} ảnh, +{{extra}} credit mỗi lượt",

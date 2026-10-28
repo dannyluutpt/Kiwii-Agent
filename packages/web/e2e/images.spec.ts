@@ -20,6 +20,8 @@ async function chooseOptions(page: Page, isMobile: boolean, choice: { ratio: str
     .filter({ hasText: new RegExp(`^${choice.count}$`) })
     .click()
   await expect(panel.getByRole("radio", { name: choice.ratio })).toBeChecked()
+  // Rewriting the prompt is the server's call, so the panel offers no switch for it.
+  await expect(panel.getByRole("switch")).toHaveCount(0)
   if (isMobile) await panel.getByRole("button", { name: "Xong" }).click()
   if (!isMobile) await page.keyboard.press("Escape")
   await expect(panel).toBeHidden()

@@ -52,11 +52,10 @@ function loadSettings(): StudioSettings {
         option: stored.option ?? "",
         aspectRatio: stored.aspectRatio ?? "1:1",
         n: stored.n ?? 1,
-        enhance: stored.enhance ?? true,
       }
     }
   } catch {}
-  return { model: "gpt-image-2.5", option: "medium", aspectRatio: "1:1", n: 1, enhance: true }
+  return { model: "gpt-image-2.5", option: "medium", aspectRatio: "1:1", n: 1 }
 }
 
 export default function Images() {
@@ -150,7 +149,6 @@ export default function Images() {
           aspectRatio: from.aspectRatio,
           n: from.n,
           prompt: from.prompt,
-          enhance: from.enhance,
           referenceFileIDs: from.referenceFileIDs,
         }
       : {
@@ -159,7 +157,6 @@ export default function Images() {
           aspectRatio: settings.aspectRatio,
           n: settings.n,
           prompt: prompt().trim(),
-          enhance: settings.enhance,
           referenceFileIDs: references().map((r) => r.id),
         }
     setRunning(running() + 1)

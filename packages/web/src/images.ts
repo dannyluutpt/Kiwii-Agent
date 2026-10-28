@@ -30,7 +30,6 @@ export type Generation = {
   aspectRatio: string
   n: number
   prompt: string
-  enhance: boolean
   referenceFileIDs: string[]
   creditsReserved: number
   creditsFinal: number | null
@@ -74,5 +73,4 @@ export type StudioSettings = {
   option: string
   aspectRatio: string
   n: number
-  enhance: boolean
 }
