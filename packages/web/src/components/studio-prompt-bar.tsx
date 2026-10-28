@@ -5,6 +5,7 @@ import { useLanguage } from "@/context/language"
 import { useLayout } from "@/context/layout"
 import type { ImageModel, ModelsResponse, Reference, StudioSettings } from "@/images"
 import { errorMessage } from "@/lib/errors"
+import { shrinkImage } from "@/lib/image"
 import { Button, buttonClass } from "@/ui/button"
 import { IconButton } from "@/ui/icon-button"
 import { Menu, MenuContent, MenuRadioGroup } from "@/ui/menu"
@@ -70,7 +71,7 @@ export function StudioPromptBar(props: {
     const added: Reference[] = []
     for (const file of picked) {
       const form = new FormData()
-      form.append("file", file)
+      form.append("file", await shrinkImage(file))
       const stored = await apiUpload<Reference>("/images/references", form).catch((error: unknown) => {
         toast.error(errorMessage(error, t("error.generic")))
         return undefined

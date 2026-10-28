@@ -9,7 +9,7 @@ import { balance, reserve } from "../credits/ledger"
 import { TRIAL_MODELS } from "../credits/trial"
 import { files, generation_images, generations } from "../db/schema"
 import { enhancePrompt } from "../images/enhance"
-import { reapStaleGenerations, runGeneration, type GenerationEvent } from "../images/generate"
+import { friendly, reapStaleGenerations, runGeneration, type GenerationEvent } from "../images/generate"
 import {
   imageCreditCost,
   ImageModelID,
@@ -359,7 +359,7 @@ function presentGeneration(
     referenceFileIDs: JSON.parse(g.reference_file_ids) as string[],
     creditsReserved: g.credits_reserved,
     creditsFinal: g.credits_final,
-    error: g.error,
+    error: g.error === null ? null : friendly(g.error),
     createdAt: g.created_at,
     finishedAt: g.finished_at,
     images: imageRows.map((row) => ({

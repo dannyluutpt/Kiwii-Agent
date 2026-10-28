@@ -120,6 +120,50 @@ test("a run can be reused, retried after a failure and deleted", async ({ page }
   await expect(runs).toHaveCount(1)
 })
 
+test("a second press while a run is being prepared starts nothing more", async ({ page }) => {
+  let posts = 0
+  // Preparing a run (prompt rewrite, references) takes a few seconds in production; hold it here.
+  await page.route("**/api/images/generations", async (route) => {
+    if (route.request().method() !== "POST") return route.continue()
+    posts++
+    await new Promise((resolve) => setTimeout(resolve, 1500))
+    await route.continue()
+  })
+  await page.goto("/images")
+  await prompt(page).fill("Một chiếc thuyền giấy trên mặt hồ")
+  const generate = page.getByRole("button", { name: /^Tạo ảnh, \d+ credit$/ })
+  // Two presses in the same moment, well before the server answers the first.
+  await generate.evaluate((button: HTMLButtonElement) => {
+    button.click()
+    button.click()
+  })
+  await expect(generate).toBeDisabled({ timeout: 500 })
+  await expect(card(page, "Một chiếc thuyền giấy trên mặt hồ")).toBeVisible({ timeout: 10_000 })
+  expect(posts).toBe(1)
+})
+
+test("a large reference photo is scaled down before it is uploaded", async ({ page }) => {
+  await page.goto("/images")
+  // A 24-megapixel photo, larger than the image models accept.
+  const bytes = await page.evaluate(async () => {
+    const canvas = document.createElement("canvas")
+    canvas.width = 6000
+    canvas.height = 4000
+    const context = canvas.getContext("2d")!
+    context.fillStyle = "#3a7"
+    context.fillRect(0, 0, 6000, 4000)
+    const blob = await new Promise<Blob>((resolve) => canvas.toBlob((b) => resolve(b!), "image/jpeg", 0.8))
+    return Array.from(new Uint8Array(await blob.arrayBuffer()))
+  })
+  await page
+    .locator('input[type="file"]')
+    .setInputFiles({ name: "big.jpg", mimeType: "image/jpeg", buffer: Buffer.from(bytes) })
+  const thumb = page.getByRole("list", { name: "Ảnh tham chiếu" }).getByRole("img")
+  await expect(thumb).toBeVisible()
+  await expect.poll(() => thumb.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBe(2048)
+  expect(await thumb.evaluate((img: HTMLImageElement) => img.naturalHeight)).toBe(1365)
+})
+
 test("every quality fits inside the options panel", async ({ page }) => {
   await page.goto("/images")
   await page.getByRole("button", { name: /^Tuỳ chọn:/ }).click()

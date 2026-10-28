@@ -15,6 +15,7 @@ export function GenerationCard(props: {
   model?: ImageModel
   onOpen: (index: number) => void
   onReuse: () => void
+  retrying?: boolean
   onRetry: () => void
   onDelete: () => void
 }) {
@@ -103,7 +104,7 @@ export function GenerationCard(props: {
               <span class="text-label-2"> · {t("images.refunded", { n: g().refunded ?? 0 })}</span>
             </Show>
           </p>
-          <Button size="sm" variant="secondary" onClick={() => props.onRetry()}>
+          <Button size="sm" variant="secondary" loading={props.retrying} onClick={() => props.onRetry()}>
             {t("common.retry")}
           </Button>
         </div>

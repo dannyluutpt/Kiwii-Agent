@@ -75,6 +75,10 @@ export default function Images() {
   })
   const [viewer, setViewer] = createSignal<{ id: string; index: number }>()
   const [running, setRunning] = createSignal(0)
+  // Runs asked for but not yet accepted by the server ("composer", or the id of a run being
+  // retried). Preparing a run takes a few seconds, so the button shows it is working at once and a
+  // second press does not start a second run.
+  const [starting, setStarting] = createSignal<string[]>([])
 
   const patch = (next: Partial<StudioSettings>) => {
     setSettings(next)
@@ -142,6 +146,10 @@ export default function Images() {
   const generate = async (from?: Generation) => {
     const cfg = config()
     if (!cfg) return
+    const key = from?.id ?? "composer"
+    if (starting().includes(key)) return
+    setStarting([...starting(), key])
+    const started = () => setStarting(starting().filter((k) => k !== key))
     const body = from
       ? {
           model: from.model,
@@ -166,6 +174,7 @@ export default function Images() {
         if (event.event === "start") {
           const g = event.data as Generation
           id = g.id
+          started()
           setList(produce((s) => s.items.unshift({ ...g, images: [], previews: {} })))
           if (!from) setPrompt("")
           feed?.scrollTo({ top: 0, behavior: "smooth" })
@@ -220,6 +229,7 @@ export default function Images() {
       if (!insufficient) toast.error(errorMessage(error, t("error.network")))
       if (id) update(id, (g) => (g.status = "failed"))
     } finally {
+      started()
       setRunning(running() - 1)
     }
   }
@@ -332,6 +342,7 @@ export default function Images() {
                 model={config()?.models.find((m) => m.id === g.model)}
                 onOpen={(index) => setViewer({ id: g.id, index })}
                 onReuse={() => reuse(g)}
+                retrying={starting().includes(g.id)}
                 onRetry={() => void generate(g)}
                 onDelete={() => void remove(g)}
               />
@@ -370,7 +381,7 @@ export default function Images() {
               references={references()}
               onReferences={setReferences}
               cost={cost()}
-              busy={busy()}
+              busy={busy() || starting().includes("composer")}
               locked={locked()}
               onGenerate={() => void generate()}
             />
