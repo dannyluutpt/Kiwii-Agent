@@ -23,13 +23,29 @@ export function partsToText(parts: MessagePart[]) {
     .join("\n\n")
 }
 
+// The system prompt with the moment the question is asked, in Vietnam time, so "what day is it"
+// and "latest" have an answer.
+export function systemPrompt(now: Date) {
+  const when = new Intl.DateTimeFormat("vi-VN", {
+    timeZone: "Asia/Ho_Chi_Minh",
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(now)
+  return `${SYSTEM_PROMPT}\n\nBây giờ là ${when} (giờ Việt Nam, UTC+7).`
+}
+
 // Keeps the system prompt and the newest message, then adds older turns until the budget is spent.
 export function buildContext(
   history: Array<{ role: "user" | "assistant"; parts: MessagePart[] }>,
   budgetTokens: number,
+  now = new Date(),
 ): ChatMessage[] {
-  const system: ChatMessage = { role: "system", content: SYSTEM_PROMPT }
-  let remaining = budgetTokens - estimateTokens(SYSTEM_PROMPT)
+  const system: ChatMessage = { role: "system", content: systemPrompt(now) }
+  let remaining = budgetTokens - estimateTokens(system.content)
   const picked: ChatMessage[] = []
   for (const message of [...history].reverse()) {
     const content = partsToText(message.parts)

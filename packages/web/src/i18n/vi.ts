@@ -86,6 +86,7 @@ export const dict = {
   "chat.attach.remove": "Bỏ tệp",
   "chat.uploading": "Đang tải tệp lên…",
   "chat.creatingFile": "Kiwii đang tạo tệp…",
+  "chat.searching": "Kiwii đang tìm trên web…",
   "chat.download": "Tải về",
   "chat.toolsPaid": "Tạo tệp Word, Excel, code dành cho gói trả phí",
   "chat.disclaimer": "Kiwii có thể sai. Hãy kiểm tra thông tin quan trọng.",

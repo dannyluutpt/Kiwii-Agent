@@ -255,11 +255,20 @@ async function respond(c: Ctx, conversation: typeof conversations.$inferSelect, 
       for (const call of calls) {
         await stream.writeSSE({ event: "tool-call", data: JSON.stringify({ name: call.function.name }) })
         const result = await runTool(
-          { db, bucket: c.env.BUCKET, userID: user.id, messageID: assistantID },
+          {
+            db,
+            bucket: c.env.BUCKET,
+            userID: user.id,
+            messageID: assistantID,
+            apiKey,
+            baseURL: c.env.OPENROUTER_BASE_URL,
+            now: new Date(),
+          },
           call.function.name,
           call.function.arguments,
         )
         if (result.file) fileParts.push(result.file)
+        usage.cost = (usage.cost ?? 0) + (result.costUsd ?? 0)
         thread.push({ role: "tool", tool_call_id: call.id, content: JSON.stringify(result.output) })
         await stream.writeSSE({
           event: "tool-result",
@@ -308,7 +317,7 @@ async function respond(c: Ctx, conversation: typeof conversations.$inferSelect, 
 }
 
 const TOOLS_HINT =
-  "Bạn có thể tạo tệp cho người dùng bằng các công cụ create_docx (Word), create_xlsx (Excel) và create_code_file (code hoặc văn bản). Khi người dùng muốn một tệp để tải về, hãy gọi công cụ với nội dung đầy đủ rồi trả lời ngắn gọn rằng tệp đã sẵn sàng; đừng chép lại toàn bộ nội dung tệp vào câu trả lời."
+  "Bạn có thể tạo tệp cho người dùng bằng các công cụ create_docx (Word), create_xlsx (Excel) và create_code_file (code hoặc văn bản). Khi người dùng muốn một tệp để tải về, hãy gọi công cụ với nội dung đầy đủ rồi trả lời ngắn gọn rằng tệp đã sẵn sàng; đừng chép lại toàn bộ nội dung tệp vào câu trả lời. Bạn cũng tìm được trên web bằng công cụ web_search: hãy dùng nó cho tin tức, giá cả, tỷ giá, thời tiết, sự kiện gần đây hoặc điều bạn không chắc, rồi trả lời dựa trên kết quả và dẫn nguồn bằng liên kết Markdown. Đừng nói rằng bạn không truy cập được internet."
 
 function priceOf(model: string, usage: Usage) {
   const price = MODEL_PRICING[model]
