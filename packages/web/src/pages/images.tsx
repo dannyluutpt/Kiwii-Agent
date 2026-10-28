@@ -259,7 +259,7 @@ export default function Images() {
       .map((img) => ({
         src: img.url,
         alt: altFor(g),
-        caption: g.promptEnhanced ?? g.prompt,
+        caption: g.prompt,
         download: `${img.url}?download`,
       }))
   }

@@ -30,7 +30,6 @@ export type Generation = {
   aspectRatio: string
   n: number
   prompt: string
-  promptEnhanced: string | null
   enhance: boolean
   referenceFileIDs: string[]
   creditsReserved: number
@@ -67,8 +66,8 @@ export function gridFor(n: number, ratio: string) {
   }
 }
 
-// Screen readers hear what the picture shows: the prompt Kiwii actually used, kept short.
-export const altFor = (g: Pick<Generation, "prompt" | "promptEnhanced">) => (g.promptEnhanced ?? g.prompt).slice(0, 120)
+// Screen readers hear what the picture shows, in the customer's own words, kept short.
+export const altFor = (g: Pick<Generation, "prompt">) => g.prompt.slice(0, 120)
 
 export type StudioSettings = {
   model: string

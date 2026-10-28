@@ -23,9 +23,8 @@ describe("gridFor", () => {
 })
 
 describe("altFor", () => {
-  test("prefers the prompt Kiwii actually used and keeps it short", () => {
-    expect(altFor({ prompt: "mèo", promptEnhanced: null })).toBe("mèo")
-    expect(altFor({ prompt: "mèo", promptEnhanced: "an orange cat" })).toBe("an orange cat")
-    expect(altFor({ prompt: "x".repeat(300), promptEnhanced: null })).toHaveLength(120)
+  test("describes the picture with the customer's prompt, kept short", () => {
+    expect(altFor({ prompt: "mèo" })).toBe("mèo")
+    expect(altFor({ prompt: "x".repeat(300) })).toHaveLength(120)
   })
 })

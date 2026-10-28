@@ -311,7 +311,6 @@ images.get("/assets", async (c) => {
       option: generations.option,
       aspectRatio: generations.aspect_ratio,
       prompt: generations.prompt_raw,
-      promptEnhanced: generations.prompt_enhanced,
     })
     .from(generation_images)
     .innerJoin(generations, eq(generations.id, generation_images.generation_id))
@@ -343,6 +342,7 @@ export function fileURL(id: string) {
   return `/api/images/files/${id}`
 }
 
+// What the browser sees of a run. The rewritten prompt is internal and never leaves the server.
 function presentGeneration(
   g: typeof generations.$inferSelect,
   imageRows: Array<typeof generation_images.$inferSelect>,
@@ -355,7 +355,6 @@ function presentGeneration(
     aspectRatio: g.aspect_ratio,
     n: g.n,
     prompt: g.prompt_raw,
-    promptEnhanced: g.prompt_enhanced,
     enhance: g.enhance === 1,
     referenceFileIDs: JSON.parse(g.reference_file_ids) as string[],
     creditsReserved: g.credits_reserved,

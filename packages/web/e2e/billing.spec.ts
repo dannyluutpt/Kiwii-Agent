@@ -44,6 +44,15 @@ test.describe("paid account", () => {
 })
 
 test.describe("free account", () => {
+  test("plans describe chat by what it does, never by the model behind it", async ({ page }) => {
+    await page.goto("/pricing")
+    await expect(page.getByRole("article", { name: "Plus" })).toContainText(
+      "Tạo tệp Word, Excel và code ngay trong chat",
+    )
+    await expect(page.getByRole("article", { name: "Miễn phí" })).not.toContainText("Tạo tệp")
+    await expect(page.getByRole("main")).not.toContainText(/MiMo|model chat/i)
+  })
+
   test("a pending order waits in Account and picks up where it left off", async ({ page }) => {
     await page.goto("/pricing")
     await expect(page.getByText("Cần một gói trả phí đang hoạt động để mua thêm credit.")).toBeVisible()

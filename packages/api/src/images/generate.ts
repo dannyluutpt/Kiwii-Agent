@@ -16,7 +16,7 @@ import { objectKey, putObject } from "./r2"
 export type GenerationEvent =
   | { type: "partial"; index: number; b64: string }
   | { type: "image"; index: number; id: string; fileID: string }
-  | { type: "done"; creditsFinal: number; refunded: number; costUsd: number }
+  | { type: "done"; creditsFinal: number; refunded: number }
   | { type: "error"; message: string; refunded: number }
 
 export type Generation = typeof generations.$inferSelect
@@ -154,7 +154,7 @@ export async function runGeneration(input: RunInput) {
     .update(generations)
     .set({ status: "done", credits_final: creditsFinal, cost_usd: cost, error: lastError ?? null, finished_at: now })
     .where(eq(generations.id, generation.id))
-  await input.emit({ type: "done", creditsFinal, refunded, costUsd: cost })
+  await input.emit({ type: "done", creditsFinal, refunded })
 }
 
 function describe(error: unknown) {
@@ -167,7 +167,7 @@ function friendly(error: string | undefined) {
   if (!error) return "Không tạo được ảnh, credit đã được hoàn"
   if (error.startsWith("429")) return "Model đang quá tải, thử lại sau ít phút. Credit đã được hoàn"
   if (/data policy|ZDR|privacy/i.test(error))
-    return "Model này chưa được bật trong cài đặt OpenRouter của hệ thống. Credit đã được hoàn"
+    return "Model này tạm thời chưa dùng được, hãy chọn model khác. Credit đã được hoàn"
   if (/moderation|safety|policy|content/i.test(error)) return "Nội dung bị model từ chối. Credit đã được hoàn"
   return "Không tạo được ảnh, credit đã được hoàn"
 }

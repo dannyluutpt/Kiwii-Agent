@@ -275,7 +275,7 @@ async function respond(c: Ctx, conversation: typeof conversations.$inferSelect, 
 
     if (failed) return
     if (!text && fileParts.length === 0) {
-      await stream.writeSSE({ event: "error", data: JSON.stringify({ message: "Model không trả lời, thử lại" }) })
+      await stream.writeSSE({ event: "error", data: JSON.stringify({ message: "Kiwii chưa trả lời được, thử lại" }) })
       return
     }
     const parts: MessagePart[] = [...(text ? [{ type: "text" as const, text: text.trim() }] : []), ...fileParts]
@@ -302,7 +302,7 @@ async function respond(c: Ctx, conversation: typeof conversations.$inferSelect, 
     })
     await stream.writeSSE({
       event: "finish",
-      data: JSON.stringify({ messageID: assistantID, model: finishedModel, usage, parts }),
+      data: JSON.stringify({ messageID: assistantID, parts }),
     })
   })
 }
@@ -316,10 +316,9 @@ function priceOf(model: string, usage: Usage) {
 }
 
 function friendlyProviderError(status: number, message: string, tier: string) {
-  if (/data policy|privacy/i.test(message))
-    return "Dịch vụ AI chưa bật quyền dùng model này, vui lòng báo quản trị viên"
+  if (/data policy|privacy/i.test(message)) return "Dịch vụ AI đang gián đoạn, vui lòng báo quản trị viên"
   if (status === 429 && tier === "free") return "Hệ thống miễn phí đang quá tải, thử lại sau vài phút hoặc nâng gói"
-  if (status === 429) return "Model đang bận, thử lại sau ít giây"
+  if (status === 429) return "Kiwii đang bận, thử lại sau ít giây"
   if (status === 401 || status === 402) return "Dịch vụ AI đang gián đoạn, vui lòng báo quản trị viên"
-  return "Model gặp lỗi, thử lại"
+  return "Kiwii gặp lỗi, thử lại"
 }

@@ -44,7 +44,11 @@ test("a run streams into the feed and its pictures open in the viewer", async ({
   await first.click()
   const viewer = page.getByRole("dialog")
   await expect(viewer).toContainText("1 / 2")
-  await expect(viewer.getByRole("img")).toHaveAttribute("alt", /Chú mèo cam/)
+  // The viewer speaks the customer's words; the server's rewrite (the mock adds "cinematic lighting")
+  // stays on the server.
+  await expect(viewer.getByRole("img")).toHaveAttribute("alt", text)
+  await expect(viewer).toContainText(text)
+  await expect(viewer).not.toContainText("cinematic lighting")
   await page.keyboard.press("ArrowRight")
   await expect(viewer).toContainText("2 / 2")
   await page.keyboard.press("Escape")
@@ -59,6 +63,14 @@ test("a run streams into the feed and its pictures open in the viewer", async ({
   // Focus returns from the viewer a moment after it unmounts; it must not pull focus off the prompt.
   await page.waitForTimeout(300)
   await expect(prompt(page)).toBeFocused()
+
+  // No menu entry reveals the rewrite, and the API never hands it to the browser.
+  await run.getByRole("button", { name: "Thao tác khác" }).click()
+  await expect(page.getByRole("menuitem")).toHaveText(["Sao chép prompt", "Xoá"])
+  await page.keyboard.press("Escape")
+  const feed = await (await page.request.get("/api/images/generations")).text()
+  expect(feed).toContain(text)
+  expect(feed).not.toContain("cinematic lighting")
 })
 
 test("the options sheet closes when its top bar is dragged down", async ({ page, isMobile }) => {
