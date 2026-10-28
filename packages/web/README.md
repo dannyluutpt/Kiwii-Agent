@@ -52,6 +52,22 @@ composer with a bottom sheet (`components/studio-prompt-bar.tsx`) on phones. A r
 gallery the moment it is asked for. Reference photos are scaled in the browser to the chosen model's
 longest edge (`lib/image.ts`, `components/references.tsx`) before they are uploaded.
 
+## Home Screen app
+
+`public/manifest.webmanifest` makes the site, once added to the Home Screen, open full screen like an
+app on iOS and Android (`display: standalone`, the whole site in scope, starting at `/chat`); without
+it iOS 26 keeps the browser bars. A phone reads the manifest only when the icon is added, so a change
+to it shows after the icon is removed and added again.
+
+The icons in `public/icons/` are `assets/logo.png` on an opaque `#141513` square, since iOS paints
+transparent areas black: about 78% of the square, 58% for the maskable one so Android's masks never
+cut it. Made with ImageMagick, from this folder:
+
+```sh
+icon() { convert ../../assets/logo.png -trim +repage -resize "$2x$2" -background '#141513' -gravity center -extent "$3x$3" -alpha remove -alpha off -strip "public/icons/$1"; }
+icon apple-touch-icon.png 140 180; icon icon-192.png 150 192; icon icon-512.png 400 512; icon icon-maskable-512.png 297 512
+```
+
 ## End-to-end tests
 
 `e2e/` drives the real app with Playwright against a local Worker on :8790. The global setup writes a

@@ -299,6 +299,13 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
+    /* No grey flash on tap: controls show their own pressed state, as in a native app. */
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Pressing and holding a tab or a conversation opens nothing; Safari would preview the link. */
+  nav a {
+    -webkit-touch-callout: none;
   }
 
   body {
