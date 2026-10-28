@@ -36,6 +36,8 @@ export default function globalSetup() {
     `INSERT INTO conversations (id, user_id, title, model, last_message_at, created_at) VALUES ('e2e-conv-1', 'e2e-user', 'Kế hoạch du lịch Đà Lạt', 'mock', ${now}, ${now}), ('e2e-conv-2', 'e2e-user', 'Viết email xin nghỉ phép', 'mock', ${now - 1000}, ${now})`,
     // An order left unpaid past its 24 hours, for the expired checkout screen.
     `INSERT INTO plan_orders (id, user_id, kind, item_id, amount_vnd, memo, status, expires_at, created_at) VALUES ('e2e-order-expired', 'e2e-user', 'plan', 'starter', 299000, 'KWE2EOLD01', 'pending', ${now - DAY}, ${now - 2 * DAY})`,
+    // Production prices GPT Image's two top qualities, so the studio offers five of them.
+    `INSERT OR REPLACE INTO app_config (key, value, updated_at) VALUES ('image_models', '{"gpt-image-2.5":{"xhigh":15,"max":28}}', ${now})`,
   ].join("; ")
   execFileSync("bunx", ["wrangler", "d1", "execute", "kiwii", "--local", "--command", sql], {
     cwd: API_DIR,
