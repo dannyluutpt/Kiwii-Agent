@@ -4,8 +4,8 @@
 //   bun script/mock-openrouter.ts            (port 8899, or MOCK_PORT)
 //
 // Chat streams a short markdown answer word by word; a prompt containing "dài" or "long" streams a
-// long one (for scroll tests), "excel"/"word"/"file"/"tệp" triggers a tool call when tools are
-// offered, "RATELIMIT" returns 429. JSON-mode calls answer like the prompt enhancer ("BLOCKME" is
+// long one (for scroll tests), "excel"/"word"/"file"/"tệp" triggers a file tool call and "giá vàng" a
+// web_search call when tools are offered, "RATELIMIT" returns 429. JSON-mode calls answer like the prompt enhancer ("BLOCKME" is
 // refused). The Images API returns gradient PNGs; "FAIL" in the prompt returns 400.
 import { deflateSync } from "node:zlib"
 
@@ -70,6 +70,55 @@ async function chat(body: Record<string, unknown>) {
   }
   if (text.includes("RATELIMIT")) return Response.json({ error: { message: "rate limited" } }, { status: 429 })
   const model = body.model
+  // A buffered call with the web plugin answers like OpenRouter's web search: a summary plus
+  // url_citation annotations.
+  if (Array.isArray(body.plugins)) {
+    // A real search takes a moment; long enough for the status line to show.
+    await new Promise((resolve) => setTimeout(resolve, 700))
+    return Response.json({
+      choices: [
+        {
+          message: {
+            content: `Kết quả mock cho "${text}": giá vàng SJC hôm nay là 150 triệu đồng một lượng.`,
+            annotations: [
+              {
+                type: "url_citation",
+                url_citation: {
+                  url: "https://example.com/gia-vang",
+                  title: "Giá vàng hôm nay",
+                  content: "SJC 150 triệu",
+                },
+              },
+              {
+                type: "url_citation",
+                url_citation: { url: "https://example.com/gia-vang", title: "Trùng", content: "bỏ qua" },
+              },
+            ],
+          },
+        },
+      ],
+      usage: { prompt_tokens: 40, completion_tokens: 30, cost: 0.0071 },
+    })
+  }
+  if (last?.role === "tool" && String(last.content).includes('"results"')) {
+    return sse(async (send) => {
+      send({
+        model,
+        choices: [
+          {
+            delta: {
+              content: "Theo [Giá vàng hôm nay](https://example.com/gia-vang), SJC đang ở 150 triệu đồng một lượng.",
+            },
+          },
+        ],
+      })
+      send({
+        model,
+        choices: [{ delta: {}, finish_reason: "stop" }],
+        usage: { prompt_tokens: 60, completion_tokens: 20, cost: 0.00006 },
+      })
+    })
+  }
   if (last?.role === "tool") {
     return sse(async (send) => {
       send({ model, choices: [{ delta: { content: "Tệp đã sẵn sàng, bạn tải ở bên dưới nhé." } }] })
@@ -80,35 +129,37 @@ async function chat(body: Record<string, unknown>) {
       })
     })
   }
-  if (Array.isArray(body.tools) && /excel|word|file|tệp/i.test(text)) {
-    const call = /excel/i.test(text)
-      ? {
-          name: "create_xlsx",
-          arguments: JSON.stringify({
-            filename: "doanh-thu",
-            sheets: [
-              {
-                name: "Q3",
-                rows: [
-                  ["Tháng", "Doanh thu"],
-                  ["7", 100],
-                  ["8", 250],
-                ],
-              },
-            ],
-          }),
-        }
-      : {
-          name: "create_docx",
-          arguments: JSON.stringify({
-            filename: "bao-cao",
-            title: "Báo cáo",
-            blocks: [
-              { type: "heading", text: "Tổng quan", level: 1 },
-              { type: "paragraph", text: "Nội dung báo cáo." },
-            ],
-          }),
-        }
+  if (Array.isArray(body.tools) && /excel|word|file|tệp|giá vàng/i.test(text)) {
+    const call = /giá vàng/i.test(text)
+      ? { name: "web_search", arguments: JSON.stringify({ query: "giá vàng SJC hôm nay" }) }
+      : /excel/i.test(text)
+        ? {
+            name: "create_xlsx",
+            arguments: JSON.stringify({
+              filename: "doanh-thu",
+              sheets: [
+                {
+                  name: "Q3",
+                  rows: [
+                    ["Tháng", "Doanh thu"],
+                    ["7", 100],
+                    ["8", 250],
+                  ],
+                },
+              ],
+            }),
+          }
+        : {
+            name: "create_docx",
+            arguments: JSON.stringify({
+              filename: "bao-cao",
+              title: "Báo cáo",
+              blocks: [
+                { type: "heading", text: "Tổng quan", level: 1 },
+                { type: "paragraph", text: "Nội dung báo cáo." },
+              ],
+            }),
+          }
     return sse(async (send) => {
       send({ model, choices: [{ delta: { content: "Mình tạo tệp cho bạn ngay." } }] })
       send({

@@ -60,8 +60,10 @@ give 1 / 1 / 3 / 5 / 10, so every GPT tier carries a wide margin.
 
 ## Chat tools and attachments
 
-Paid plans chat with MiMo and get three function-calling tools (`src/chat/tools/`):
-`create_docx`, `create_xlsx` and `create_code_file`. Results are stored in R2 under `u/<user>/`
-and returned as `file` message parts; `GET /api/chat/files/:id` serves them owner-checked.
+Paid plans chat with MiMo and get four function-calling tools (`src/chat/tools/`):
+`create_docx`, `create_xlsx`, `create_code_file` and `web_search`. The search goes through
+OpenRouter's web plugin (Exa, about $0.007 a search on the same key) and returns a summary with
+cited pages. The system prompt carries the time of the question in Vietnam time. File results are
+stored in R2 under `u/<user>/` and returned as `file` message parts; `GET /api/chat/files/:id` serves them owner-checked.
 Users can attach up to five text-like files (1 MB each) through `POST /api/chat/files`; their
 content is inlined into the model context. Free models never receive tools.

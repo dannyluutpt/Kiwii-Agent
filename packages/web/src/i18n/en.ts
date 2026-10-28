@@ -88,6 +88,7 @@ export const dict: Record<I18nKey, string> = {
   "chat.attach.remove": "Remove file",
   "chat.uploading": "Uploading…",
   "chat.creatingFile": "Kiwii is creating a file…",
+  "chat.searching": "Kiwii is searching the web…",
   "chat.download": "Download",
   "chat.toolsPaid": "Word, Excel and code files are for paid plans",
   "chat.disclaimer": "Kiwii can make mistakes. Check important information.",

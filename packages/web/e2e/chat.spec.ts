@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "./fixtures"
+import { PRO_STATE } from "./global-setup"
 
 const composer = (page: Page) => page.getByRole("textbox", { name: "Nhắn cho Kiwii…" })
 
@@ -19,6 +20,22 @@ test("a suggestion fills the composer and the answer streams in", async ({ page 
   await expect(page.getByRole("button", { name: "Sao chép" }).first()).toBeVisible()
   await expect(page.locator(".k-code-head").first()).toContainText("ts")
   await expect(page.getByRole("button", { name: "Tạo lại" })).toBeEnabled()
+})
+
+// Tools, the web search among them, come with a paid plan.
+test("a question about today sends Kiwii to the web and the answer cites its source", async ({ browser }) => {
+  const context = await browser.newContext({ storageState: PRO_STATE })
+  const page = await context.newPage()
+  await page.goto("/chat")
+  await composer(page).fill("Giá vàng hôm nay bao nhiêu?")
+  await page.keyboard.press("Enter")
+  // The status line names the tool while it runs; the mock then answers from the results.
+  await expect(page.getByText("Kiwii đang tìm trên web…")).toBeVisible()
+  const source = page.getByRole("main").getByRole("link", { name: "Giá vàng hôm nay", exact: true })
+  await expect(source).toBeVisible()
+  await expect(source).toHaveAttribute("href", "https://example.com/gia-vang")
+  await expect(page.getByText("150 triệu đồng")).toBeVisible()
+  await context.close()
 })
 
 test("finishing an answer refreshes the quota without reloading the screen", async ({ page }) => {

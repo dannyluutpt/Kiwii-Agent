@@ -4,14 +4,41 @@ import { files } from "../../db/schema"
 import type { ToolDefinition } from "../../llm/openrouter"
 import { buildCodeFile } from "./code"
 import { buildDocx } from "./docx"
+import { searchWeb } from "./search"
 import { buildXlsx } from "./xlsx"
 import type { GeneratedFile } from "./shared"
 
-export type ToolContext = { db: Database; bucket: R2Bucket; userID: string; messageID: string }
+export type ToolContext = {
+  db: Database
+  bucket: R2Bucket
+  userID: string
+  messageID: string
+  apiKey: string
+  baseURL?: string
+  now: Date
+}
 
 export type FilePart = { type: "file"; file_id: string; name: string; mime: string; size: number }
 
 export const CHAT_TOOLS: ToolDefinition[] = [
+  {
+    type: "function",
+    function: {
+      name: "web_search",
+      description:
+        "Search the web for current information: news, prices, exchange rates, weather, scores, release dates, anything that may have changed recently or that you are not sure about. Returns a short summary plus the sources (title, url, excerpt). Cite the sources you use as Markdown links in your reply.",
+      parameters: {
+        type: "object",
+        properties: {
+          query: {
+            type: "string",
+            description: "A focused search query, in the language most likely to have good results",
+          },
+        },
+        required: ["query"],
+      },
+    },
+  },
   {
     type: "function",
     function: {
@@ -102,12 +129,20 @@ export async function runTool(
   ctx: ToolContext,
   name: string,
   rawArgs: string,
-): Promise<{ output: unknown; file?: FilePart }> {
+): Promise<{ output: unknown; file?: FilePart; costUsd?: number }> {
   let args: unknown
   try {
     args = JSON.parse(rawArgs || "{}")
   } catch {
     return { output: { error: "arguments were not valid JSON" } }
+  }
+  if (name === "web_search") {
+    try {
+      const { costUsd, ...output } = await searchWeb(args, { apiKey: ctx.apiKey, baseURL: ctx.baseURL, now: ctx.now })
+      return { output, costUsd }
+    } catch (error) {
+      return { output: { error: error instanceof Error ? error.message : String(error) } }
+    }
   }
   let built: GeneratedFile
   try {

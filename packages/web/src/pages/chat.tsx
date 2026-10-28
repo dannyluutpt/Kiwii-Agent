@@ -47,7 +47,8 @@ function ChatScreen() {
   const [thread, setThread] = createStore<{ id?: string; messages: Message[] }>({ messages: [] })
   const [loading, setLoading] = createSignal(false)
   const [streaming, setStreaming] = createSignal<string>()
-  const [creating, setCreating] = createSignal(false)
+  // The tool Kiwii is running right now, for the status line under the answer.
+  const [tool, setTool] = createSignal<string>()
   const [failed, setFailed] = createSignal(false)
   const [announce, setAnnounce] = createSignal("")
   const [dragging, setDragging] = createSignal(false)
@@ -92,7 +93,7 @@ function ChatScreen() {
   const run = async (id: string, path: string, body: unknown) => {
     controller = new AbortController()
     setStreaming("")
-    setCreating(false)
+    setTool(undefined)
     setFailed(false)
     setAnnounce("")
     let text = ""
@@ -105,11 +106,11 @@ function ChatScreen() {
           continue
         }
         if (event.event === "tool-call") {
-          setCreating(true)
+          setTool((event.data as { name: string }).name)
           continue
         }
         if (event.event === "tool-result") {
-          setCreating(false)
+          setTool(undefined)
           const data = event.data as { error: string | null }
           if (data.error) toast.error(data.error)
           if (text) text += "\n\n"
@@ -143,7 +144,7 @@ function ChatScreen() {
       toast.error(errorMessage(error, t("error.network")))
     } finally {
       setStreaming(undefined)
-      setCreating(false)
+      setTool(undefined)
       if (!finished && !controller.signal.aborted && thread.id === id) setFailed(true)
     }
   }
@@ -322,9 +323,10 @@ function ChatScreen() {
                   >
                     <Markdown text={streaming()!} />
                   </Show>
-                  <Show when={creating()}>
+                  <Show when={tool()}>
                     <span class="flex items-center gap-2 text-subhead text-label-2">
-                      <Spinner class="size-4" /> {t("chat.creatingFile")}
+                      <Spinner class="size-4" />{" "}
+                      {tool() === "web_search" ? t("chat.searching") : t("chat.creatingFile")}
                     </span>
                   </Show>
                 </div>
