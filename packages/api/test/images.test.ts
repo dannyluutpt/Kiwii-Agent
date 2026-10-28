@@ -47,10 +47,12 @@ function fakeBucket() {
   }
 }
 
-function mockFetch(handler: (body: { model: string; n: number }) => Response | Promise<Response>) {
+type ImageBody = { model: string; n: number; stream: boolean; input_references?: unknown[] }
+
+function mockFetch(handler: (body: ImageBody) => Response | Promise<Response>) {
   const original = globalThis.fetch
   globalThis.fetch = (async (_url: unknown, init?: RequestInit) =>
-    handler(JSON.parse(String(init?.body)) as { model: string; n: number })) as typeof fetch
+    handler(JSON.parse(String(init?.body)) as ImageBody)) as typeof fetch
   return () => {
     globalThis.fetch = original
   }
@@ -153,6 +155,51 @@ describe("runGeneration", () => {
     expect(await balance(db, "u1")).toBe(97)
     const ledger = await db.select().from(credit_ledger).where(eq(credit_ledger.generation_id, generation.id))
     expect(ledger.map((r) => r.type)).toEqual(["reserve", "settle"])
+  })
+
+  test("an edit (references) on the streaming model is sent without streaming", async () => {
+    // OpenRouter refuses stream=true for image-to-image: "Streaming is not supported for
+    // image-to-image (edit) requests".
+    const db = await testDatabase()
+    const generation = await seed(db, { model: "gpt-image-2.5", option: "medium", n: 2, credits: 7 })
+    const { bucket } = fakeBucket()
+    const bodies: ImageBody[] = []
+    const restore = mockFetch((body) => {
+      bodies.push(body)
+      if (body.stream)
+        return new Response(
+          JSON.stringify({ error: { message: "Streaming is not supported for image-to-image (edit) requests" } }),
+          { status: 400 },
+        )
+      return Response.json({
+        data: [
+          { b64_json: PIXEL, media_type: "image/jpeg" },
+          { b64_json: PIXEL, media_type: "image/jpeg" },
+        ],
+        usage: { cost: 0.1 },
+      })
+    })
+    const events: string[] = []
+    try {
+      await runGeneration({
+        db,
+        bucket,
+        apiKey: "k",
+        generation,
+        model: IMAGE_MODELS[2]!,
+        perImageCredits: 3,
+        references: [{ type: "image_url", image_url: { url: "data:image/jpeg;base64," + PIXEL } }],
+        emit: (event) => {
+          events.push(event.type)
+        },
+      })
+    } finally {
+      restore()
+    }
+    expect(bodies).toHaveLength(1)
+    expect(bodies[0]).toMatchObject({ stream: false, n: 2 })
+    expect(bodies[0]!.input_references).toHaveLength(1)
+    expect(events).toEqual(["image", "image", "done"])
   })
 
   test("total failure marks failed and refunds everything", async () => {
