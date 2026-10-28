@@ -60,11 +60,12 @@ app.get("/api/health", (c) =>
 const CSP = [
   "default-src 'self'",
   // wasm-unsafe-eval: shiki highlights code blocks with a WebAssembly build of Oniguruma.
-  "script-src 'self' 'wasm-unsafe-eval' https://challenges.cloudflare.com",
+  // cloudflareinsights: Cloudflare Web Analytics injects its beacon into proxied pages.
+  "script-src 'self' 'wasm-unsafe-eval' https://challenges.cloudflare.com https://static.cloudflareinsights.com",
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https://img.vietqr.io",
   "font-src 'self' data:",
-  "connect-src 'self' https://challenges.cloudflare.com",
+  "connect-src 'self' https://challenges.cloudflare.com https://cloudflareinsights.com",
   "frame-src https://challenges.cloudflare.com",
   "worker-src 'self' blob:",
   "object-src 'none'",

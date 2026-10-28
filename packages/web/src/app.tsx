@@ -1,6 +1,5 @@
 import { Navigate, Route, Router, useLocation, useSearchParams } from "@solidjs/router"
-import { lazy, Show, type ParentProps } from "solid-js"
-import { MarkedProvider } from "@kiwii/ui/context/marked"
+import { lazy, onMount, Show, type ParentProps } from "solid-js"
 import { ThemeProvider } from "@kiwii/ui/theme/context"
 import { AppShell } from "@/components/app-shell"
 import { Splash } from "@/components/splash"
@@ -9,15 +8,17 @@ import { safeNext } from "@/lib/next"
 import { ConversationsProvider } from "@/context/conversations"
 import { LanguageProvider } from "@/context/language"
 import { LayoutProvider } from "@/context/layout"
+// The sign-in screens are small and are the first thing a signed-out visitor sees, so they ship in
+// the main bundle: the card renders whole instead of growing (and shifting) when a chunk lands.
+import Forgot from "@/pages/auth/forgot"
 import { AuthLayout } from "@/pages/auth/layout"
+import Login from "@/pages/auth/login"
+import Reset from "@/pages/auth/reset"
+import Signup from "@/pages/auth/signup"
+import Verify from "@/pages/auth/verify"
 import { ConfirmHost } from "@/ui/confirm"
 import { ToastRegion } from "@/ui/toast"
 
-const Login = lazy(() => import("@/pages/auth/login"))
-const Signup = lazy(() => import("@/pages/auth/signup"))
-const Verify = lazy(() => import("@/pages/auth/verify"))
-const Forgot = lazy(() => import("@/pages/auth/forgot"))
-const Reset = lazy(() => import("@/pages/auth/reset"))
 const Chat = lazy(() => import("@/pages/chat"))
 const Images = lazy(() => import("@/pages/images"))
 const Assets = lazy(() => import("@/pages/assets"))
@@ -37,21 +38,36 @@ function Providers(props: ParentProps) {
   return (
     <ThemeProvider defaultTheme="kiwii" onThemeApplied={(_, mode) => paintChrome(mode)}>
       <LanguageProvider>
-        <MarkedProvider>
-          <AuthProvider>
-            {props.children}
-            <ToastRegion />
-            <ConfirmHost />
-          </AuthProvider>
-        </MarkedProvider>
+        <AuthProvider>
+          {props.children}
+          <ToastRegion />
+          <ConfirmHost />
+        </AuthProvider>
       </LanguageProvider>
     </ThemeProvider>
   )
 }
 
+// Once the first screen is up and the browser is idle, fetch the other screens so the next tap
+// opens instantly. Skipped when the person asked the browser to save data.
+function preloadScreens() {
+  const connection = (navigator as Navigator & { connection?: { saveData?: boolean } }).connection
+  if (connection?.saveData) return
+  const run = () => {
+    for (const screen of [Chat, Images, Assets, Pricing, Account, Checkout]) void screen.preload()
+  }
+  // Safari has no requestIdleCallback; a short delay keeps the fetches clear of the first paint.
+  const later =
+    "requestIdleCallback" in window
+      ? (fn: () => void) => requestIdleCallback(fn)
+      : (fn: () => void) => setTimeout(fn, 1500)
+  later(run)
+}
+
 function Private(props: ParentProps) {
   const auth = useAuth()
   const location = useLocation()
+  onMount(preloadScreens)
   return (
     <Show when={auth.ready() && !auth.failed()} fallback={<Splash failed={auth.failed()} onRetry={auth.refresh} />}>
       <Show

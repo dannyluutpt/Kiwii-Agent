@@ -20,11 +20,15 @@ Checks: `bun run typecheck`, `bun test src` (unit), `bun run e2e` (browser; see 
 
 Everything visual comes from `src/styles/`:
 
+- `tailwind.css`: the Tailwind entry. Tailwind's theme layer and preflight, utilities generated from
+  this package only (`src/` and `index.html`), and a reset theme with just the base scale (spacing,
+  breakpoints, `max-w-*` widths, two weights, spin/ping/pulse). The web app does not load
+  `@kiwii/ui`'s stylesheet, which carries the desktop app's component CSS.
 - `tokens.css`: semantic colours (`bg-canvas`, `bg-surface`, `text-label-2`, `bg-accent`, …), the type
   scale (`text-large-title` … `text-caption-2`), named radii (`rounded-control`, `rounded-card`,
   `rounded-panel`, `rounded-sheet`), elevation (`shadow-raised`, `shadow-floating`, `shadow-overlay`),
-  motion durations and easings, safe-area and `glass` utilities. `@kiwii/ui` resets Tailwind's own
-  scale, so anything not listed here does not exist.
+  motion durations and easings, safe-area and `glass` utilities. With the theme reset, anything not
+  listed in these two files does not exist.
 - `theme.css`: the light and dark values, keyed on `html[data-color-scheme]`. The accent used for
   text and filled buttons is a deeper kiwi green chosen for WCAG AA contrast; the brand green is
   kept for focus rings and marks.
@@ -32,9 +36,9 @@ Everything visual comes from `src/styles/`:
   attributes, the spinner and skeleton.
 
 Components live in `src/ui/` (Button, IconButton, TextField, Dialog with `askConfirm`/`askText`,
-Sheet, Menu, Segmented, Toast, Tooltip, Skeleton, Tag, Avatar). They wrap Kobalte for behaviour and
-keyboard support and are sized for touch: 44px targets on coarse pointers, 16px text in inputs so
-iOS does not zoom. Prefer them over raw elements; never nest a `<button>` inside a link, use
+Sheet that closes with a drag, Menu, Popover, Segmented, Switch, List, Toast, Tooltip, Skeleton,
+Tag, Avatar). They wrap Kobalte for behaviour and keyboard support and are sized for touch: 44px
+targets on coarse pointers, 16px text in inputs so iOS does not zoom. Prefer them over raw elements; never nest a `<button>` inside a link, use
 `buttonClass()` on the link instead.
 
 Layout: phones (< 768px) get the bottom tab bar, tablets open the sidebar as a drawer, desktops

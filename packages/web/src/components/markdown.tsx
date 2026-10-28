@@ -1,4 +1,6 @@
 import DOMPurify from "dompurify"
+// Math in answers renders through KaTeX; its stylesheet ships with this component (the chat chunk).
+import "katex/dist/katex.min.css"
 import { createEffect, on, onCleanup } from "solid-js"
 import { useMarked } from "@kiwii/ui/context/marked"
 import { useLanguage } from "@/context/language"

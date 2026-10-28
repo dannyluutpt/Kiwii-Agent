@@ -17,6 +17,7 @@
     "@kiwii/ui": "workspace:*",
     "@solidjs/router": "catalog:",
     "dompurify": "catalog:",
+    "katex": "0.16.27",
     "solid-js": "catalog:"
   },
   "devDependencies": {

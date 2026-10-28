@@ -237,7 +237,7 @@ export function StudioPromptBar(props: {
             </span>
           </button>
           <Sheet side="bottom" open={sheet()} onOpenChange={setSheet} label={t("images.options")}>
-            <div class="grid grid-cols-[1fr_auto_1fr] items-center px-4 pt-1 pb-3">
+            <div data-sheet-handle class="grid touch-none grid-cols-[1fr_auto_1fr] items-center px-4 pt-1 pb-3">
               <span />
               <p class="text-headline text-label" aria-hidden="true">
                 {t("images.options")}

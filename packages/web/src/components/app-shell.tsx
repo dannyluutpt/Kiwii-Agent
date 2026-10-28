@@ -1,5 +1,5 @@
-import { useNavigate } from "@solidjs/router"
-import { Show, type ParentProps } from "solid-js"
+import { useLocation, useNavigate } from "@solidjs/router"
+import { createEffect, on, Show, type ParentProps } from "solid-js"
 import { useLanguage } from "@/context/language"
 import { useLayout } from "@/context/layout"
 import { NEW_CHAT_SHORTCUT, SEARCH_SHORTCUT, SIDEBAR_SHORTCUT, useShortcut } from "@/lib/shortcuts"
@@ -13,6 +13,21 @@ export function AppShell(props: ParentProps) {
   const { t } = useLanguage()
   const layout = useLayout()
   const navigate = useNavigate()
+  const location = useLocation()
+  let main: HTMLElement | undefined
+
+  // A new screen fades in; moving between conversations, or into one just created, stays still.
+  const screen = () => (location.pathname.startsWith("/chat") ? "/chat" : location.pathname)
+  createEffect(
+    on(
+      screen,
+      () => {
+        if (!main || matchMedia("(prefers-reduced-motion: reduce)").matches) return
+        main.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 200, easing: "cubic-bezier(0.2, 0, 0, 1)" })
+      },
+      { defer: true },
+    ),
+  )
 
   useShortcut(NEW_CHAT_SHORTCUT, () => navigate("/chat"))
   useShortcut(SIDEBAR_SHORTCUT, () => layout.toggleSidebar())
@@ -42,6 +57,7 @@ export function AppShell(props: ParentProps) {
         </aside>
       </Show>
       <main
+        ref={main}
         id="main"
         class="relative flex min-w-0 flex-1 flex-col"
         style={{
