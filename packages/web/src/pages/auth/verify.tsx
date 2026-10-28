@@ -1,9 +1,10 @@
 import { A, useNavigate, useSearchParams } from "@solidjs/router"
-import { createSignal } from "solid-js"
+import { createSignal, onMount, Show } from "solid-js"
 import { api } from "@/api"
 import { useAuth } from "@/context/auth"
 import { useLanguage } from "@/context/language"
 import { errorMessage } from "@/lib/errors"
+import { createCooldown } from "@/lib/time"
 import { toast } from "@/ui/toast"
 import { AuthForm, Field } from "./form"
 
@@ -14,8 +15,12 @@ export default function Verify() {
   const [params] = useSearchParams<{ email?: string }>()
   const email = () => (typeof params.email === "string" ? params.email : "")
   const [code, setCode] = createSignal("")
+  // A code was just sent by the sign-up step; wait a little before offering another.
+  const cooldown = createCooldown(30)
+  onMount(() => cooldown.start())
 
   const resend = () => {
+    cooldown.start()
     api("/auth/signup/resend", { body: { email: email() } })
       .then(() => toast.success(t("auth.verify.resent")))
       .catch((error: unknown) => toast.error(errorMessage(error, t("error.generic"))))
@@ -33,9 +38,18 @@ export default function Verify() {
       }}
       footer={
         <span class="flex flex-col gap-1">
-          <button type="button" class="font-medium text-accent" onClick={resend}>
-            {t("auth.verify.resend")}
-          </button>
+          <Show
+            when={cooldown.left() === 0}
+            fallback={
+              <span class="text-label-2 tabular-nums" aria-live="off">
+                {t("auth.verify.resendIn", { s: cooldown.left() })}
+              </span>
+            }
+          >
+            <button type="button" class="font-medium text-accent" onClick={resend}>
+              {t("auth.verify.resend")}
+            </button>
+          </Show>
           <A href="/login" class="text-label-2">
             {t("auth.back")}
           </A>
@@ -51,6 +65,8 @@ export default function Verify() {
         maxLength={4}
         autocomplete="one-time-code"
         autofocus
+        code
+        autoSubmit
       />
     </AuthForm>
   )

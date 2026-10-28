@@ -25,11 +25,17 @@ export default function globalSetup() {
     "DELETE FROM generations WHERE user_id = 'e2e-pro'",
     "DELETE FROM credit_ledger WHERE user_id = 'e2e-pro'",
     "DELETE FROM credit_grants WHERE user_id = 'e2e-pro'",
+    "DELETE FROM plan_orders WHERE user_id IN ('e2e-user', 'e2e-pro')",
+    "DELETE FROM plan_events WHERE user_id IN ('e2e-user', 'e2e-pro')",
+    // Transfers reported by the billing spec carry this tag in their content.
+    "DELETE FROM bank_events WHERE content LIKE '%E2E%'",
     `INSERT OR IGNORE INTO users (id, email, password_hash, password_salt, password_iterations, tier, locale, created_at) VALUES ('e2e-user', 'e2e@kiwii.test', 'x', 'x', 1, 'free', 'vi', ${now})`,
     `INSERT OR REPLACE INTO users (id, email, password_hash, password_salt, password_iterations, tier, tier_until, locale, created_at) VALUES ('e2e-pro', 'pro@kiwii.test', 'x', 'x', 1, 'plus', ${now + 30 * DAY}, 'vi', ${now})`,
     `INSERT INTO credit_grants (id, user_id, source, amount, remaining, expires_at, created_at) VALUES ('e2e-pro-grant', 'e2e-pro', 'bonus', 5000, 5000, ${now + 30 * DAY}, ${now})`,
     `INSERT INTO sessions (token_hash, user_id, expires_at, created_at) VALUES ('${free.hash}', 'e2e-user', ${now + DAY}, ${now}), ('${pro.hash}', 'e2e-pro', ${now + DAY}, ${now})`,
     `INSERT INTO conversations (id, user_id, title, model, last_message_at, created_at) VALUES ('e2e-conv-1', 'e2e-user', 'Kế hoạch du lịch Đà Lạt', 'mock', ${now}, ${now}), ('e2e-conv-2', 'e2e-user', 'Viết email xin nghỉ phép', 'mock', ${now - 1000}, ${now})`,
+    // An order left unpaid past its 24 hours, for the expired checkout screen.
+    `INSERT INTO plan_orders (id, user_id, kind, item_id, amount_vnd, memo, status, expires_at, created_at) VALUES ('e2e-order-expired', 'e2e-user', 'plan', 'starter', 299000, 'KWE2EOLD01', 'pending', ${now - DAY}, ${now - 2 * DAY})`,
   ].join("; ")
   execFileSync("bunx", ["wrangler", "d1", "execute", "kiwii", "--local", "--command", sql], {
     cwd: API_DIR,

@@ -45,6 +45,7 @@ export default function Reset() {
         maxLength={4}
         autocomplete="one-time-code"
         autofocus
+        code
       />
       <Field
         label={t("auth.newPassword")}
