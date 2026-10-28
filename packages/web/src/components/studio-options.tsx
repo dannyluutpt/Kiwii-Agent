@@ -57,15 +57,33 @@ export function StudioOptions(props: {
         </RadioGroup>
       </Show>
 
-      <Section title={props.model.param === "resolution" ? t("images.resolution") : t("images.quality")}>
-        <Segmented
-          block
-          label={props.model.param === "resolution" ? t("images.resolution") : t("images.quality")}
-          value={props.settings.option}
-          onChange={(option) => props.onSettings({ option })}
-          options={props.model.options.map((o) => ({ value: o.id, label: `${o.label} · ${o.credits}` }))}
-        />
-      </Section>
+      <RadioGroup
+        value={props.settings.option}
+        onChange={(option) => props.onSettings({ option })}
+        class="flex flex-col gap-2"
+      >
+        <RadioGroup.Label class="text-footnote font-semibold text-label-2">
+          {props.model.param === "resolution" ? t("images.resolution") : t("images.quality")}
+        </RadioGroup.Label>
+        {/* Tiles rather than one bar, so every name and price stays readable however many options a
+            model has: two or four sit in pairs, other counts in rows of three. */}
+        <div class={`grid gap-2 ${[2, 4].includes(props.model.options.length) ? "grid-cols-2" : "grid-cols-3"}`}>
+          <For each={props.model.options}>
+            {(option) => (
+              <RadioGroup.Item
+                value={option.id}
+                class="rounded-[12px] has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-focus"
+              >
+                <RadioGroup.ItemInput />
+                <RadioGroup.ItemLabel class="flex h-14 cursor-pointer select-none flex-col items-center justify-center rounded-[12px] bg-fill px-2 text-center text-label-2 transition-[color,background-color,box-shadow] duration-(--motion-micro) hover:bg-fill-2 data-[checked]:bg-accent-soft data-[checked]:text-accent data-[checked]:shadow-[inset_0_0_0_1.5px_var(--k-accent)]">
+                  <span class="text-subhead font-medium">{option.label}</span>
+                  <span class="text-caption opacity-80">{t("images.cost", { n: option.credits })}</span>
+                </RadioGroup.ItemLabel>
+              </RadioGroup.Item>
+            )}
+          </For>
+        </div>
+      </RadioGroup>
 
       <RadioGroup
         value={props.settings.aspectRatio}

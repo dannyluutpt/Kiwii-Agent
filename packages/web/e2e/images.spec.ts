@@ -120,6 +120,22 @@ test("a run can be reused, retried after a failure and deleted", async ({ page }
   await expect(runs).toHaveCount(1)
 })
 
+test("every quality fits inside the options panel", async ({ page }) => {
+  await page.goto("/images")
+  await page.getByRole("button", { name: /^Tuỳ chọn:/ }).click()
+  const panel = page.getByRole("dialog", { name: "Tuỳ chọn" })
+  const quality = panel.getByRole("radiogroup", { name: "Chất lượng" })
+  await expect(quality.getByRole("radio")).toHaveCount(5)
+  const frame = await panel.boundingBox()
+  if (!frame) throw new Error("options panel not laid out")
+  for (const choice of await quality.locator("label").all()) {
+    const box = await choice.boundingBox()
+    if (!box) throw new Error("quality choice not laid out")
+    expect(box.x).toBeGreaterThanOrEqual(frame.x)
+    expect(box.x + box.width).toBeLessThanOrEqual(frame.x + frame.width)
+  }
+})
+
 test("the model menu switches models and the price follows", async ({ page, isMobile }) => {
   test.skip(isMobile, "phones pick the model in the options sheet")
   await page.goto("/images")
