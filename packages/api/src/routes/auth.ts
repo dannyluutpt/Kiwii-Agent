@@ -38,10 +38,12 @@ const ResetBody = z.object({ email: Email, code: Code, password: z.string() })
 
 export const auth = createApp()
 
-auth.use(
-  "*",
-  rateLimitBy((env) => env.RL_AUTH, "auth"),
-)
+const formLimit = rateLimitBy((env) => env.RL_AUTH, "auth")
+
+// The tight limit guards the form posts (sign-in, sign-up, codes) against guessing. Reading the
+// session (GET /me, /session, /config) only counts against the general per-IP limit: the web app
+// refreshes it after every chat answer and image run, and ten a minute would lock an active user out.
+auth.use("*", (c, next) => (c.req.method === "GET" ? next() : formLimit(c, next)))
 
 auth.post("/signup", async (c) => {
   const body = SignupBody.parse(await c.req.json())
