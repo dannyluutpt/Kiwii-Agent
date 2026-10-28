@@ -1,14 +1,16 @@
-import { A, useNavigate } from "@solidjs/router"
-import { createResource, createSignal, For, Show, type JSX } from "solid-js"
+import { useNavigate } from "@solidjs/router"
+import { createResource, createSignal, For, Show } from "solid-js"
 import { useTheme } from "@kiwii/ui/theme/context"
 import { api } from "@/api"
-import { IconAuto, IconChevronRight, IconLogout, IconMoon, IconSun } from "@/components/icons"
+import { orderItem, vnd, type Order } from "@/billing"
+import { IconAuto, IconLogout, IconMoon, IconSparkles, IconSun } from "@/components/icons"
 import { Page } from "@/components/page"
 import { useAuth } from "@/context/auth"
 import { useLanguage, type Locale } from "@/context/language"
 import { errorMessage } from "@/lib/errors"
 import { Avatar } from "@/ui/avatar"
 import { Button } from "@/ui/button"
+import { ListGroup, ListRow, ListSection } from "@/ui/list"
 import { Segmented } from "@/ui/segmented"
 import { Skeleton } from "@/ui/skeleton"
 import { Tag } from "@/ui/tag"
@@ -25,18 +27,32 @@ type Entry = {
   createdAt: number
 }
 
+const ORDER_TONES = { pending: "info", paid: "success", expired: "neutral", pending_review: "warning" } as const
+const LEDGER_PAGE = 8
+
 export default function Account() {
   const { t, locale, setLocale } = useLanguage()
   const auth = useAuth()
   const theme = useTheme()
   const navigate = useNavigate()
   const [sub] = createResource(() => api<Subscription>("/billing/subscription"))
-  const [ledger] = createResource(() => api<{ entries: Entry[] }>("/billing/ledger").then((r) => r.entries))
+  // Settled runs that used exactly what they reserved move no credit; they would only be noise here.
+  const [ledger] = createResource(() =>
+    api<{ entries: Entry[] }>("/billing/ledger").then((r) => r.entries.filter((e) => e.delta !== 0)),
+  )
+  const [orders] = createResource(() => api<{ orders: Order[] }>("/billing/orders").then((r) => r.orders.slice(0, 5)))
+  const [shown, setShown] = createSignal(LEDGER_PAGE)
   const [current, setCurrent] = createSignal("")
   const [next, setNext] = createSignal("")
   const [busy, setBusy] = createSignal(false)
 
-  const date = (ms: number) => new Date(ms).toLocaleDateString(locale() === "vi" ? "vi-VN" : "en-US")
+  const tag = () => (locale() === "vi" ? "vi-VN" : "en-US")
+  const date = (ms: number) => new Date(ms).toLocaleDateString(tag())
+  const dateTime = (ms: number) =>
+    new Date(ms).toLocaleString(tag(), { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })
+  const paid = () => sub()?.tier !== undefined && sub()?.tier !== "free"
+  // A pending order past its deadline can no longer be paid, even before the server marks it.
+  const state = (o: Order) => (o.status === "pending" && o.expiresAt <= Date.now() ? "expired" : o.status)
 
   const changePassword = async () => {
     setBusy(true)
@@ -58,41 +74,40 @@ export default function Account() {
   return (
     <Page title={t("account.title")} width="narrow">
       <div class="flex flex-col gap-8">
-        <Group>
+        <ListGroup>
           <div class="flex items-center gap-4 p-4">
             <Avatar name={auth.me()?.user.email ?? ""} class="size-12 text-title-3" />
             <div class="min-w-0 flex-1">
               <p class="truncate text-headline text-label">{auth.me()?.user.email}</p>
-              <p class="text-footnote text-label-2">
-                <Show when={sub()} fallback={<Skeleton class="mt-1 h-3 w-32" />}>
-                  {(s) => (
-                    <>
+              <Show when={sub()} fallback={<Skeleton class="mt-1.5 h-3 w-32" />}>
+                {(s) => (
+                  <p class="flex flex-wrap items-center gap-x-2 gap-y-1 text-footnote text-label-2">
+                    <Tag tone={s().tier === "free" ? "neutral" : "accent"}>
                       {s().tier === "free" ? t("plan.free") : auth.me()?.plan.name}
-                      <Show when={s().tierUntil}>
-                        {(until) => <> · {t("account.until", { date: date(until()) })}</>}
-                      </Show>
-                    </>
-                  )}
-                </Show>
-              </p>
+                    </Tag>
+                    <Show when={s().tier !== "free" && s().tierUntil}>
+                      {(until) => <span>{t("account.until", { date: date(until()) })}</span>}
+                    </Show>
+                  </p>
+                )}
+              </Show>
             </div>
           </div>
-          <Row label={t("account.credits")}>
-            <span class="text-headline text-label">
+          <ListRow label={t("account.credits")}>
+            <span class="text-headline text-label tabular-nums">
               {(sub()?.credits ?? auth.me()?.credits ?? 0).toLocaleString("vi-VN")}
             </span>
-          </Row>
-          <A
+          </ListRow>
+          <ListRow
+            label={paid() ? t("account.manage") : t("nav.upgradePlan")}
+            icon={<IconSparkles class="size-5" />}
+            tone="accent"
             href="/pricing"
-            class="flex min-h-12 items-center justify-between gap-3 border-t border-separator px-4 text-callout text-accent hover:bg-fill"
-          >
-            {t("nav.upgradePlan")}
-            <IconChevronRight class="size-4" />
-          </A>
-        </Group>
+          />
+        </ListGroup>
 
-        <Section title={t("theme.title")}>
-          <Group>
+        <ListSection title={t("theme.title")}>
+          <ListGroup>
             <div class="p-3">
               <Segmented
                 label={t("theme.title")}
@@ -106,7 +121,7 @@ export default function Account() {
                 ]}
               />
             </div>
-            <Row label={t("account.language")}>
+            <ListRow label={t("account.language")}>
               <Segmented
                 label={t("account.language")}
                 value={locale()}
@@ -116,12 +131,30 @@ export default function Account() {
                   { value: "en", label: "English" },
                 ]}
               />
-            </Row>
-          </Group>
-        </Section>
+            </ListRow>
+          </ListGroup>
+        </ListSection>
 
-        <Section title={t("account.ledger")}>
-          <Group>
+        <Show when={orders()?.length}>
+          <ListSection title={t("account.orders")}>
+            <ListGroup>
+              <For each={orders()}>
+                {(o) => (
+                  <ListRow
+                    label={orderItem(o, t)}
+                    detail={`${vnd(o.amountVnd)} · ${dateTime(o.createdAt)}`}
+                    href={state(o) === "pending" ? `/pricing/checkout/${o.id}` : undefined}
+                  >
+                    <Tag tone={ORDER_TONES[state(o)]}>{t(`order.${state(o)}`)}</Tag>
+                  </ListRow>
+                )}
+              </For>
+            </ListGroup>
+          </ListSection>
+        </Show>
+
+        <ListSection title={t("account.ledger")}>
+          <ListGroup>
             <Show
               when={!ledger.loading}
               fallback={
@@ -136,29 +169,33 @@ export default function Account() {
                 when={ledger()?.length}
                 fallback={<p class="p-4 text-subhead text-label-2">{t("account.ledger.empty")}</p>}
               >
-                <ul>
-                  <For each={ledger()}>
-                    {(e) => (
-                      <li class="flex items-center gap-3 border-t border-separator px-4 py-3 first:border-t-0">
-                        <div class="min-w-0 flex-1">
-                          <p class="text-callout text-label">{t(`ledger.${e.type}`)}</p>
-                          <p class="text-caption text-label-2">{date(e.createdAt)}</p>
-                        </div>
-                        <Tag tone={e.delta > 0 ? "success" : e.delta < 0 ? "danger" : "neutral"} class="font-mono">
+                <For each={ledger()?.slice(0, shown())}>
+                  {(e) => (
+                    <ListRow label={t(`ledger.${e.type}`)} detail={dateTime(e.createdAt)}>
+                      <span class="flex flex-col items-end">
+                        <span
+                          class="text-callout font-semibold tabular-nums"
+                          classList={{ "text-success": e.delta > 0, "text-label": e.delta < 0 }}
+                        >
                           {e.delta > 0 ? `+${e.delta}` : e.delta}
-                        </Tag>
-                        <span class="w-14 text-right font-mono text-footnote text-label-2">{e.balanceAfter}</span>
-                      </li>
-                    )}
-                  </For>
-                </ul>
+                        </span>
+                        <span class="text-caption text-label-2 tabular-nums">
+                          {t("account.balance", { n: e.balanceAfter.toLocaleString("vi-VN") })}
+                        </span>
+                      </span>
+                    </ListRow>
+                  )}
+                </For>
+                <Show when={(ledger()?.length ?? 0) > shown()}>
+                  <ListRow label={t("account.ledger.more")} tone="accent" onClick={() => setShown(shown() + 20)} />
+                </Show>
               </Show>
             </Show>
-          </Group>
-        </Section>
+          </ListGroup>
+        </ListSection>
 
-        <Section title={t("account.password")}>
-          <Group>
+        <ListSection title={t("account.password")}>
+          <ListGroup>
             <form
               class="flex flex-col gap-4 p-4"
               onSubmit={(event) => {
@@ -185,48 +222,23 @@ export default function Account() {
                 required
               />
               <div>
-                <Button variant="secondary" type="submit" loading={busy()}>
+                <Button variant="secondary" type="submit" loading={busy()} disabled={!current() || next().length < 8}>
                   {t("account.password")}
                 </Button>
               </div>
             </form>
-          </Group>
-        </Section>
+          </ListGroup>
+        </ListSection>
 
-        <Group>
-          <button
-            type="button"
-            class="flex min-h-12 w-full items-center gap-3 px-4 text-callout text-danger hover:bg-fill"
+        <ListGroup>
+          <ListRow
+            label={t("nav.logout")}
+            icon={<IconLogout class="size-5" />}
+            tone="danger"
             onClick={() => void auth.logout().then(() => navigate("/login"))}
-          >
-            <IconLogout class="size-5" />
-            {t("nav.logout")}
-          </button>
-        </Group>
+          />
+        </ListGroup>
       </div>
     </Page>
-  )
-}
-
-// Inset grouped list, as in Settings.
-function Group(props: { children: JSX.Element }) {
-  return <div class="overflow-hidden rounded-card bg-surface shadow-raised">{props.children}</div>
-}
-
-function Section(props: { title: string; children: JSX.Element }) {
-  return (
-    <section class="flex flex-col gap-2">
-      <h2 class="px-4 text-footnote font-semibold text-label-2">{props.title}</h2>
-      {props.children}
-    </section>
-  )
-}
-
-function Row(props: { label: string; children: JSX.Element }) {
-  return (
-    <div class="flex min-h-12 items-center justify-between gap-3 border-t border-separator px-4 py-2">
-      <span class="text-callout text-label">{props.label}</span>
-      {props.children}
-    </div>
   )
 }

@@ -2,8 +2,12 @@ import { TextField as KTextField } from "@kobalte/core/text-field"
 import { Show, splitProps, type ComponentProps } from "solid-js"
 
 // 16px text keeps iOS from zooming into the field on focus; 44px height is the touch minimum.
-export const inputClass =
-  "h-11 w-full rounded-control bg-fill px-3.5 text-body text-label transition-[background-color] duration-(--motion-micro) placeholder:text-label-3 hover:bg-fill-2 focus:bg-surface data-[invalid]:shadow-[inset_0_0_0_1.5px_var(--k-danger)] disabled:opacity-50"
+// Height and type size stay out of the base so each variant sets them once.
+const INPUT_BASE =
+  "w-full rounded-control bg-fill px-3.5 text-label transition-[background-color] duration-(--motion-micro) placeholder:text-label-3 hover:bg-fill-2 focus:bg-surface data-[invalid]:shadow-[inset_0_0_0_1.5px_var(--k-danger)] disabled:opacity-50"
+export const inputClass = `${INPUT_BASE} h-11 text-body`
+// One-time codes: large spaced digits that read at a glance.
+export const codeInputClass = `${INPUT_BASE} h-14 text-center text-title-2 font-semibold tracking-[0.5em] tabular-nums`
 
 // Labelled text input. Kobalte wires label, description and error message to the input for
 // assistive tech and marks it invalid when `error` is set.

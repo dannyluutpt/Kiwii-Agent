@@ -3,6 +3,7 @@ import { ulid } from "ulid"
 import { z } from "zod"
 import { ApiError, createApp } from "../app"
 import { activateOrder } from "../billing/activate"
+import { openOrder } from "../billing/orders"
 import { findMemo, generateMemo, isPaidTier, ORDER_TTL_MS, TOPUP_PACKS, vietQRUrl } from "../billing/plans"
 import { balance } from "../credits/ledger"
 import { bank_events, credit_ledger, plan_orders, plans, subscriptions, users } from "../db/schema"
@@ -110,29 +111,22 @@ billing.post("/orders", async (c) => {
     if (!plan) throw new ApiError(404, "PLAN_NOT_FOUND", "Không tìm thấy gói")
     return plan.price
   })()
-  // Reuse a still-pending order for the same item so a refresh does not mint a new memo.
-  const existing = await db
-    .select()
-    .from(plan_orders)
-    .where(and(eq(plan_orders.user_id, user.id), eq(plan_orders.status, "pending"), eq(plan_orders.item_id, body.id)))
-    .get()
-  const order =
-    existing && existing.expires_at > Date.now()
-      ? existing
-      : await db
-          .insert(plan_orders)
-          .values({
-            id: ulid(),
-            user_id: user.id,
-            kind: body.kind,
-            item_id: body.id,
-            amount_vnd: amount,
-            memo: generateMemo(),
-            expires_at: Date.now() + ORDER_TTL_MS,
-          })
-          .returning()
-          .then((rows) => rows[0]!)
-  return c.json(presentOrder(order, c.env))
+  // Reuse a still-payable order for the same item so a refresh does not mint a new memo.
+  const existing = await openOrder(db, user.id, body.id)
+  if (existing) return c.json(presentOrder(existing, c.env))
+  const [order] = await db
+    .insert(plan_orders)
+    .values({
+      id: ulid(),
+      user_id: user.id,
+      kind: body.kind,
+      item_id: body.id,
+      amount_vnd: amount,
+      memo: generateMemo(),
+      expires_at: Date.now() + ORDER_TTL_MS,
+    })
+    .returning()
+  return c.json(presentOrder(order!, c.env))
 })
 
 billing.get("/orders/:id", async (c) => {
