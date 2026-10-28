@@ -1,11 +1,13 @@
-import { createSignal, For, Show } from "solid-js"
-import { Button } from "@kiwii/ui/button"
-import { IconButton } from "@kiwii/ui/icon-button"
-import { Spinner } from "@kiwii/ui/spinner"
-import { showToast } from "@kiwii/ui/toast"
-import { ApiError, apiUpload } from "@/api"
+import { createSignal, For, Show, type JSX } from "solid-js"
+import { apiUpload } from "@/api"
 import { useLanguage } from "@/context/language"
 import type { ImageModel, ModelsResponse, Reference } from "@/images"
+import { errorMessage } from "@/lib/errors"
+import { Button } from "@/ui/button"
+import { IconButton } from "@/ui/icon-button"
+import { Spinner } from "@/ui/spinner"
+import { toast } from "@/ui/toast"
+import { IconClose, IconImage } from "./icons"
 
 export type StudioSettings = {
   model: string
@@ -16,10 +18,8 @@ export type StudioSettings = {
 }
 
 const pill = (active: boolean) =>
-  `rounded-full border px-3 py-1 text-13-medium transition-colors ${
-    active
-      ? "border-border-strong-base bg-surface-raised-strong text-text-strong"
-      : "border-border-weak-base text-text-weak hover:border-border-base hover:text-text-base"
+  `h-8 rounded-full px-3 text-subhead font-medium transition-[color,background-color] duration-(--motion-micro) pointer-coarse:h-9 ${
+    active ? "bg-label text-canvas" : "bg-fill text-label-2 hover:bg-fill-2 hover:text-label"
   }`
 
 export function StudioPromptBar(props: {
@@ -58,27 +58,26 @@ export function StudioPromptBar(props: {
     const picked = Array.from(list).slice(0, Math.max(0, room))
     if (picked.length === 0) return
     setUploading(true)
-    try {
-      const added: Reference[] = []
-      for (const file of picked) {
-        const form = new FormData()
-        form.append("file", file)
-        added.push(await apiUpload<Reference>("/images/references", form))
-      }
-      props.onReferences([...props.references, ...added])
-    } catch (error) {
-      showToast({ title: error instanceof ApiError ? error.message : t("error.generic"), variant: "error" })
-    } finally {
-      setUploading(false)
-      if (fileInput) fileInput.value = ""
+    const added: Reference[] = []
+    for (const file of picked) {
+      const form = new FormData()
+      form.append("file", file)
+      const stored = await apiUpload<Reference>("/images/references", form).catch((error: unknown) => {
+        toast.error(errorMessage(error, t("error.generic")))
+        return undefined
+      })
+      if (stored) added.push(stored)
     }
+    props.onReferences([...props.references, ...added])
+    setUploading(false)
+    if (fileInput) fileInput.value = ""
   }
 
   const canGenerate = () => !props.busy && !props.locked && props.prompt.trim().length > 0 && props.cost !== undefined
 
   return (
     <form
-      class="mx-auto flex w-full max-w-5xl flex-col gap-3 rounded-2xl border border-border-weak-base bg-surface-raised-base p-3 shadow-sm focus-within:border-border-focus"
+      class="mx-auto flex w-full max-w-5xl flex-col gap-3 rounded-panel bg-surface p-3 shadow-floating"
       onSubmit={(event) => {
         event.preventDefault()
         if (canGenerate()) props.onGenerate()
@@ -89,15 +88,16 @@ export function StudioPromptBar(props: {
           {(m) => (
             <button
               type="button"
-              class="flex flex-col items-start gap-0.5 rounded-xl border px-3 py-2 text-left transition-colors"
+              class="flex flex-col items-start gap-0.5 rounded-[14px] px-3 py-2 text-left transition-[color,background-color] duration-(--motion-micro)"
               classList={{
-                "border-border-strong-base bg-surface-raised-strong": m.id === props.settings.model,
-                "border-border-weak-base hover:border-border-base": m.id !== props.settings.model,
+                "bg-accent-soft shadow-[inset_0_0_0_1.5px_var(--k-accent)]": m.id === props.settings.model,
+                "bg-fill hover:bg-fill-2": m.id !== props.settings.model,
               }}
+              aria-pressed={m.id === props.settings.model}
               onClick={() => pick(m)}
             >
-              <span class="text-14-medium text-text-strong">{m.name}</span>
-              <span class="text-12-regular text-text-weak">{m.tagline}</span>
+              <span class="text-subhead font-semibold text-label">{m.name}</span>
+              <span class="text-caption text-label-2">{m.tagline}</span>
             </button>
           )}
         </For>
@@ -107,16 +107,19 @@ export function StudioPromptBar(props: {
         <div class="flex flex-wrap gap-2">
           <For each={props.references}>
             {(ref) => (
-              <div class="group/ref relative size-16 overflow-hidden rounded-lg border border-border-weak-base">
+              <div class="relative size-16 overflow-hidden rounded-[12px] shadow-raised">
                 <img src={ref.url} alt={ref.name} class="size-full object-cover" />
-                <button
-                  type="button"
-                  class="absolute right-0.5 top-0.5 hidden size-5 items-center justify-center rounded-full bg-[rgba(0,0,0,0.7)] text-[#fff] group-hover/ref:flex"
-                  aria-label={t("images.references.remove")}
-                  onClick={() => props.onReferences(props.references.filter((r) => r.id !== ref.id))}
-                >
-                  ×
-                </button>
+                <span class="absolute top-1 right-1">
+                  <IconButton
+                    label={`${t("images.references.remove")}: ${ref.name}`}
+                    variant="overlay"
+                    size="xs"
+                    circle
+                    tooltip={false}
+                    icon={<IconClose class="size-3.5" weight={2.25} />}
+                    onClick={() => props.onReferences(props.references.filter((r) => r.id !== ref.id))}
+                  />
+                </span>
               </div>
             )}
           </For>
@@ -126,7 +129,10 @@ export function StudioPromptBar(props: {
       <div class="flex items-end gap-2">
         <textarea
           ref={textarea}
-          class="min-h-12 flex-1 resize-none bg-transparent px-1 py-2 text-14-regular text-text-strong outline-none placeholder:text-text-weak"
+          class="min-h-12 flex-1 resize-none bg-transparent px-1 py-2 text-body text-label outline-none placeholder:text-label-3"
+          aria-label={t("images.placeholder")}
+          enterkeyhint="go"
+          data-studio-prompt
           rows={2}
           placeholder={t("images.placeholder")}
           value={props.prompt}
@@ -148,9 +154,10 @@ export function StudioPromptBar(props: {
               <button
                 type="button"
                 class={pill(o.id === props.settings.option)}
+                aria-pressed={o.id === props.settings.option}
                 onClick={() => props.onSettings({ option: o.id })}
               >
-                {o.label} <span class="text-11-regular opacity-70">· {o.credits}</span>
+                {o.label} <span class="opacity-70">· {o.credits}</span>
               </button>
             )}
           </For>
@@ -161,6 +168,7 @@ export function StudioPromptBar(props: {
               <button
                 type="button"
                 class={pill(ratio === props.settings.aspectRatio)}
+                aria-pressed={ratio === props.settings.aspectRatio}
                 onClick={() => props.onSettings({ aspectRatio: ratio })}
               >
                 {ratio}
@@ -171,26 +179,31 @@ export function StudioPromptBar(props: {
         <Group label={t("images.count")}>
           <For each={Array.from({ length: props.config.maxImages }, (_, i) => i + 1)}>
             {(n) => (
-              <button type="button" class={pill(n === props.settings.n)} onClick={() => props.onSettings({ n })}>
+              <button
+                type="button"
+                class={pill(n === props.settings.n)}
+                aria-pressed={n === props.settings.n}
+                onClick={() => props.onSettings({ n })}
+              >
                 {n}
               </button>
             )}
           </For>
         </Group>
         <label
-          class="flex cursor-pointer items-center gap-2 text-13-regular text-text-weak"
+          class="flex cursor-pointer items-center gap-2 text-subhead text-label-2"
           title={t("images.enhance.hint")}
         >
           <input
             type="checkbox"
-            class="accent-[var(--color-surface-brand-base)]"
+            class="size-4 accent-[var(--k-accent)]"
             checked={props.settings.enhance}
             onChange={(event) => props.onSettings({ enhance: event.currentTarget.checked })}
           />
           {t("images.enhance")}
         </label>
         <div
-          class="flex items-center gap-1 text-13-regular text-text-weak"
+          class="flex items-center gap-1 text-subhead text-label-2"
           title={t("images.references.hint", { n: maxReferences(), extra: props.config.referenceSurcharge })}
         >
           <input
@@ -201,13 +214,11 @@ export function StudioPromptBar(props: {
             class="hidden"
             onChange={(event) => void upload(event.currentTarget.files)}
           />
-          <Show when={!uploading()} fallback={<Spinner class="size-4" />}>
+          <Show when={!uploading()} fallback={<Spinner class="size-4" label={t("chat.uploading")} />}>
             <IconButton
-              icon="photo"
-              variant="ghost"
-              size="small"
-              type="button"
-              aria-label={t("images.references.add")}
+              icon={<IconImage class="size-[18px]" />}
+              size="sm"
+              label={t("images.references.add")}
               disabled={props.locked || props.references.length >= maxReferences()}
               onClick={() => fileInput?.click()}
             />
@@ -217,7 +228,7 @@ export function StudioPromptBar(props: {
           </span>
         </div>
         <div class="flex-1" />
-        <Button type="submit" variant="primary" disabled={!canGenerate()}>
+        <Button type="submit" variant="primary" disabled={!canGenerate()} loading={props.busy}>
           <Show when={!props.busy} fallback={t("images.generating")}>
             {t("images.generate")}
             <Show when={props.cost !== undefined}> · {t("images.cost", { n: props.cost ?? 0 })}</Show>
@@ -228,10 +239,10 @@ export function StudioPromptBar(props: {
   )
 }
 
-function Group(props: { label: string; children: import("solid-js").JSX.Element }) {
+function Group(props: { label: string; children: JSX.Element }) {
   return (
-    <div class="flex items-center gap-1.5">
-      <span class="text-12-regular text-text-weaker">{props.label}</span>
+    <div class="flex flex-wrap items-center gap-1.5" role="group" aria-label={props.label}>
+      <span class="text-footnote text-label-2">{props.label}</span>
       <div class="flex flex-wrap gap-1">{props.children}</div>
     </div>
   )

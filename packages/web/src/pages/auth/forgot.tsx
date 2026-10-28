@@ -1,10 +1,10 @@
 import { A, useNavigate } from "@solidjs/router"
 import { createSignal } from "solid-js"
-import { showToast } from "@kiwii/ui/toast"
 import { api } from "@/api"
 import { useLanguage } from "@/context/language"
 import { Turnstile } from "@/components/turnstile"
 import { AuthForm, Field } from "./form"
+import { toast } from "@/ui/toast"
 
 export default function Forgot() {
   const { t } = useLanguage()
@@ -19,11 +19,11 @@ export default function Forgot() {
       submit={t("auth.forgot.submit")}
       onSubmit={async () => {
         await api("/auth/forgot", { body: { email: email(), turnstile: turnstile() } })
-        showToast({ title: t("auth.forgot.sent"), variant: "success" })
+        toast.success(t("auth.forgot.sent"))
         navigate(`/reset?email=${encodeURIComponent(email().trim().toLowerCase())}`)
       }}
       footer={
-        <A href="/login" class="text-text-weak">
+        <A href="/login" class="text-label-2">
           {t("auth.back")}
         </A>
       }

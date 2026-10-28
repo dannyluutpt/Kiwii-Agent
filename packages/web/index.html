@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="vi" style="background-color: #080808">
+<html lang="vi">
   <head>
     <meta charset="utf-8" />
     <meta
@@ -7,13 +7,20 @@
       content="width=device-width, initial-scale=1, interactive-widget=resizes-content, viewport-fit=cover"
     />
     <title>Kiwii</title>
-    <meta name="theme-color" content="#080808" />
+    <meta name="theme-color" content="#fbfbf9" />
+    <meta name="color-scheme" content="light dark" />
     <meta name="description" content="Kiwii: trợ lý chat và tạo ảnh AI." />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Kiwii" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <link rel="icon" type="image/png" href="/logo.png" />
+    <link rel="apple-touch-icon" href="/logo.png" />
+    <script src="/theme.js"></script>
   </head>
-  <body class="antialiased overscroll-none overflow-hidden text-14-regular bg-background-base text-text-base">
+  <body class="overflow-hidden overscroll-none text-callout">
     <noscript>Bạn cần bật JavaScript để dùng Kiwii.</noscript>
-    <div id="root" class="h-dvh"></div>
+    <div id="root"></div>
     <script src="/src/entry.tsx" type="module"></script>
   </body>
 </html>

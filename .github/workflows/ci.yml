@@ -77,6 +77,9 @@ jobs:
       - name: api
         run: bun test --only-failures
         working-directory: packages/api
+      - name: web
+        run: bun test src --only-failures
+        working-directory: packages/web
       - name: codemode
         run: bun test --only-failures
         working-directory: packages/codemode

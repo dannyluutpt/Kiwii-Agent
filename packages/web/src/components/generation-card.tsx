@@ -1,9 +1,9 @@
 import { createSignal, For, Show } from "solid-js"
-import { IconButton } from "@kiwii/ui/icon-button"
-import { Spinner } from "@kiwii/ui/spinner"
-import { Tooltip } from "@kiwii/ui/tooltip"
 import { useLanguage } from "@/context/language"
 import { aspectStyle, type Generation, type ImageModel } from "@/images"
+import { IconButton } from "@/ui/icon-button"
+import { Spinner } from "@/ui/spinner"
+import { IconRefresh, IconTrash } from "./icons"
 
 export function GenerationCard(props: {
   generation: Generation
@@ -28,12 +28,12 @@ export function GenerationCard(props: {
     g().n === 1 ? "grid-cols-1 max-w-xl" : g().n === 2 ? "grid-cols-2" : "grid-cols-2 lg:grid-cols-4"
 
   return (
-    <article class="flex flex-col gap-3 rounded-2xl border border-border-weak-base bg-surface-raised-base p-4">
+    <article class="flex flex-col gap-3 rounded-card bg-surface p-4 shadow-raised">
       <header class="flex items-start justify-between gap-3">
         <div class="flex min-w-0 flex-col gap-1">
-          <p class="line-clamp-2 text-14-regular text-text-strong">{g().prompt}</p>
-          <div class="flex flex-wrap items-center gap-x-2 gap-y-1 text-12-regular text-text-weak">
-            <span class="text-12-medium text-text-base">{props.model?.name ?? g().model}</span>
+          <p class="line-clamp-2 text-callout text-label">{g().prompt}</p>
+          <div class="flex flex-wrap items-center gap-x-2 gap-y-1 text-footnote text-label-2">
+            <span class="font-medium text-label">{props.model?.name ?? g().model}</span>
             <span>·</span>
             <span>{option()}</span>
             <span>·</span>
@@ -43,12 +43,12 @@ export function GenerationCard(props: {
             <span>·</span>
             <span>{time()}</span>
             <Show when={g().status === "running"}>
-              <span class="flex items-center gap-1 text-text-base">
-                <Spinner class="size-3" /> {t("images.status.running")}
+              <span class="flex items-center gap-1 text-label">
+                <Spinner class="size-3.5" /> {t("images.status.running")}
               </span>
             </Show>
             <Show when={g().status === "failed"}>
-              <span class="text-text-on-danger-base">{g().errorMessage ?? t("images.status.failed")}</span>
+              <span class="text-danger">{g().errorMessage ?? t("images.status.failed")}</span>
             </Show>
             <Show when={(g().refunded ?? 0) > 0}>
               <span>{t("images.refunded", { n: g().refunded ?? 0 })}</span>
@@ -57,36 +57,31 @@ export function GenerationCard(props: {
           <Show when={g().promptEnhanced}>
             <button
               type="button"
-              class="w-fit text-12-regular text-text-weak underline-offset-2 hover:text-text-base hover:underline"
+              class="w-fit text-footnote text-label-2 underline-offset-2 hover:text-label hover:underline"
+              aria-expanded={showEnhanced()}
               onClick={() => setShowEnhanced(!showEnhanced())}
             >
               {t("images.enhancedPrompt")}
             </button>
             <Show when={showEnhanced()}>
-              <p class="rounded-md bg-surface-base px-3 py-2 text-13-regular text-text-base">{g().promptEnhanced}</p>
+              <p class="rounded-[10px] bg-fill px-3 py-2 text-footnote text-label">{g().promptEnhanced}</p>
             </Show>
           </Show>
         </div>
         <div class="flex shrink-0 items-center gap-0.5">
-          <Tooltip value={t("images.reuse")}>
-            <IconButton
-              icon="reset"
-              variant="ghost"
-              size="small"
-              aria-label={t("images.reuse")}
-              onClick={() => props.onReuse()}
-            />
-          </Tooltip>
+          <IconButton
+            label={t("images.reuse")}
+            size="sm"
+            icon={<IconRefresh class="size-[18px]" />}
+            onClick={() => props.onReuse()}
+          />
           <Show when={g().status !== "running"}>
-            <Tooltip value={t("images.delete")}>
-              <IconButton
-                icon="trash"
-                variant="ghost"
-                size="small"
-                aria-label={t("images.delete")}
-                onClick={() => props.onDelete()}
-              />
-            </Tooltip>
+            <IconButton
+              label={t("images.delete")}
+              size="sm"
+              icon={<IconTrash class="size-[18px]" />}
+              onClick={() => props.onDelete()}
+            />
           </Show>
         </div>
       </header>
@@ -101,14 +96,14 @@ export function GenerationCard(props: {
                   when={image()}
                   fallback={
                     <div
-                      class="relative flex w-full items-center justify-center overflow-hidden rounded-xl bg-surface-base"
+                      class="relative flex w-full items-center justify-center overflow-hidden rounded-[14px] bg-fill"
                       style={aspectStyle(g().aspectRatio)}
                     >
                       <Show
                         when={preview()}
                         fallback={
                           <Show when={g().status === "running"}>
-                            <Spinner class="size-6 text-icon-weak" />
+                            <Spinner class="size-6 text-label-3" label={t("images.status.running")} />
                           </Show>
                         }
                       >
@@ -120,13 +115,14 @@ export function GenerationCard(props: {
                   {(img) => (
                     <button
                       type="button"
-                      class="group/img relative w-full overflow-hidden rounded-xl bg-surface-base"
+                      class="group/img relative w-full overflow-hidden rounded-[14px] bg-fill"
                       style={aspectStyle(g().aspectRatio)}
+                      aria-label={t("images.open", { n: index + 1, total: g().n })}
                       onClick={() => props.onOpen(index)}
                     >
                       <img
                         src={img().url}
-                        alt=""
+                        alt={(g().promptEnhanced ?? g().prompt).slice(0, 120)}
                         loading="lazy"
                         class="size-full object-cover transition-transform group-hover/img:scale-[1.02]"
                       />

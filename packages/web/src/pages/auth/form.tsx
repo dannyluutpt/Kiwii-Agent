@@ -1,7 +1,9 @@
+import { TextField as KTextField } from "@kobalte/core/text-field"
 import { createSignal, Show, type JSX } from "solid-js"
-import { Button } from "@kiwii/ui/button"
 import { ApiError } from "@/api"
 import { useLanguage } from "@/context/language"
+import { Button } from "@/ui/button"
+import { inputClass } from "@/ui/text-field"
 
 // Shared skeleton for the auth screens: title, fields, one submit button, inline error.
 export function AuthForm(props: {
@@ -18,7 +20,7 @@ export function AuthForm(props: {
 
   return (
     <form
-      class="flex flex-col gap-4"
+      class="flex flex-col gap-5"
       onSubmit={(event) => {
         event.preventDefault()
         if (busy()) return
@@ -27,33 +29,29 @@ export function AuthForm(props: {
         props
           .onSubmit()
           .catch((err: unknown) => {
-            if (err instanceof ApiError) return setError(err.message)
-            if (err instanceof TypeError) return setError(t("error.network"))
-            setError(t("error.generic"))
+            const network = err instanceof TypeError ? t("error.network") : t("error.generic")
+            setError(err instanceof ApiError ? err.message : network)
           })
           .finally(() => setBusy(false))
       }}
     >
-      <div class="flex flex-col gap-1">
-        <h1 class="text-20-medium text-text-strong">{props.title}</h1>
+      <div class="flex flex-col gap-1.5">
+        <h1 class="text-title-2 text-label">{props.title}</h1>
         <Show when={props.lead}>
-          <p class="text-14-regular text-text-weak">{props.lead}</p>
+          <p class="text-subhead text-label-2">{props.lead}</p>
         </Show>
       </div>
       {props.children}
       <Show when={error()}>
-        <p
-          class="rounded-md bg-surface-critical-weak px-3 py-2 text-13-regular text-text-on-critical-base"
-          role="alert"
-        >
+        <p class="rounded-[12px] bg-danger-soft px-3.5 py-2.5 text-subhead text-danger" role="alert">
           {error()}
         </p>
       </Show>
-      <Button variant="primary" size="large" type="submit" disabled={busy()}>
+      <Button variant="primary" size="lg" type="submit" block loading={busy()}>
         {props.submit}
       </Button>
       <Show when={props.footer}>
-        <div class="text-center text-13-regular text-text-weak">{props.footer}</div>
+        <div class="text-center text-subhead text-label-2">{props.footer}</div>
       </Show>
     </form>
   )
@@ -72,23 +70,22 @@ export function Field(props: {
   autofocus?: boolean
 }) {
   return (
-    <label class="flex flex-col gap-1.5">
-      <span class="text-13-medium text-text-base">{props.label}</span>
-      <input
-        class="h-10 rounded-lg border border-border-weak-base bg-surface-inset-base px-3 text-14-regular text-text-strong outline-none focus:border-border-focus"
+    <KTextField class="flex flex-col gap-1.5" value={props.value} onChange={props.onInput} required>
+      <KTextField.Label class="text-subhead font-medium text-label">{props.label}</KTextField.Label>
+      <KTextField.Input
+        class={inputClass}
         type={props.type ?? "text"}
-        value={props.value}
-        onInput={(event) => props.onInput(event.currentTarget.value)}
         autocomplete={props.autocomplete}
         inputMode={props.inputMode}
         pattern={props.pattern}
         maxLength={props.maxLength}
         autofocus={props.autofocus}
-        required
+        autocapitalize={props.type === "email" ? "off" : undefined}
+        spellcheck={props.type === "email" ? false : undefined}
       />
       <Show when={props.hint}>
-        <span class="text-12-regular text-text-weak">{props.hint}</span>
+        <KTextField.Description class="text-footnote text-label-2">{props.hint}</KTextField.Description>
       </Show>
-    </label>
+    </KTextField>
   )
 }

@@ -1,149 +1,243 @@
-import { A, useLocation, useNavigate } from "@solidjs/router"
-import { For, Show, type JSX } from "solid-js"
-import { DropdownMenu } from "@kiwii/ui/dropdown-menu"
+import { A, useNavigate } from "@solidjs/router"
+import { For, Match, Show, Switch, type JSX } from "solid-js"
+import { useTheme } from "@kiwii/ui/theme/context"
 import { useAuth } from "@/context/auth"
+import { useConversations, type Conversation } from "@/context/conversations"
 import { useLanguage } from "@/context/language"
+import { useLayout } from "@/context/layout"
+import { NEW_CHAT_SHORTCUT, shortcutLabel, SIDEBAR_SHORTCUT } from "@/lib/shortcuts"
+import { Avatar } from "@/ui/avatar"
+import { IconButton, iconButtonClass } from "@/ui/icon-button"
+import { Menu, MenuContent, MenuItem, MenuRadioGroup, MenuSeparator } from "@/ui/menu"
+import { Skeleton } from "@/ui/skeleton"
+import {
+  IconAuto,
+  IconChat,
+  IconClose,
+  IconCompose,
+  IconEllipsis,
+  IconImage,
+  IconLibrary,
+  IconLogout,
+  IconMoon,
+  IconPencil,
+  IconPerson,
+  IconSidebar,
+  IconSparkles,
+  IconStar,
+  IconSun,
+  IconTrash,
+} from "./icons"
 
-const ChatIcon = () => (
-  <svg
-    viewBox="0 0 24 24"
-    width="18"
-    height="18"
-    fill="none"
-    stroke="currentColor"
-    stroke-width="1.8"
-    stroke-linecap="round"
-    stroke-linejoin="round"
-  >
-    <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3h11A2.5 2.5 0 0 1 20 5.5v8a2.5 2.5 0 0 1-2.5 2.5H10l-5 4v-4H6.5A2.5 2.5 0 0 1 4 13.5z" />
-  </svg>
-)
-const ImageIcon = () => (
-  <svg
-    viewBox="0 0 24 24"
-    width="18"
-    height="18"
-    fill="none"
-    stroke="currentColor"
-    stroke-width="1.8"
-    stroke-linecap="round"
-    stroke-linejoin="round"
-  >
-    <rect x="3.5" y="4.5" width="17" height="15" rx="2.5" />
-    <circle cx="9" cy="10" r="1.8" />
-    <path d="M20.5 15.5 15.5 11l-7 8" />
-  </svg>
-)
-const AssetsIcon = () => (
-  <svg
-    viewBox="0 0 24 24"
-    width="18"
-    height="18"
-    fill="none"
-    stroke="currentColor"
-    stroke-width="1.8"
-    stroke-linecap="round"
-    stroke-linejoin="round"
-  >
-    <rect x="3.5" y="3.5" width="7" height="7" rx="1.5" />
-    <rect x="13.5" y="3.5" width="7" height="7" rx="1.5" />
-    <rect x="3.5" y="13.5" width="7" height="7" rx="1.5" />
-    <rect x="13.5" y="13.5" width="7" height="7" rx="1.5" />
-  </svg>
-)
-const PricingIcon = () => (
-  <svg
-    viewBox="0 0 24 24"
-    width="18"
-    height="18"
-    fill="none"
-    stroke="currentColor"
-    stroke-width="1.8"
-    stroke-linecap="round"
-    stroke-linejoin="round"
-  >
-    <path d="M12 3.5 14.6 9l6 .6-4.5 4.1 1.3 5.9L12 16.6 6.6 19.6l1.3-5.9L3.4 9.6l6-.6z" />
-  </svg>
-)
+const ROW =
+  "flex h-9 items-center gap-3 rounded-[10px] px-2.5 text-callout transition-[color,background-color] duration-(--motion-micro) hover:bg-fill pointer-coarse:h-11"
 
-export function Sidebar() {
+// The same navigation renders docked on wide screens and inside the drawer elsewhere.
+export function Sidebar(props: { mode: "docked" | "drawer" }) {
   const { t } = useLanguage()
-  const auth = useAuth()
+  const layout = useLayout()
   const navigate = useNavigate()
-  const location = useLocation()
-
-  const items: Array<{ href: string; label: () => string; icon: () => JSX.Element; match: (path: string) => boolean }> =
-    [
-      { href: "/chat", label: () => t("nav.chat"), icon: ChatIcon, match: (p) => p.startsWith("/chat") },
-      { href: "/images", label: () => t("nav.images"), icon: ImageIcon, match: (p) => p === "/images" },
-      { href: "/images/assets", label: () => t("nav.assets"), icon: AssetsIcon, match: (p) => p === "/images/assets" },
-      { href: "/pricing", label: () => t("nav.pricing"), icon: PricingIcon, match: (p) => p === "/pricing" },
-    ]
-
-  const initial = () => auth.me()?.user.email.slice(0, 1).toUpperCase() ?? "?"
-
   return (
-    <nav class="flex h-full w-60 shrink-0 flex-col border-r border-border-weak-base bg-background-weak">
-      <div class="flex items-center gap-2.5 px-4 pt-4 pb-3">
-        <img src="/logo.png" alt="" class="size-7 rounded-md" />
-        <span class="text-16-medium text-text-strong">{t("app.name")}</span>
+    <nav aria-label={t("nav.primary")} class="flex h-full w-full flex-col bg-sidebar pt-safe">
+      <div class="flex h-[52px] shrink-0 items-center gap-1 pr-2 pl-3">
+        <A href="/chat" class="flex items-center gap-2 rounded-[10px] px-1.5 py-1">
+          <img src="/logo.png" alt="" class="size-7 rounded-[8px]" />
+          <span class="text-headline text-label">{t("app.name")}</span>
+        </A>
+        <span class="flex-1" />
+        <IconButton
+          label={t("nav.newChat")}
+          keys={shortcutLabel(NEW_CHAT_SHORTCUT)}
+          icon={<IconCompose />}
+          onClick={() => {
+            navigate("/chat")
+            layout.setDrawer(false)
+          }}
+        />
+        <IconButton
+          label={props.mode === "docked" ? t("nav.hideSidebar") : t("common.close")}
+          keys={props.mode === "docked" ? shortcutLabel(SIDEBAR_SHORTCUT) : undefined}
+          icon={props.mode === "docked" ? <IconSidebar /> : <IconClose />}
+          onClick={() => layout.toggleSidebar()}
+        />
       </div>
-      <ul class="flex flex-col gap-0.5 px-2">
-        <For each={items}>
-          {(item) => (
-            <li>
-              <A
-                href={item.href}
-                class="flex items-center gap-2.5 rounded-md px-2.5 py-2 text-14-regular text-text-base hover:bg-surface-raised-base-hover hover:text-text-strong"
-                classList={{ "bg-surface-raised-base text-text-strong": item.match(location.pathname) }}
-              >
-                <span class="text-icon-base">{item.icon()}</span>
-                {item.label()}
-              </A>
-            </li>
-          )}
-        </For>
-      </ul>
-      <div class="flex-1" />
-      <div class="border-t border-border-weak-base p-2">
-        <Show when={auth.me()}>
-          {(me) => (
-            <DropdownMenu placement="top-start">
-              <DropdownMenu.Trigger class="flex w-full items-center gap-2.5 rounded-md px-2 py-2 text-left hover:bg-surface-raised-base-hover">
-                <span class="flex size-8 items-center justify-center rounded-full bg-surface-brand-base text-14-medium text-text-on-brand-base">
-                  {initial()}
-                </span>
-                <span class="flex min-w-0 flex-col">
-                  <span class="truncate text-14-medium text-text-strong">{me().user.email}</span>
-                  <span class="text-12-regular text-text-weak">
-                    {me().tier === "free"
-                      ? t("plan.chatToday", { used: me().chatToday, limit: me().plan.chatDailyMessages ?? 0 })
-                      : `${me().plan.name} · ${t("plan.credits", { credits: me().credits })}`}
-                  </span>
-                </span>
-              </DropdownMenu.Trigger>
-              <DropdownMenu.Portal>
-                <DropdownMenu.Content>
-                  <DropdownMenu.Item onSelect={() => navigate("/account")}>
-                    <DropdownMenu.ItemLabel>{t("nav.account")}</DropdownMenu.ItemLabel>
-                  </DropdownMenu.Item>
-                  <DropdownMenu.Item onSelect={() => navigate("/pricing")}>
-                    <DropdownMenu.ItemLabel>{t("nav.upgrade")}</DropdownMenu.ItemLabel>
-                  </DropdownMenu.Item>
-                  <DropdownMenu.Separator />
-                  <DropdownMenu.Item
-                    onSelect={() => {
-                      void auth.logout().then(() => navigate("/login"))
-                    }}
-                  >
-                    <DropdownMenu.ItemLabel>{t("nav.logout")}</DropdownMenu.ItemLabel>
-                  </DropdownMenu.Item>
-                </DropdownMenu.Content>
-              </DropdownMenu.Portal>
-            </DropdownMenu>
-          )}
-        </Show>
+
+      <div class="flex shrink-0 flex-col gap-0.5 px-2">
+        <NavLink href="/chat" icon={<IconChat class="size-5" />} label={t("nav.chat")} />
+        <NavLink href="/images" end icon={<IconImage class="size-5" />} label={t("nav.images")} />
+        <NavLink href="/images/assets" icon={<IconLibrary class="size-5" />} label={t("nav.assets")} />
+      </div>
+
+      <RecentConversations />
+
+      <div class="shrink-0 border-t border-separator p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
+        <AccountMenu />
       </div>
     </nav>
+  )
+}
+
+function NavLink(props: { href: string; end?: boolean; icon: JSX.Element; label: string }) {
+  return (
+    <A
+      href={props.href}
+      end={props.end}
+      class={`${ROW} group/nav`}
+      activeClass="bg-fill-2 font-semibold text-label [&_svg]:text-accent"
+      inactiveClass="text-label [&_svg]:text-label-2"
+    >
+      {props.icon}
+      {props.label}
+    </A>
+  )
+}
+
+function RecentConversations() {
+  const { t } = useLanguage()
+  const conversations = useConversations()
+  return (
+    <section class="mt-5 flex min-h-0 flex-1 flex-col" aria-labelledby="sidebar-recent">
+      <h2 id="sidebar-recent" class="shrink-0 px-5 pb-1.5 text-caption font-semibold text-label-2">
+        {t("nav.recent")}
+      </h2>
+      <ul class="min-h-0 flex-1 overflow-y-auto overscroll-contain px-2 pb-2" aria-busy={conversations.list.loading}>
+        <Switch>
+          <Match when={conversations.list.loading && !conversations.list.latest}>
+            <For each={["w-[72%]", "w-[56%]", "w-[84%]", "w-[64%]", "w-[48%]"]}>
+              {(width) => (
+                <li class="flex h-9 items-center px-2.5">
+                  <Skeleton class={`h-3.5 ${width}`} />
+                </li>
+              )}
+            </For>
+          </Match>
+          <Match when={conversations.failed()}>
+            <li class="flex flex-col items-start gap-1 px-3 py-2 text-footnote text-label-2">
+              {t("chat.listFailed")}
+              <button type="button" class="font-semibold text-accent" onClick={() => void conversations.refetch()}>
+                {t("common.retry")}
+              </button>
+            </li>
+          </Match>
+          <Match when={conversations.list()?.length === 0}>
+            <li class="px-3 py-2 text-footnote text-label-2">{t("chat.noConversations")}</li>
+          </Match>
+          <Match when={conversations.list()}>
+            {(items) => <For each={items()}>{(conversation) => <ConversationRow conversation={conversation} />}</For>}
+          </Match>
+        </Switch>
+      </ul>
+    </section>
+  )
+}
+
+function ConversationRow(props: { conversation: Conversation }) {
+  const { t } = useLanguage()
+  const conversations = useConversations()
+  return (
+    <li class="group/row relative">
+      <A
+        href={`/chat/${props.conversation.id}`}
+        class="flex h-9 items-center rounded-[10px] pr-10 pl-2.5 text-callout transition-[color,background-color] duration-(--motion-micro) hover:bg-fill pointer-coarse:h-11"
+        activeClass="bg-fill-2 text-label"
+        inactiveClass="text-label-2 hover:text-label"
+      >
+        <span class="truncate">{props.conversation.title}</span>
+      </A>
+      <Menu placement="bottom-end" gutter={4}>
+        {/* Positioned by a wrapper: the button itself stays `relative` for its touch hit area. */}
+        <span class="absolute top-1/2 right-1 -translate-y-1/2 opacity-0 transition-opacity duration-(--motion-micro) group-hover/row:opacity-100 group-focus-within/row:opacity-100 has-[[data-expanded]]:opacity-100 pointer-coarse:opacity-100">
+          <Menu.Trigger
+            aria-label={t("chat.actions", { title: props.conversation.title })}
+            class={iconButtonClass("ghost", "sm", "pointer-coarse:text-label-3")}
+          >
+            <IconEllipsis class="size-[18px]" />
+          </Menu.Trigger>
+        </span>
+        <MenuContent>
+          <MenuItem
+            icon={<IconPencil class="size-[18px]" />}
+            onSelect={() => void conversations.rename(props.conversation)}
+          >
+            {t("chat.rename")}
+          </MenuItem>
+          <MenuItem
+            icon={<IconTrash class="size-[18px]" />}
+            destructive
+            onSelect={() => void conversations.remove(props.conversation)}
+          >
+            {t("chat.delete")}
+          </MenuItem>
+        </MenuContent>
+      </Menu>
+    </li>
+  )
+}
+
+function AccountMenu() {
+  const { t } = useLanguage()
+  const auth = useAuth()
+  const theme = useTheme()
+  const navigate = useNavigate()
+  const planLine = () => {
+    const me = auth.me()
+    if (!me) return ""
+    if (me.tier === "free") {
+      return t("plan.chatToday", { used: me.chatToday, limit: me.plan.chatDailyMessages ?? 0 })
+    }
+    return `${me.plan.name} · ${t("plan.credits", { credits: me.credits.toLocaleString("vi-VN") })}`
+  }
+  return (
+    <Show when={auth.me()}>
+      {(me) => (
+        <>
+          <Show when={me().tier === "free"}>
+            <A
+              href="/pricing"
+              class="mb-1 flex items-center gap-3 rounded-[12px] bg-accent-soft px-3 py-2.5 text-subhead font-semibold text-accent transition-[filter] hover:brightness-105"
+            >
+              <IconSparkles class="size-5" />
+              {t("nav.upgradePlan")}
+            </A>
+          </Show>
+          <Menu placement="top-start" gutter={6} sameWidth>
+            <Menu.Trigger class="flex w-full items-center gap-3 rounded-[12px] p-2 text-left transition-[color,background-color] hover:bg-fill data-[expanded]:bg-fill-2">
+              <Avatar name={me().user.email} />
+              <span class="min-w-0 flex-1">
+                <span class="block truncate text-subhead font-medium text-label">{me().user.email}</span>
+                <span class="block truncate text-caption text-label-2">{planLine()}</span>
+              </span>
+              <IconEllipsis class="size-5 text-label-3" />
+            </Menu.Trigger>
+            <MenuContent>
+              <MenuItem icon={<IconPerson class="size-[18px]" />} onSelect={() => navigate("/account")}>
+                {t("nav.account")}
+              </MenuItem>
+              <MenuItem icon={<IconStar class="size-[18px]" />} onSelect={() => navigate("/pricing")}>
+                {t("nav.pricing")}
+              </MenuItem>
+              <MenuSeparator />
+              <MenuRadioGroup
+                label={t("theme.title")}
+                value={theme.colorScheme()}
+                onChange={(scheme) => theme.setColorScheme(scheme)}
+                options={[
+                  { value: "system", label: t("theme.system"), icon: <IconAuto class="size-[18px]" /> },
+                  { value: "light", label: t("theme.light"), icon: <IconSun class="size-[18px]" /> },
+                  { value: "dark", label: t("theme.dark"), icon: <IconMoon class="size-[18px]" /> },
+                ]}
+              />
+              <MenuSeparator />
+              <MenuItem
+                icon={<IconLogout class="size-[18px]" />}
+                onSelect={() => void auth.logout().then(() => navigate("/login"))}
+              >
+                {t("nav.logout")}
+              </MenuItem>
+            </MenuContent>
+          </Menu>
+        </>
+      )}
+    </Show>
   )
 }

@@ -1,0 +1,197 @@
+import type { JSX } from "solid-js"
+
+// Line icons drawn on a 24px grid in the spirit of SF Symbols. Each export renders fresh nodes, so
+// one icon can appear in many places at once.
+type IconProps = { class?: string; weight?: number }
+
+function icon(render: () => JSX.Element) {
+  return (props: IconProps) => (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width={props.weight ?? 1.75}
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      class={props.class ?? "size-5"}
+      aria-hidden="true"
+    >
+      {render()}
+    </svg>
+  )
+}
+
+export const IconChat = icon(() => (
+  <path d="M7 4.5h10A3.5 3.5 0 0 1 20.5 8v6a3.5 3.5 0 0 1-3.5 3.5h-5.2l-4.2 3.1c-.4.3-.9 0-.9-.4v-2.7H7A3.5 3.5 0 0 1 3.5 14V8A3.5 3.5 0 0 1 7 4.5Z" />
+))
+
+export const IconImage = icon(() => (
+  <>
+    <rect x="3.5" y="4.5" width="17" height="15" rx="3.5" />
+    <circle cx="9" cy="9.75" r="1.75" />
+    <path d="m20.5 15.5-4.6-4.3a1 1 0 0 0-1.4 0L7 18.5" />
+  </>
+))
+
+export const IconLibrary = icon(() => (
+  <>
+    <rect x="3.5" y="3.5" width="7.5" height="7.5" rx="2" />
+    <rect x="13" y="3.5" width="7.5" height="7.5" rx="2" />
+    <rect x="3.5" y="13" width="7.5" height="7.5" rx="2" />
+    <rect x="13" y="13" width="7.5" height="7.5" rx="2" />
+  </>
+))
+
+export const IconPerson = icon(() => (
+  <>
+    <circle cx="12" cy="12" r="8.5" />
+    <circle cx="12" cy="10" r="2.75" />
+    <path d="M6.8 18.2c1.2-1.9 3-2.9 5.2-2.9s4 1 5.2 2.9" />
+  </>
+))
+
+export const IconSidebar = icon(() => (
+  <>
+    <rect x="3.5" y="4.5" width="17" height="15" rx="3.5" />
+    <path d="M9.5 4.5v15" />
+  </>
+))
+
+export const IconCompose = icon(() => (
+  <>
+    <path d="M11 4.5H7.5a4 4 0 0 0-4 4v8a4 4 0 0 0 4 4h8a4 4 0 0 0 4-4V13" />
+    <path d="M17.7 3.8a1.9 1.9 0 0 1 2.7 2.7l-7.7 7.7-3.4.8.8-3.4z" />
+  </>
+))
+
+export const IconPlus = icon(() => <path d="M12 5v14M5 12h14" />)
+
+export const IconClose = icon(() => <path d="M6.5 6.5l11 11M17.5 6.5l-11 11" />)
+
+export const IconChevronLeft = icon(() => <path d="m14.5 5.5-6.5 6.5 6.5 6.5" />)
+
+export const IconChevronRight = icon(() => <path d="m9.5 5.5 6.5 6.5-6.5 6.5" />)
+
+export const IconChevronDown = icon(() => <path d="m5.5 9.5 6.5 6.5 6.5-6.5" />)
+
+export const IconEllipsis = icon(() => (
+  <>
+    <circle cx="6" cy="12" r="1.4" fill="currentColor" stroke="none" />
+    <circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none" />
+    <circle cx="18" cy="12" r="1.4" fill="currentColor" stroke="none" />
+  </>
+))
+
+export const IconTrash = icon(() => (
+  <>
+    <path d="M4.5 6.5h15" />
+    <path d="M9.5 6.5V5A1.5 1.5 0 0 1 11 3.5h2A1.5 1.5 0 0 1 14.5 5v1.5" />
+    <path d="m6.5 6.5.8 11.6a2.5 2.5 0 0 0 2.5 2.4h4.4a2.5 2.5 0 0 0 2.5-2.4l.8-11.6" />
+    <path d="M10 10.5v6M14 10.5v6" />
+  </>
+))
+
+export const IconPencil = icon(() => (
+  <>
+    <path d="M15.6 4.4a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4z" />
+    <path d="m13.5 6.5 3 3" />
+  </>
+))
+
+export const IconArrowUp = icon(() => <path d="M12 19V5M5.5 11.5 12 5l6.5 6.5" />)
+
+export const IconArrowDown = icon(() => <path d="M12 5v14M5.5 12.5 12 19l6.5-6.5" />)
+
+export const IconStop = icon(() => (
+  <rect x="7" y="7" width="10" height="10" rx="2.5" fill="currentColor" stroke="none" />
+))
+
+export const IconRefresh = icon(() => (
+  <>
+    <path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3" />
+    <path d="M19.5 4.5v4h-4" />
+  </>
+))
+
+export const IconCopy = icon(() => (
+  <>
+    <rect x="8.5" y="8.5" width="11" height="11" rx="2.5" />
+    <path d="M15.5 8.5V7A2.5 2.5 0 0 0 13 4.5H7A2.5 2.5 0 0 0 4.5 7v6A2.5 2.5 0 0 0 7 15.5h1.5" />
+  </>
+))
+
+export const IconCheck = icon(() => <path d="m5 12.5 4.5 4.5L19 7.5" />)
+
+export const IconDownload = icon(() => <path d="M12 4v11M7 10.5l5 5 5-5M5 19.5h14" />)
+
+export const IconPaperclip = icon(() => (
+  <path d="m20 11.5-7.8 7.8a5 5 0 0 1-7.1-7.1l8.2-8.2a3.4 3.4 0 0 1 4.8 4.8l-8.1 8.1a1.7 1.7 0 0 1-2.4-2.4l7.4-7.4" />
+))
+
+export const IconSparkles = icon(() => (
+  <>
+    <path d="M11 4.5l1.5 4a3 3 0 0 0 1.8 1.8l4 1.5-4 1.5a3 3 0 0 0-1.8 1.8l-1.5 4-1.5-4a3 3 0 0 0-1.8-1.8l-4-1.5 4-1.5a3 3 0 0 0 1.8-1.8z" />
+    <path d="M18.5 3v3M17 4.5h3" />
+  </>
+))
+
+export const IconSliders = icon(() => (
+  <>
+    <path d="M4 7.5h9M17.5 7.5H20M4 16.5h3.5M11.5 16.5H20" />
+    <circle cx="15.25" cy="7.5" r="2.25" />
+    <circle cx="9.25" cy="16.5" r="2.25" />
+  </>
+))
+
+export const IconSun = icon(() => (
+  <>
+    <circle cx="12" cy="12" r="3.75" />
+    <path d="M12 3v1.5M12 19.5V21M3 12h1.5M19.5 12H21M5.6 5.6l1.1 1.1M17.3 17.3l1.1 1.1M5.6 18.4l1.1-1.1M17.3 6.7l1.1-1.1" />
+  </>
+))
+
+export const IconMoon = icon(() => <path d="M19.5 14.6A8 8 0 0 1 9.4 4.5a8 8 0 1 0 10.1 10.1Z" />)
+
+export const IconAuto = icon(() => (
+  <>
+    <circle cx="12" cy="12" r="8.5" />
+    <path d="M12 3.5a8.5 8.5 0 0 1 0 17z" fill="currentColor" stroke="none" />
+  </>
+))
+
+export const IconStar = icon(() => <path d="m12 3.8 2.5 5.1 5.6.8-4 4 .9 5.6-5-2.6-5 2.6.9-5.6-4-4 5.6-.8z" />)
+
+export const IconLogout = icon(() => (
+  <>
+    <path d="M13.5 4.5H7.5a3 3 0 0 0-3 3v9a3 3 0 0 0 3 3h6" />
+    <path d="M10 12h10.5M17 8.5l3.5 3.5-3.5 3.5" />
+  </>
+))
+
+export const IconGlobe = icon(() => (
+  <>
+    <circle cx="12" cy="12" r="8.5" />
+    <path d="M3.5 12h17M12 3.5c2.3 2.4 3.4 5.2 3.4 8.5s-1.1 6.1-3.4 8.5c-2.3-2.4-3.4-5.2-3.4-8.5s1.1-6.1 3.4-8.5Z" />
+  </>
+))
+
+export const IconSearch = icon(() => (
+  <>
+    <circle cx="11" cy="11" r="6.5" />
+    <path d="m16 16 4 4" />
+  </>
+))
+
+export const IconDocument = icon(() => (
+  <>
+    <path d="M8 3.5h5.5l5 5V18a2.5 2.5 0 0 1-2.5 2.5H8A2.5 2.5 0 0 1 5.5 18V6A2.5 2.5 0 0 1 8 3.5Z" />
+    <path d="M13.5 3.5v5h5" />
+  </>
+))
+
+export const IconCreditCard = icon(() => (
+  <>
+    <rect x="3.5" y="5.5" width="17" height="13" rx="3" />
+    <path d="M3.5 10h17M7.5 14.5h3" />
+  </>
+))

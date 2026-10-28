@@ -17,25 +17,31 @@ export type Me = {
   chatToday: number
 }
 
-async function fetchMe() {
-  return api<Me>("/auth/me").catch((error: unknown) => {
+// A signed-out visitor gets 401. Anything else (rate limit, a dropped connection, a cold start) is
+// retried twice with a short back-off before the app shows the offline screen.
+async function fetchMe(attempt = 0): Promise<Me | null> {
+  return api<Me>("/auth/me").catch(async (error: unknown) => {
     if (error instanceof ApiError && error.status === 401) return null
-    throw error
+    if (attempt >= 2) throw error
+    await new Promise((resolve) => setTimeout(resolve, 1000 * (attempt + 1)))
+    return fetchMe(attempt + 1)
   })
 }
 
 export const { use: useAuth, provider: AuthProvider } = createSimpleContext({
   name: "Auth",
-  // Children render only once /auth/me has answered so guards never flash the wrong screen.
-  gate: true,
+  // Route guards wait on `ready` and show the splash meanwhile, so the provider itself never blocks.
+  gate: false,
   init: () => {
-    const [me, { refetch, mutate }] = createResource(fetchMe)
+    const [me, { refetch, mutate }] = createResource(() => fetchMe())
     return {
-      me,
+      // Reading an errored resource throws; guards check `failed` first and never get here then.
+      me: () => (me.error ? undefined : me()),
       ready: () => me.state === "ready" || me.state === "errored",
+      failed: () => !!me.error,
       refresh: () => refetch(),
       clear: () => mutate(null),
-      async logout() {
+      logout: async () => {
         await api("/auth/logout", { method: "POST", body: {} })
         mutate(null)
       },

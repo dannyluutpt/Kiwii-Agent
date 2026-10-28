@@ -1,13 +1,15 @@
-import { useNavigate } from "@solidjs/router"
+import { A, useNavigate } from "@solidjs/router"
 import { createSignal, For, onMount, Show } from "solid-js"
 import { createStore, produce } from "solid-js/store"
-import { Button } from "@kiwii/ui/button"
-import { Spinner } from "@kiwii/ui/spinner"
-import { showToast } from "@kiwii/ui/toast"
-import { api, ApiError } from "@/api"
+import { api } from "@/api"
 import { Lightbox } from "@/components/lightbox"
+import { Page } from "@/components/page"
 import { useLanguage } from "@/context/language"
 import { aspectStyle } from "@/images"
+import { errorMessage } from "@/lib/errors"
+import { Button, buttonClass } from "@/ui/button"
+import { Skeleton } from "@/ui/skeleton"
+import { toast } from "@/ui/toast"
 
 type Asset = {
   id: string
@@ -22,6 +24,8 @@ type Asset = {
   url: string
 }
 
+const PLACEHOLDER_RATIOS = ["1:1", "3:4", "4:3", "9:16", "1:1", "16:9", "3:4", "1:1"]
+
 export default function Assets() {
   const { t } = useLanguage()
   const navigate = useNavigate()
@@ -34,21 +38,19 @@ export default function Assets() {
 
   const load = async (cursor?: string | null) => {
     setList("loading", true)
-    try {
-      const page = await api<{ assets: Asset[]; nextCursor: string | null }>(
-        `/images/assets?limit=40${cursor ? `&cursor=${cursor}` : ""}`,
+    await api<{ assets: Asset[]; nextCursor: string | null }>(
+      `/images/assets?limit=40${cursor ? `&cursor=${cursor}` : ""}`,
+    )
+      .then((page) =>
+        setList(
+          produce((s) => {
+            s.items.push(...page.assets)
+            s.cursor = page.nextCursor
+          }),
+        ),
       )
-      setList(
-        produce((s) => {
-          s.items.push(...page.assets)
-          s.cursor = page.nextCursor
-        }),
-      )
-    } catch (error) {
-      showToast({ title: error instanceof ApiError ? error.message : t("error.network"), variant: "error" })
-    } finally {
-      setList("loading", false)
-    }
+      .catch((error: unknown) => toast.error(errorMessage(error, t("error.network"))))
+    setList("loading", false)
   }
   onMount(() => void load())
 
@@ -57,44 +59,52 @@ export default function Assets() {
   }
 
   return (
-    <div class="h-full overflow-y-auto">
-      <div class="mx-auto flex w-full max-w-6xl flex-col gap-4 px-4 py-6">
-        <h1 class="text-20-medium text-text-strong">{t("assets.title")}</h1>
-        <Show when={!list.loading && list.items.length === 0}>
-          <p class="py-20 text-center text-14-regular text-text-weak">{t("assets.empty")}</p>
-        </Show>
-        <div class="columns-2 gap-3 md:columns-3 lg:columns-4">
-          <For each={list.items}>
-            {(asset) => (
-              <button
-                type="button"
-                class="group/asset mb-3 block w-full overflow-hidden rounded-xl bg-surface-raised-base"
-                style={aspectStyle(asset.aspectRatio)}
-                onClick={() => setOpen(asset)}
-              >
-                <img
-                  src={asset.url}
-                  alt=""
-                  loading="lazy"
-                  class="size-full object-cover transition-transform group-hover/asset:scale-[1.02]"
-                />
-              </button>
+    <Page title={t("assets.title")} width="wide">
+      <Show when={!list.loading && list.items.length === 0}>
+        <div class="flex flex-col items-center gap-4 py-16 text-center">
+          <p class="max-w-sm text-callout text-label-2">{t("assets.empty")}</p>
+          <A href="/images" class={buttonClass("primary")}>
+            {t("images.generate")}
+          </A>
+        </div>
+      </Show>
+      <div class="columns-2 gap-2 md:columns-3 md:gap-3 lg:columns-4 xl:columns-5" aria-busy={list.loading}>
+        <For each={list.items}>
+          {(asset) => (
+            <button
+              type="button"
+              class="group/asset mb-2 block w-full overflow-hidden rounded-[14px] bg-fill md:mb-3"
+              style={aspectStyle(asset.aspectRatio)}
+              aria-label={(asset.promptEnhanced ?? asset.prompt).slice(0, 120)}
+              onClick={() => setOpen(asset)}
+            >
+              <img
+                src={asset.url}
+                alt=""
+                loading="lazy"
+                decoding="async"
+                class="size-full object-cover transition-transform duration-(--motion-standard) ease-standard group-hover/asset:scale-[1.02]"
+              />
+            </button>
+          )}
+        </For>
+        <Show when={list.loading}>
+          <For each={PLACEHOLDER_RATIOS}>
+            {(ratio) => (
+              <div class="mb-2 md:mb-3" style={aspectStyle(ratio)}>
+                <Skeleton class="size-full rounded-[14px]" />
+              </div>
             )}
           </For>
-        </div>
-        <Show when={list.loading}>
-          <div class="flex justify-center py-4">
-            <Spinner class="size-5 text-icon-base" />
-          </div>
-        </Show>
-        <Show when={list.cursor && !list.loading}>
-          <div class="flex justify-center">
-            <Button variant="secondary" onClick={() => void load(list.cursor)}>
-              {t("images.loadMore")}
-            </Button>
-          </div>
         </Show>
       </div>
+      <Show when={list.cursor && !list.loading}>
+        <div class="flex justify-center pt-4">
+          <Button variant="secondary" onClick={() => void load(list.cursor)}>
+            {t("images.loadMore")}
+          </Button>
+        </div>
+      </Show>
       <Show when={open()}>
         {(asset) => (
           <Lightbox
@@ -106,6 +116,6 @@ export default function Assets() {
           />
         )}
       </Show>
-    </div>
+    </Page>
   )
 }

@@ -1,10 +1,11 @@
 import { createSignal, For, Show } from "solid-js"
-import { IconButton } from "@kiwii/ui/icon-button"
-import { Spinner } from "@kiwii/ui/spinner"
-import { showToast } from "@kiwii/ui/toast"
-import { Tooltip } from "@kiwii/ui/tooltip"
-import { ApiError, apiUpload } from "@/api"
+import { apiUpload } from "@/api"
 import { useLanguage } from "@/context/language"
+import { errorMessage } from "@/lib/errors"
+import { IconButton } from "@/ui/icon-button"
+import { Spinner } from "@/ui/spinner"
+import { toast } from "@/ui/toast"
+import { IconArrowUp, IconClose, IconDocument, IconPaperclip, IconStop } from "./icons"
 
 export type Attachment = { id: string; name: string; size: number; mime: string }
 
@@ -23,10 +24,12 @@ export function ChatPromptBar(props: {
   let ref: HTMLTextAreaElement | undefined
   let fileInput: HTMLInputElement | undefined
 
+  const canSend = () =>
+    !props.busy && !props.disabled && !uploading() && (text().trim().length > 0 || attachments().length > 0)
+
   const submit = () => {
-    const value = text().trim()
-    if ((!value && attachments().length === 0) || props.busy || props.disabled || uploading()) return
-    props.onSend(value, attachments())
+    if (!canSend()) return
+    props.onSend(text().trim(), attachments())
     setText("")
     setAttachments([])
     ref?.focus()
@@ -37,49 +40,47 @@ export function ChatPromptBar(props: {
     const picked = Array.from(list).slice(0, Math.max(0, MAX_ATTACHMENTS - attachments().length))
     if (picked.length === 0) return
     setUploading(true)
-    try {
-      for (const file of picked) {
-        const form = new FormData()
-        form.append("file", file)
-        const stored = await apiUpload<Attachment>("/chat/files", form)
-        setAttachments((list) => [...list, stored])
-      }
-    } catch (error) {
-      showToast({ title: error instanceof ApiError ? error.message : t("error.generic"), variant: "error" })
-    } finally {
-      setUploading(false)
-      if (fileInput) fileInput.value = ""
+    for (const file of picked) {
+      const form = new FormData()
+      form.append("file", file)
+      const stored = await apiUpload<Attachment>("/chat/files", form).catch((error: unknown) => {
+        toast.error(errorMessage(error, t("error.generic")))
+        return undefined
+      })
+      if (stored) setAttachments((items) => [...items, stored])
     }
+    setUploading(false)
+    if (fileInput) fileInput.value = ""
   }
 
   return (
     <form
-      class="mx-auto flex w-full max-w-3xl flex-col gap-1 rounded-2xl border border-border-weak-base bg-surface-raised-base p-2 pl-3 shadow-sm focus-within:border-border-focus"
+      class="flex flex-col rounded-panel bg-surface shadow-floating transition-shadow duration-(--motion-micro) focus-within:shadow-[var(--k-shadow-floating),0_0_0_1.5px_var(--k-focus)]"
       onSubmit={(event) => {
         event.preventDefault()
         submit()
       }}
     >
       <Show when={attachments().length > 0}>
-        <div class="flex flex-wrap gap-1.5 px-1 pt-1">
+        <ul class="flex flex-wrap gap-1.5 px-3 pt-3" aria-label={t("chat.attach")}>
           <For each={attachments()}>
             {(file) => (
-              <span class="flex items-center gap-1 rounded-md border border-border-weak-base bg-surface-base px-2 py-1 text-12-regular text-text-base">
+              <li class="flex h-9 max-w-full items-center gap-2 rounded-[10px] bg-fill-2 pr-1 pl-2.5 text-subhead text-label">
+                <IconDocument class="size-4 shrink-0 text-label-2" />
                 <span class="max-w-48 truncate">{file.name}</span>
-                <button
-                  type="button"
-                  class="text-text-weak hover:text-text-strong"
-                  aria-label={t("chat.attach.remove")}
-                  onClick={() => setAttachments((list) => list.filter((f) => f.id !== file.id))}
-                >
-                  ×
-                </button>
-              </span>
+                <IconButton
+                  label={`${t("chat.attach.remove")}: ${file.name}`}
+                  size="xs"
+                  tooltip={false}
+                  icon={<IconClose class="size-4" />}
+                  onClick={() => setAttachments((items) => items.filter((f) => f.id !== file.id))}
+                />
+              </li>
             )}
           </For>
-        </div>
+        </ul>
       </Show>
-      <div class="flex items-end gap-1">
+      <div class="flex items-end gap-1 p-1.5">
         <input
           ref={fileInput}
           type="file"
@@ -88,24 +89,30 @@ export function ChatPromptBar(props: {
           class="hidden"
           onChange={(event) => void upload(event.currentTarget.files)}
         />
-        <Tooltip value={t("chat.attach.hint")}>
-          <Show when={!uploading()} fallback={<Spinner class="m-2 size-4" />}>
-            <IconButton
-              icon="plus"
-              variant="ghost"
-              type="button"
-              aria-label={t("chat.attach")}
-              disabled={props.disabled || attachments().length >= MAX_ATTACHMENTS}
-              onClick={() => fileInput?.click()}
-            />
-          </Show>
-        </Tooltip>
+        <Show
+          when={!uploading()}
+          fallback={
+            <span class="flex size-10 items-center justify-center text-label-2">
+              <Spinner class="size-5" label={t("chat.uploading")} />
+            </span>
+          }
+        >
+          <IconButton
+            label={t("chat.attach.hint")}
+            size="lg"
+            icon={<IconPaperclip class="size-[22px]" />}
+            disabled={props.disabled || attachments().length >= MAX_ATTACHMENTS}
+            onClick={() => fileInput?.click()}
+          />
+        </Show>
         <textarea
           ref={ref}
           data-component="chat-textarea"
-          class="min-h-10 flex-1 resize-none bg-transparent py-2 text-14-regular text-text-strong outline-none placeholder:text-text-weak"
+          class="min-h-10 flex-1 resize-none bg-transparent px-1 py-2 text-body text-label outline-none placeholder:text-label-3"
           rows={1}
           placeholder={t("chat.placeholder")}
+          aria-label={t("chat.placeholder")}
+          enterkeyhint="send"
           value={text()}
           disabled={props.disabled}
           onInput={(event) => setText(event.currentTarget.value)}
@@ -114,25 +121,32 @@ export function ChatPromptBar(props: {
               event.preventDefault()
               submit()
             }
+            if (event.key === "Escape" && props.busy) props.onStop()
           }}
         />
-        {props.busy ? (
+        <Show
+          when={props.busy}
+          fallback={
+            <IconButton
+              type="submit"
+              label={t("chat.send")}
+              variant="primary"
+              size="lg"
+              circle
+              icon={<IconArrowUp class="size-5" weight={2.25} />}
+              disabled={!canSend()}
+            />
+          }
+        >
           <IconButton
-            icon="stop"
-            variant="secondary"
-            type="button"
-            aria-label={t("chat.stop")}
+            label={t("chat.stop")}
+            variant="filled"
+            size="lg"
+            circle
+            icon={<IconStop class="size-5" />}
             onClick={() => props.onStop()}
           />
-        ) : (
-          <IconButton
-            icon="arrow-up"
-            variant="primary"
-            type="submit"
-            aria-label={t("chat.send")}
-            disabled={props.disabled || uploading() || (text().trim().length === 0 && attachments().length === 0)}
-          />
-        )}
+        </Show>
       </div>
     </form>
   )

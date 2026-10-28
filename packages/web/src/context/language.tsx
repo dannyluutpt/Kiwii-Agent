@@ -21,14 +21,14 @@ export const { use: useLanguage, provider: LanguageProvider } = createSimpleCont
     const [locale, setLocale] = createSignal<Locale>(initialLocale())
     return {
       locale,
-      setLocale(next: Locale) {
+      setLocale: (next: Locale) => {
         setLocale(next)
         try {
           localStorage.setItem(STORAGE_KEY, next)
         } catch {}
         document.documentElement.lang = next
       },
-      t(key: I18nKey, params?: Record<string, string | number>) {
+      t: (key: I18nKey, params?: Record<string, string | number>) => {
         const text = dicts[locale()][key]
         if (!params) return text
         return text.replace(/{{\s*(\w+)\s*}}/g, (_, name: string) => String(params[name] ?? ""))
