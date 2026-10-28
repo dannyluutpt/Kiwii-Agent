@@ -6,7 +6,7 @@ import { IconButton, iconButtonClass } from "@/ui/icon-button"
 import { Menu, MenuContent, MenuItem, MenuSeparator } from "@/ui/menu"
 import { Spinner } from "@/ui/spinner"
 import { toast } from "@/ui/toast"
-import { IconCopy, IconEllipsis, IconImage, IconRefresh, IconSparkles, IconTrash } from "./icons"
+import { IconCopy, IconEllipsis, IconImage, IconRefresh, IconTrash } from "./icons"
 
 // One run in the studio feed: the prompt and settings, then its pictures. While a run streams, each
 // frame shows a shimmer, then the blurred partial preview, then the final picture sharpening in.
@@ -19,7 +19,6 @@ export function GenerationCard(props: {
   onDelete: () => void
 }) {
   const { t, locale } = useLanguage()
-  const [showEnhanced, setShowEnhanced] = createSignal(false)
   const g = () => props.generation
   const option = () => props.model?.options.find((o) => o.id === g().option)?.label ?? g().option
   const time = () =>
@@ -83,11 +82,6 @@ export function GenerationCard(props: {
             <MenuItem icon={<IconCopy class="size-[18px]" />} onSelect={copyPrompt}>
               {t("images.copyPrompt")}
             </MenuItem>
-            <Show when={g().promptEnhanced}>
-              <MenuItem icon={<IconSparkles class="size-[18px]" />} onSelect={() => setShowEnhanced(!showEnhanced())}>
-                {showEnhanced() ? t("images.hideEnhanced") : t("images.showEnhanced")}
-              </MenuItem>
-            </Show>
             <MenuSeparator />
             <MenuItem
               icon={<IconTrash class="size-[18px]" />}
@@ -100,13 +94,6 @@ export function GenerationCard(props: {
           </MenuContent>
         </Menu>
       </header>
-
-      <Show when={showEnhanced() && g().promptEnhanced}>
-        <div class="rounded-[12px] bg-fill px-3 py-2.5 animate-fade-in">
-          <p class="text-caption font-semibold text-label-2">{t("images.enhancedPrompt")}</p>
-          <p class="mt-0.5 text-footnote text-label select-text">{g().promptEnhanced}</p>
-        </div>
-      </Show>
 
       <Show when={g().status === "failed"}>
         <div class="flex flex-wrap items-center gap-3 rounded-[12px] bg-danger-soft px-3 py-2.5" role="alert">

@@ -3,13 +3,12 @@ import { For, Show, type JSX } from "solid-js"
 import { useLanguage } from "@/context/language"
 import type { ImageModel, ModelsResponse, StudioSettings } from "@/images"
 import { Segmented } from "@/ui/segmented"
-import { Switch } from "@/ui/switch"
 import { AspectIcon } from "./aspect-icon"
 import { IconCheck } from "./icons"
 
-// Everything about a run except the prompt: quality, frame, how many pictures and whether Kiwii
-// rewrites the prompt. Shown in a popover on wide screens, where the model has its own menu, and in a
-// bottom sheet on phones, which also lists the models (`onPickModel`).
+// Everything about a run except the prompt: quality, frame and how many pictures. Shown in a popover
+// on wide screens, where the model has its own menu, and in a bottom sheet on phones, which also
+// lists the models (`onPickModel`).
 export function StudioOptions(props: {
   config: ModelsResponse
   model: ImageModel
@@ -101,13 +100,6 @@ export function StudioOptions(props: {
           options={counts().map((n) => ({ value: n, label: n }))}
         />
       </Section>
-
-      <Switch
-        label={t("images.enhance")}
-        description={t("images.enhance.hint")}
-        checked={props.settings.enhance}
-        onChange={(enhance) => props.onSettings({ enhance })}
-      />
 
       <p class="border-t border-separator pt-3 text-footnote text-label-2" aria-live="polite">
         {props.cost === undefined

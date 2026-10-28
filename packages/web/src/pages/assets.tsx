@@ -22,7 +22,6 @@ type Asset = {
   option: string
   aspectRatio: string
   prompt: string
-  promptEnhanced: string | null
   url: string
 }
 
@@ -117,7 +116,7 @@ export default function Assets() {
         items={list.items.map((asset) => ({
           src: asset.url,
           alt: altFor(asset),
-          caption: asset.promptEnhanced ?? asset.prompt,
+          caption: asset.prompt,
           download: `${asset.url}?download`,
         }))}
         index={viewer()}

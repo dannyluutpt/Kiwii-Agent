@@ -98,13 +98,15 @@ export default function Pricing() {
                   </Show>
                 </div>
                 <ul class="flex flex-col gap-2 text-subhead text-label">
-                  <Feature>{plan.id === "free" ? t("pricing.freeModel") : t("pricing.paidModel")}</Feature>
                   <Feature>
                     {plan.chatDailyMessages !== null
                       ? t("pricing.chatDaily", { n: plan.chatDailyMessages.toLocaleString("vi-VN") })
                       : t("pricing.chatMonthly", { n: (plan.chatMonthlyMessages ?? 0).toLocaleString("vi-VN") })}
                   </Feature>
                   <Feature>{t("pricing.context", { k: Math.round(plan.chatContextTokens / 1000) })}</Feature>
+                  <Show when={plan.id !== "free"}>
+                    <Feature>{t("pricing.files")}</Feature>
+                  </Show>
                   <Feature muted={plan.credits === 0}>
                     {plan.credits > 0
                       ? t("pricing.credits", { credits: plan.credits.toLocaleString("vi-VN") })
