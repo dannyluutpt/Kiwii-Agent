@@ -1,13 +1,17 @@
-import { Navigate, Route, Router } from "@solidjs/router"
+import { Navigate, Route, Router, useLocation, useSearchParams } from "@solidjs/router"
 import { lazy, Show, type ParentProps } from "solid-js"
-import { DialogProvider } from "@kiwii/ui/context/dialog"
 import { MarkedProvider } from "@kiwii/ui/context/marked"
 import { ThemeProvider } from "@kiwii/ui/theme/context"
-import { Toast } from "@kiwii/ui/toast"
 import { AppShell } from "@/components/app-shell"
+import { Splash } from "@/components/splash"
 import { AuthProvider, useAuth } from "@/context/auth"
+import { safeNext } from "@/lib/next"
+import { ConversationsProvider } from "@/context/conversations"
 import { LanguageProvider } from "@/context/language"
+import { LayoutProvider } from "@/context/layout"
 import { AuthLayout } from "@/pages/auth/layout"
+import { ConfirmHost } from "@/ui/confirm"
+import { ToastRegion } from "@/ui/toast"
 
 const Login = lazy(() => import("@/pages/auth/login"))
 const Signup = lazy(() => import("@/pages/auth/signup"))
@@ -21,18 +25,25 @@ const Pricing = lazy(() => import("@/pages/pricing"))
 const Checkout = lazy(() => import("@/pages/checkout"))
 const Account = lazy(() => import("@/pages/account"))
 
+// Browser chrome (status bar tint, overscroll) matches the canvas of the active scheme.
+const CANVAS = { light: "#fbfbf9", dark: "#141513" }
+
+function paintChrome(mode: "light" | "dark") {
+  document.documentElement.style.backgroundColor = CANVAS[mode]
+  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", CANVAS[mode])
+}
+
 function Providers(props: ParentProps) {
   return (
-    <ThemeProvider defaultTheme="kiwii">
+    <ThemeProvider defaultTheme="kiwii" onThemeApplied={(_, mode) => paintChrome(mode)}>
       <LanguageProvider>
-        <DialogProvider>
-          <MarkedProvider>
-            <AuthProvider>
-              {props.children}
-              <Toast.Region />
-            </AuthProvider>
-          </MarkedProvider>
-        </DialogProvider>
+        <MarkedProvider>
+          <AuthProvider>
+            {props.children}
+            <ToastRegion />
+            <ConfirmHost />
+          </AuthProvider>
+        </MarkedProvider>
       </LanguageProvider>
     </ThemeProvider>
   )
@@ -40,18 +51,31 @@ function Providers(props: ParentProps) {
 
 function Private(props: ParentProps) {
   const auth = useAuth()
+  const location = useLocation()
   return (
-    <Show when={auth.me()} fallback={<Navigate href="/login" />}>
-      <AppShell>{props.children}</AppShell>
+    <Show when={auth.ready() && !auth.failed()} fallback={<Splash failed={auth.failed()} onRetry={auth.refresh} />}>
+      <Show
+        when={auth.me()}
+        fallback={<Navigate href={`/login?next=${encodeURIComponent(location.pathname + location.search)}`} />}
+      >
+        <LayoutProvider>
+          <ConversationsProvider>
+            <AppShell>{props.children}</AppShell>
+          </ConversationsProvider>
+        </LayoutProvider>
+      </Show>
     </Show>
   )
 }
 
 function Public(props: ParentProps) {
   const auth = useAuth()
+  const [search] = useSearchParams<{ next?: string }>()
   return (
-    <Show when={!auth.me()} fallback={<Navigate href="/chat" />}>
-      <AuthLayout>{props.children}</AuthLayout>
+    <Show when={auth.ready() && !auth.failed()} fallback={<Splash failed={auth.failed()} onRetry={auth.refresh} />}>
+      <Show when={!auth.me()} fallback={<Navigate href={safeNext(search.next)} />}>
+        <AuthLayout>{props.children}</AuthLayout>
+      </Show>
     </Show>
   )
 }

@@ -1,0 +1,203 @@
+/*
+  Motion and shared component styles that depend on Kobalte's data attributes
+  (data-expanded / data-closed / data-opened / data-swipe). Kobalte keeps closing content mounted
+  until its exit animation ends, so every enter animation here has a matching exit.
+*/
+
+/* The app root tracks the visual viewport so the composer rides on top of the iOS keyboard instead
+   of being panned off screen. --app-height/--app-offset are written by lib/viewport.ts. */
+#root {
+  position: fixed;
+  inset: 0 auto auto 0;
+  width: 100%;
+  height: var(--app-height, 100dvh);
+  transform: translateY(var(--app-offset, 0px));
+}
+
+/* Overlays */
+.k-overlay[data-expanded] {
+  animation: k-fade-in var(--motion-standard) var(--ease-standard) both;
+}
+.k-overlay[data-closed] {
+  animation: k-fade-out var(--motion-exit) var(--ease-accelerate) both;
+}
+
+/* Dialog: rises from the bottom edge on phones, scales in at the centre elsewhere. */
+.k-dialog[data-expanded] {
+  animation: k-dialog-rise-in var(--motion-enter) var(--ease-decelerate) both;
+}
+.k-dialog[data-closed] {
+  animation: k-dialog-rise-out var(--motion-exit) var(--ease-accelerate) both;
+}
+@media (min-width: 40rem) {
+  .k-dialog[data-expanded] {
+    animation-name: k-dialog-scale-in;
+  }
+  .k-dialog[data-closed] {
+    animation-name: k-dialog-scale-out;
+  }
+}
+@keyframes k-dialog-rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(32px);
+  }
+}
+@keyframes k-dialog-rise-out {
+  to {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+}
+@keyframes k-dialog-scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+}
+@keyframes k-dialog-scale-out {
+  to {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+}
+
+/* Sheets */
+.k-sheet[data-side="left"][data-expanded] {
+  animation: k-sheet-left-in var(--motion-enter) var(--ease-decelerate) both;
+}
+.k-sheet[data-side="left"][data-closed] {
+  animation: k-sheet-left-out var(--motion-exit) var(--ease-accelerate) both;
+}
+.k-sheet[data-side="bottom"][data-expanded] {
+  animation: k-sheet-bottom-in var(--motion-enter) var(--ease-decelerate) both;
+}
+.k-sheet[data-side="bottom"][data-closed] {
+  animation: k-sheet-bottom-out var(--motion-exit) var(--ease-accelerate) both;
+}
+@keyframes k-sheet-left-in {
+  from {
+    transform: translateX(-100%);
+  }
+}
+@keyframes k-sheet-left-out {
+  to {
+    transform: translateX(-100%);
+  }
+}
+@keyframes k-sheet-bottom-in {
+  from {
+    transform: translateY(100%);
+  }
+}
+@keyframes k-sheet-bottom-out {
+  to {
+    transform: translateY(100%);
+  }
+}
+
+/* Menus and popovers grow from their trigger. */
+.k-menu {
+  transform-origin: var(--kb-menu-content-transform-origin, top);
+}
+.k-popover {
+  transform-origin: var(--kb-popover-content-transform-origin, top);
+}
+:is(.k-menu, .k-popover)[data-expanded] {
+  animation: k-pop-in 160ms var(--ease-decelerate) both;
+}
+:is(.k-menu, .k-popover)[data-closed] {
+  animation: k-pop-out 120ms var(--ease-accelerate) both;
+}
+@keyframes k-pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+}
+@keyframes k-pop-out {
+  to {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+}
+
+.k-tooltip[data-expanded] {
+  animation: k-fade-in var(--motion-micro) var(--ease-standard) both;
+}
+.k-tooltip[data-closed] {
+  animation: k-fade-out 80ms var(--ease-accelerate) both;
+}
+
+/* Toasts drop in from the top like system banners and can be swiped back up. */
+.k-toast[data-opened] {
+  animation: k-toast-in var(--motion-enter) var(--ease-decelerate) both;
+}
+.k-toast[data-closed] {
+  animation: k-toast-out var(--motion-exit) var(--ease-accelerate) both;
+}
+.k-toast[data-swipe="move"] {
+  transform: translateY(min(0px, var(--kb-toast-swipe-move-y)));
+}
+.k-toast[data-swipe="cancel"] {
+  transform: translateY(0);
+  transition: transform var(--motion-standard) var(--ease-standard);
+}
+.k-toast[data-swipe="end"] {
+  animation: k-toast-swipe-out var(--motion-exit) var(--ease-accelerate) forwards;
+}
+@keyframes k-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(-16px) scale(0.98);
+  }
+}
+@keyframes k-toast-out {
+  to {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+}
+@keyframes k-toast-swipe-out {
+  from {
+    transform: translateY(var(--kb-toast-swipe-end-y));
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-120%);
+  }
+}
+
+/* Segmented control thumb slides between options. */
+.k-segmented-indicator {
+  transition:
+    transform var(--motion-standard) var(--ease-standard),
+    width var(--motion-standard) var(--ease-standard);
+}
+
+/* Activity indicator: eight spokes stepping round, like the system spinner. */
+.k-spinner {
+  animation: k-spin 0.8s steps(8, end) infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .k-spinner {
+    animation-duration: 1.6s;
+  }
+}
+
+.k-skeleton {
+  background: linear-gradient(90deg, var(--k-fill) 30%, var(--k-fill-2) 50%, var(--k-fill) 70%);
+  background-size: 300% 100%;
+  animation: k-shimmer 1.6s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .k-skeleton {
+    animation: none;
+    background: var(--k-fill-2);
+  }
+}
+
+/* Hide the tab bar while the on-screen keyboard is up so the composer sits right on it. */
+html[data-keyboard="open"] [data-keyboard-hide] {
+  display: none;
+}

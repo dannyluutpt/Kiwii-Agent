@@ -11,8 +11,8 @@ export default defineConfig({
   worker: { format: "es" },
   server: {
     port: 5173,
-    // The Worker runs on 8787 under `wrangler dev`; same-origin in production so no CORS.
-    proxy: { "/api": "http://localhost:8787" },
+    // The Worker runs on 8787 under `wrangler dev` (API_PORT to change it); same-origin in production.
+    proxy: { "/api": `http://localhost:${process.env.API_PORT ?? 8787}` },
   },
   build: { target: "esnext", outDir: "dist" },
 })

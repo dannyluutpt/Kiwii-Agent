@@ -1,9 +1,9 @@
 import { A, useNavigate, useSearchParams } from "@solidjs/router"
 import { createSignal } from "solid-js"
-import { showToast } from "@kiwii/ui/toast"
 import { api } from "@/api"
 import { useLanguage } from "@/context/language"
 import { AuthForm, Field } from "./form"
+import { toast } from "@/ui/toast"
 
 export default function Reset() {
   const { t } = useLanguage()
@@ -19,11 +19,11 @@ export default function Reset() {
       submit={t("auth.reset.submit")}
       onSubmit={async () => {
         await api("/auth/reset", { body: { email: email(), code: code(), password: password() } })
-        showToast({ title: t("auth.reset.done"), variant: "success" })
+        toast.success(t("auth.reset.done"))
         navigate("/login")
       }}
       footer={
-        <A href="/login" class="text-text-weak">
+        <A href="/login" class="text-label-2">
           {t("auth.back")}
         </A>
       }

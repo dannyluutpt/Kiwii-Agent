@@ -1,0 +1,55 @@
+# @kiwii/web
+
+The Kiwii web app (chat and image studio) at https://kiwiiagent.com: a SolidJS single-page app that
+`@kiwii/api` serves as static assets from the same Worker.
+
+## Develop
+
+```sh
+# terminal 1: model stand-in so nothing spends OpenRouter credits
+cd packages/api && bun script/mock-openrouter.ts
+# terminal 2: the Worker, with OPENROUTER_BASE_URL=http://localhost:8899 in packages/api/.dev.vars
+cd packages/api && bunx wrangler dev --port 8787
+# terminal 3: hot-reloading UI on :5173, proxying /api to :8787 (API_PORT overrides the port)
+cd packages/web && bun run dev
+```
+
+Checks: `bun run typecheck`, `bun test src` (unit), `bun run e2e` (browser; see below).
+
+## Design system
+
+Everything visual comes from `src/styles/`:
+
+- `tokens.css`: semantic colours (`bg-canvas`, `bg-surface`, `text-label-2`, `bg-accent`, …), the type
+  scale (`text-large-title` … `text-caption-2`), named radii (`rounded-control`, `rounded-card`,
+  `rounded-panel`, `rounded-sheet`), elevation (`shadow-raised`, `shadow-floating`, `shadow-overlay`),
+  motion durations and easings, safe-area and `glass` utilities. `@kiwii/ui` resets Tailwind's own
+  scale, so anything not listed here does not exist.
+- `theme.css`: the light and dark values, keyed on `html[data-color-scheme]`. The accent used for
+  text and filled buttons is a deeper kiwi green chosen for WCAG AA contrast; the brand green is
+  kept for focus rings and marks.
+- `components.css`: enter and exit animations driven by Kobalte's `data-expanded` / `data-closed`
+  attributes, the spinner and skeleton.
+
+Components live in `src/ui/` (Button, IconButton, TextField, Dialog with `askConfirm`/`askText`,
+Sheet, Menu, Segmented, Toast, Tooltip, Skeleton, Tag, Avatar). They wrap Kobalte for behaviour and
+keyboard support and are sized for touch: 44px targets on coarse pointers, 16px text in inputs so
+iOS does not zoom. Prefer them over raw elements; never nest a `<button>` inside a link, use
+`buttonClass()` on the link instead.
+
+Layout: phones (< 768px) get the bottom tab bar, tablets open the sidebar as a drawer, desktops
+(≥ 1024px) dock it and can collapse it (Ctrl/⌘ + Shift + S). Screens with a large title use
+`components/page.tsx`; screens with their own scroller use `components/top-bar.tsx` directly and pad
+by `pb-tabbar`.
+
+## End-to-end tests
+
+`e2e/` drives the real app with Playwright against a local Worker on :8790. The global setup writes a
+test user and session straight into the local D1 database, so nothing touches production.
+
+```sh
+cd packages/api && bun script/mock-openrouter.ts & bunx wrangler dev --port 8790
+cd packages/web && bun run build && bun run e2e
+```
+
+Set `PLAYWRIGHT_CHROMIUM_EXECUTABLE` to use an already installed Chromium.

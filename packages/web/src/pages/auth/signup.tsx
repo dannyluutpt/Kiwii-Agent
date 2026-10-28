@@ -23,7 +23,7 @@ export default function Signup() {
       footer={
         <span>
           {t("auth.signup.hasAccount")}{" "}
-          <A href="/login" class="text-text-interactive-base">
+          <A href="/login" class="font-medium text-accent">
             {t("auth.login")}
           </A>
         </span>

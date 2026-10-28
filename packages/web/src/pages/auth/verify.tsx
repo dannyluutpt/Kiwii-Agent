@@ -1,9 +1,10 @@
 import { A, useNavigate, useSearchParams } from "@solidjs/router"
 import { createSignal } from "solid-js"
-import { showToast } from "@kiwii/ui/toast"
-import { api, ApiError } from "@/api"
+import { api } from "@/api"
 import { useAuth } from "@/context/auth"
 import { useLanguage } from "@/context/language"
+import { errorMessage } from "@/lib/errors"
+import { toast } from "@/ui/toast"
 import { AuthForm, Field } from "./form"
 
 export default function Verify() {
@@ -16,10 +17,8 @@ export default function Verify() {
 
   const resend = () => {
     api("/auth/signup/resend", { body: { email: email() } })
-      .then(() => showToast({ title: t("auth.verify.resent"), variant: "success" }))
-      .catch((error: unknown) => {
-        showToast({ title: error instanceof ApiError ? error.message : t("error.generic"), variant: "error" })
-      })
+      .then(() => toast.success(t("auth.verify.resent")))
+      .catch((error: unknown) => toast.error(errorMessage(error, t("error.generic"))))
   }
 
   return (
@@ -34,10 +33,10 @@ export default function Verify() {
       }}
       footer={
         <span class="flex flex-col gap-1">
-          <button type="button" class="text-text-interactive-base" onClick={resend}>
+          <button type="button" class="font-medium text-accent" onClick={resend}>
             {t("auth.verify.resend")}
           </button>
-          <A href="/login" class="text-text-weak">
+          <A href="/login" class="text-label-2">
             {t("auth.back")}
           </A>
         </span>

@@ -1,4 +1,5 @@
 import { createResource, createSignal, onCleanup, onMount, Show } from "solid-js"
+import { useTheme } from "@kiwii/ui/theme/context"
 import { api } from "@/api"
 
 type TurnstileAPI = {
@@ -35,6 +36,7 @@ export function Turnstile(props: { onToken: (token: string | undefined) => void 
 }
 
 function Widget(props: { siteKey: string; onToken: (token: string | undefined) => void }) {
+  const theme = useTheme()
   let el: HTMLDivElement | undefined
   const [id, setID] = createSignal<string>()
   onMount(() => {
@@ -43,7 +45,7 @@ function Widget(props: { siteKey: string; onToken: (token: string | undefined) =
       setID(
         turnstile.render(el, {
           sitekey: props.siteKey,
-          theme: "dark",
+          theme: theme.mode(),
           language: document.documentElement.lang || "vi",
           callback: (token: string) => props.onToken(token),
           "expired-callback": () => props.onToken(undefined),

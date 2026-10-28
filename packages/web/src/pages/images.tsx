@@ -1,16 +1,19 @@
-import { A, useSearchParams } from "@solidjs/router"
+import { A, useNavigate, useSearchParams } from "@solidjs/router"
 import { createEffect, createMemo, createResource, createSignal, For, on, Show } from "solid-js"
 import { createStore, produce } from "solid-js/store"
-import { Button } from "@kiwii/ui/button"
-import { Spinner } from "@kiwii/ui/spinner"
-import { showToast } from "@kiwii/ui/toast"
 import { api, ApiError, apiStream } from "@/api"
 import { GenerationCard } from "@/components/generation-card"
 import { Lightbox } from "@/components/lightbox"
 import { StudioPromptBar, type StudioSettings } from "@/components/studio-prompt-bar"
+import { TopBar } from "@/components/top-bar"
 import { useAuth } from "@/context/auth"
 import { useLanguage } from "@/context/language"
 import type { Generation, ModelsResponse, Reference } from "@/images"
+import { errorMessage } from "@/lib/errors"
+import { Button, buttonClass } from "@/ui/button"
+import { askConfirm } from "@/ui/confirm"
+import { Skeleton } from "@/ui/skeleton"
+import { toast } from "@/ui/toast"
 
 const SETTINGS_KEY = "kiwii-studio"
 
@@ -33,6 +36,8 @@ function loadSettings(): StudioSettings {
 export default function Images() {
   const { t } = useLanguage()
   const auth = useAuth()
+  const navigate = useNavigate()
+  let feed: HTMLDivElement | undefined
   const [search, setSearch] = useSearchParams<{ prompt?: string; model?: string }>()
   const [config] = createResource(() => api<ModelsResponse>("/images/models"))
   const [settings, setSettings] = createStore<StudioSettings>(loadSettings())
@@ -93,7 +98,7 @@ export default function Images() {
         }),
       )
     } catch (error) {
-      showToast({ title: error instanceof ApiError ? error.message : t("error.network"), variant: "error" })
+      toast.error(errorMessage(error, t("error.network")))
     } finally {
       setList("loading", false)
     }
@@ -167,16 +172,18 @@ export default function Images() {
             g.refunded = data.refunded
             g.previews = {}
           })
-          showToast({ title: data.message, variant: "error" })
+          toast.error(data.message)
           void auth.refresh()
         }
       }
     } catch (error) {
-      if (error instanceof ApiError && error.code === "INSUFFICIENT_CREDITS") {
-        showToast({ title: t("images.insufficient"), variant: "error" })
-      } else {
-        showToast({ title: error instanceof ApiError ? error.message : t("error.network"), variant: "error" })
+      const insufficient = error instanceof ApiError && error.code === "INSUFFICIENT_CREDITS"
+      if (insufficient) {
+        toast.error(t("images.insufficient"), {
+          action: { label: t("images.topup"), onClick: () => navigate("/pricing") },
+        })
       }
+      if (!insufficient) toast.error(errorMessage(error, t("error.network")))
       if (id) update(id, (g) => (g.status = "failed"))
     } finally {
       setRunning(running() - 1)
@@ -187,49 +194,53 @@ export default function Images() {
     setPrompt(g.prompt)
     patch({ model: g.model, option: g.option, aspectRatio: g.aspectRatio, n: g.n })
     setOpen(undefined)
-    window.scrollTo({ top: 0 })
+    // The feed is the scroller here, not the window; bring the prompt into view and focus it.
+    feed?.scrollTo({ top: 0, behavior: "smooth" })
+    requestAnimationFrame(() => document.querySelector<HTMLTextAreaElement>("[data-studio-prompt]")?.focus())
   }
 
   const remove = async (g: Generation) => {
-    if (!confirm(t("images.deleteConfirm"))) return
-    try {
-      await api(`/images/generations/${g.id}`, { method: "DELETE" })
-      setList("items", (items) => items.filter((item) => item.id !== g.id))
-    } catch (error) {
-      showToast({ title: error instanceof ApiError ? error.message : t("error.generic"), variant: "error" })
-    }
+    const ok = await askConfirm({
+      title: t("images.deleteTitle"),
+      description: t("images.deleteDescription"),
+      confirmLabel: t("common.delete"),
+      destructive: true,
+    })
+    if (!ok) return
+    await api(`/images/generations/${g.id}`, { method: "DELETE" })
+      .then(() => setList("items", (items) => items.filter((item) => item.id !== g.id)))
+      .catch((error: unknown) => toast.error(errorMessage(error, t("error.generic"))))
   }
 
   const locked = () => config()?.canGenerate === false
   const busy = () => running() >= (config()?.parallelLimit ?? 1)
 
   return (
-    <div class="flex h-full min-h-0 flex-col">
-      <div class="flex-1 overflow-y-auto">
-        <div class="mx-auto flex w-full max-w-5xl flex-col gap-4 px-4 py-6">
+    <div class="flex h-full min-h-0 flex-col pb-tabbar">
+      <TopBar heading title={t("nav.images")} />
+      <div ref={feed} class="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+        <div class="mx-auto flex w-full max-w-5xl flex-col gap-4 px-4 py-4 md:px-6 md:py-6">
           <Show when={config()?.trial}>
-            <div class="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-border-weak-base bg-surface-raised-base px-4 py-3">
-              <p class="text-13-regular text-text-base">{t("images.trial", { n: config()?.credits ?? 0 })}</p>
-              <A href="/pricing">
-                <Button variant="secondary" size="small">
-                  {t("images.locked.cta")}
-                </Button>
+            <div class="flex flex-wrap items-center justify-between gap-3 rounded-card bg-accent-soft px-4 py-3">
+              <p class="text-subhead text-label">{t("images.trial", { n: config()?.credits ?? 0 })}</p>
+              <A href="/pricing" class={buttonClass("primary", "sm")}>
+                {t("images.locked.cta")}
               </A>
             </div>
           </Show>
           <Show when={locked()}>
-            <div class="flex flex-col items-start gap-2 rounded-2xl border border-border-weak-base bg-surface-raised-base p-5">
-              <h2 class="text-16-medium text-text-strong">{t("images.locked.title")}</h2>
-              <p class="text-14-regular text-text-weak">{t("images.locked.lead")}</p>
-              <A href="/pricing">
-                <Button variant="primary">{t("images.locked.cta")}</Button>
+            <div class="flex flex-col items-start gap-2 rounded-card bg-surface p-5 shadow-raised">
+              <h2 class="text-title-3 text-label">{t("images.locked.title")}</h2>
+              <p class="text-callout text-label-2">{t("images.locked.lead")}</p>
+              <A href="/pricing" class={buttonClass("primary", "md", "mt-2")}>
+                {t("images.locked.cta")}
               </A>
             </div>
           </Show>
           <Show when={!list.loading && list.items.length === 0 && !locked()}>
-            <div class="flex flex-col items-center justify-center gap-2 py-20 text-center">
-              <h1 class="text-20-medium text-text-strong">{t("images.empty.title")}</h1>
-              <p class="max-w-md text-14-regular text-text-weak">{t("images.empty.lead")}</p>
+            <div class="flex flex-col items-center justify-center gap-2 py-16 text-center md:py-24">
+              <h2 class="text-title-2 text-label">{t("images.empty.title")}</h2>
+              <p class="max-w-md text-callout text-label-2">{t("images.empty.lead")}</p>
             </div>
           </Show>
           <For each={list.items}>
@@ -244,8 +255,16 @@ export default function Images() {
             )}
           </For>
           <Show when={list.loading}>
-            <div class="flex justify-center py-4">
-              <Spinner class="size-5 text-icon-base" />
+            <div class="flex flex-col gap-4" aria-hidden="true">
+              <For each={[0, 1]}>
+                {() => (
+                  <div class="flex flex-col gap-3 rounded-card bg-surface p-4 shadow-raised">
+                    <Skeleton class="h-4 w-2/3" />
+                    <Skeleton class="h-3 w-1/3" />
+                    <Skeleton class="aspect-square w-full max-w-xl rounded-[14px]" />
+                  </div>
+                )}
+              </For>
             </div>
           </Show>
           <Show when={list.cursor && !list.loading}>
@@ -257,7 +276,7 @@ export default function Images() {
           </Show>
         </div>
       </div>
-      <div class="px-4 pb-4 pt-2">
+      <div class="px-3 pt-1 pb-3 md:px-6 md:pb-4">
         <Show when={config()}>
           {(cfg) => (
             <StudioPromptBar

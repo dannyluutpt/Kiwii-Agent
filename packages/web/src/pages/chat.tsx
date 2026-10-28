@@ -1,34 +1,39 @@
-import { A, useNavigate, useParams } from "@solidjs/router"
-import { createEffect, createResource, createSignal, For, on, Show } from "solid-js"
+import { useNavigate, useParams } from "@solidjs/router"
+import { createEffect, createSignal, For, on, Show } from "solid-js"
 import { createStore, produce } from "solid-js/store"
-import { IconButton } from "@kiwii/ui/icon-button"
-import { Spinner } from "@kiwii/ui/spinner"
-import { showToast } from "@kiwii/ui/toast"
-import { Tooltip } from "@kiwii/ui/tooltip"
-import { api, ApiError, apiStream } from "@/api"
+import { api, apiStream } from "@/api"
 import { ChatPromptBar, type Attachment } from "@/components/chat-prompt-bar"
+import { IconCompose, IconDocument, IconRefresh } from "@/components/icons"
 import { Markdown } from "@/components/markdown"
+import { TopBar } from "@/components/top-bar"
 import { useAuth } from "@/context/auth"
+import { useConversations, type Conversation } from "@/context/conversations"
 import { useLanguage } from "@/context/language"
+import { useLayout } from "@/context/layout"
+import { errorMessage } from "@/lib/errors"
+import { NEW_CHAT_SHORTCUT, shortcutLabel } from "@/lib/shortcuts"
+import { IconButton } from "@/ui/icon-button"
+import { Skeleton } from "@/ui/skeleton"
+import { Spinner } from "@/ui/spinner"
+import { toast } from "@/ui/toast"
 
-type Conversation = { id: string; title: string; lastMessageAt: number }
 type Part =
   | { type: "text"; text: string }
   | { type: "file"; file_id: string; name: string; mime: string; size: number }
   | { type: "tool"; name: string }
 type Message = { id: string; role: "user" | "assistant"; parts: Part[]; createdAt: number }
 
-const NEW_TITLE = "Hội thoại mới"
+// Title the API gives a conversation created without one; replaced by the first message.
+const DEFAULT_TITLE = "Hội thoại mới"
 
 export default function Chat() {
   const { t } = useLanguage()
   const auth = useAuth()
+  const layout = useLayout()
+  const conversations = useConversations()
   const params = useParams<{ id?: string }>()
   const navigate = useNavigate()
 
-  const [conversations, { refetch: refetchConversations, mutate: mutateConversations }] = createResource(() =>
-    api<{ conversations: Conversation[] }>("/chat/conversations").then((r) => r.conversations),
-  )
   const [thread, setThread] = createStore<{ id?: string; messages: Message[] }>({ messages: [] })
   const [loading, setLoading] = createSignal(false)
   const [streaming, setStreaming] = createSignal<string>()
@@ -45,10 +50,12 @@ export default function Chat() {
         setStreaming(undefined)
         if (!id) return setThread({ id: undefined, messages: [] })
         setLoading(true)
+        setThread({ id, messages: [] })
         api<{ messages: Message[] }>(`/chat/conversations/${id}/messages`)
-          .then((r) => setThread({ id, messages: r.messages }))
-          .catch(() => navigate("/chat", { replace: true }))
-          .finally(() => setLoading(false))
+          // A slow response for a conversation the person already left must not replace the new one.
+          .then((r) => params.id === id && setThread({ id, messages: r.messages }))
+          .catch(() => params.id === id && navigate("/chat", { replace: true }))
+          .finally(() => params.id === id && setLoading(false))
       },
     ),
   )
@@ -72,12 +79,12 @@ export default function Chat() {
         if (event.event === "tool-result") {
           setCreating(false)
           const data = event.data as { error: string | null }
-          if (data.error) showToast({ title: data.error, variant: "error" })
+          if (data.error) toast.error(data.error)
           if (text) text += "\n\n"
           continue
         }
         if (event.event === "error") {
-          showToast({ title: (event.data as { message: string }).message, variant: "error" })
+          toast.error((event.data as { message: string }).message)
           continue
         }
         if (event.event === "finish") {
@@ -99,7 +106,7 @@ export default function Chat() {
       }
     } catch (error) {
       if (controller.signal.aborted) return
-      showToast({ title: error instanceof ApiError ? error.message : t("error.network"), variant: "error" })
+      toast.error(errorMessage(error, t("error.network")))
     } finally {
       setStreaming(undefined)
       setCreating(false)
@@ -107,21 +114,15 @@ export default function Chat() {
   }
 
   const send = async (text: string, attachments: Attachment[]) => {
-    let id = thread.id
-    if (!id) {
-      const created = await api<Conversation>("/chat/conversations", {
-        body: { title: (text || attachments[0]?.name || "").slice(0, 60) },
-      })
-      mutateConversations((list) => [created, ...(list ?? [])])
-      id = created.id
-      setThread({ id, messages: [] })
-      navigate(`/chat/${id}`)
-    }
-    const current = id
+    const id = thread.id ?? (await start(text, attachments))
+    if (!id) return
     if (thread.messages.length === 0 && text) {
       const title = text.slice(0, 60)
-      mutateConversations((list) => list?.map((c) => (c.id === current && c.title === NEW_TITLE ? { ...c, title } : c)))
-      void api(`/chat/conversations/${current}`, { method: "PATCH", body: { title } }).catch(() => {})
+      const current = conversations.list()?.find((c) => c.id === id)
+      if (current?.title === DEFAULT_TITLE) {
+        conversations.patch(id, { title })
+        void api(`/chat/conversations/${id}`, { method: "PATCH", body: { title } }).catch(() => {})
+      }
     }
     setThread(
       produce((s) => {
@@ -142,8 +143,22 @@ export default function Chat() {
         })
       }),
     )
-    await run(current, `/chat/conversations/${current}/messages`, { text, fileIDs: attachments.map((a) => a.id) })
-    void refetchConversations()
+    await run(id, `/chat/conversations/${id}/messages`, { text, fileIDs: attachments.map((a) => a.id) })
+    void conversations.refetch()
+  }
+
+  const start = async (text: string, attachments: Attachment[]) => {
+    const created = await api<Conversation>("/chat/conversations", {
+      body: { title: (text || attachments[0]?.name || "").slice(0, 60) },
+    }).catch((error: unknown) => {
+      toast.error(errorMessage(error, t("error.network")))
+      return undefined
+    })
+    if (!created) return undefined
+    conversations.add(created)
+    setThread({ id: created.id, messages: [] })
+    navigate(`/chat/${created.id}`)
+    return created.id
   }
 
   const regenerate = async () => {
@@ -157,134 +172,97 @@ export default function Chat() {
     await run(id, `/chat/conversations/${id}/regenerate`, {})
   }
 
-  const remove = async (conversation: Conversation) => {
-    if (!confirm(t("chat.deleteConfirm"))) return
-    await api(`/chat/conversations/${conversation.id}`, { method: "DELETE" })
-    mutateConversations((list) => list?.filter((c) => c.id !== conversation.id))
-    if (thread.id === conversation.id) navigate("/chat")
-  }
-
-  const rename = async (conversation: Conversation) => {
-    const title = prompt(t("chat.rename"), conversation.title)?.trim()
-    if (!title || title === conversation.title) return
-    await api(`/chat/conversations/${conversation.id}`, { method: "PATCH", body: { title } })
-    mutateConversations((list) => list?.map((c) => (c.id === conversation.id ? { ...c, title } : c)))
-  }
-
   const busy = () => streaming() !== undefined
   const quotaExhausted = () => {
     const me = auth.me()
     return !!me && me.plan.chatDailyMessages !== null && me.chatToday >= me.plan.chatDailyMessages
   }
+  const title = () => conversations.list()?.find((c) => c.id === params.id)?.title ?? t("nav.chat")
 
   return (
-    <div class="flex h-full min-h-0">
-      <aside class="flex w-64 shrink-0 flex-col border-r border-border-weak-base">
-        <div class="flex items-center justify-between px-3 pt-3 pb-2">
-          <span class="text-12-medium uppercase tracking-wide text-text-weak">{t("nav.chat")}</span>
-          <Tooltip value={t("nav.newChat")}>
+    <div class="flex h-full min-h-0 flex-col pb-tabbar">
+      <TopBar
+        heading
+        menu
+        title={title()}
+        trailing={
+          <Show when={!layout.sidebarVisible()}>
             <IconButton
-              icon="plus-small"
-              variant="ghost"
-              size="small"
+              label={t("nav.newChat")}
+              keys={shortcutLabel(NEW_CHAT_SHORTCUT)}
+              icon={<IconCompose />}
               onClick={() => navigate("/chat")}
-              aria-label={t("nav.newChat")}
             />
-          </Tooltip>
-        </div>
-        <ul class="flex-1 overflow-y-auto px-2 pb-2">
-          <Show when={conversations()?.length === 0}>
-            <li class="px-2 py-6 text-center text-13-regular text-text-weak">{t("chat.noConversations")}</li>
           </Show>
-          <For each={conversations()}>
-            {(conversation) => (
-              <li class="group/item relative">
-                <A
-                  href={`/chat/${conversation.id}`}
-                  class="block truncate rounded-md py-2 pl-2.5 pr-14 text-14-regular text-text-base hover:bg-surface-raised-base-hover hover:text-text-strong"
-                  classList={{ "bg-surface-raised-base text-text-strong": thread.id === conversation.id }}
-                >
-                  {conversation.title}
-                </A>
-                <span class="absolute inset-y-0 right-1 hidden items-center gap-0.5 group-hover/item:flex">
-                  <IconButton
-                    icon="pencil-line"
-                    variant="ghost"
-                    size="small"
-                    aria-label={t("chat.rename")}
-                    onClick={() => void rename(conversation)}
-                  />
-                  <IconButton
-                    icon="trash"
-                    variant="ghost"
-                    size="small"
-                    aria-label={t("chat.delete")}
-                    onClick={() => void remove(conversation)}
-                  />
-                </span>
-              </li>
-            )}
-          </For>
-        </ul>
-      </aside>
-
-      <section class="flex min-w-0 flex-1 flex-col">
-        <div class="flex-1 overflow-y-auto">
-          <Show
-            when={thread.id || busy()}
-            fallback={
-              <div class="flex h-full flex-col items-center justify-center gap-2 p-6 text-center">
-                <h1 class="text-20-medium text-text-strong">{t("chat.empty.title")}</h1>
-                <p class="max-w-md text-14-regular text-text-weak">{t("chat.empty.lead")}</p>
-              </div>
-            }
-          >
-            <div class="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-6">
-              <Show when={loading()}>
-                <Spinner class="size-5 text-icon-base" />
-              </Show>
-              <For each={thread.messages}>
-                {(message, index) => (
-                  <MessageView
-                    message={message}
-                    last={index() === thread.messages.length - 1 && !busy()}
-                    onRegenerate={() => void regenerate()}
-                  />
-                )}
-              </For>
-              <Show when={busy()}>
-                <div class="flex flex-col gap-2">
-                  <Show
-                    when={streaming()}
-                    fallback={<span class="text-13-regular text-text-weak">{t("chat.thinking")}</span>}
-                  >
-                    <Markdown text={streaming()!} />
-                  </Show>
-                  <Show when={creating()}>
-                    <span class="flex items-center gap-2 text-13-regular text-text-weak">
-                      <Spinner class="size-3" /> {t("chat.creatingFile")}
-                    </span>
-                  </Show>
-                </div>
-              </Show>
+        }
+      />
+      <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+        <Show
+          when={thread.id || busy()}
+          fallback={
+            <div class="flex h-full flex-col items-center justify-center gap-2 p-6 text-center">
+              <img src="/logo.png" alt="" class="mb-2 size-12 rounded-[14px] shadow-raised" />
+              <h2 class="text-title-2 text-label">{t("chat.empty.title")}</h2>
+              <p class="max-w-md text-callout text-label-2">{t("chat.empty.lead")}</p>
             </div>
-          </Show>
-        </div>
-        <div class="px-4 pb-4 pt-2">
-          <Show when={quotaExhausted()}>
-            <p class="mx-auto mb-2 max-w-3xl text-center text-13-regular text-text-on-warning-base">
-              {t("chat.quotaDaily", { time: "00:00" })}
-            </p>
-          </Show>
-          <ChatPromptBar
-            busy={busy()}
-            disabled={quotaExhausted()}
-            onSend={(text, attachments) => void send(text, attachments)}
-            onStop={() => controller?.abort()}
-          />
-          <p class="mt-2 text-center text-12-regular text-text-weaker">{t("chat.disclaimer")}</p>
-        </div>
-      </section>
+          }
+        >
+          <div class="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-6 md:px-6" aria-busy={loading() || busy()}>
+            <Show when={loading()}>
+              <div class="flex flex-col gap-6" aria-hidden="true">
+                <Skeleton class="ml-auto h-10 w-2/5 rounded-card" />
+                <div class="flex flex-col gap-2">
+                  <Skeleton class="h-4 w-11/12" />
+                  <Skeleton class="h-4 w-4/5" />
+                  <Skeleton class="h-4 w-3/5" />
+                </div>
+              </div>
+            </Show>
+            <For each={thread.messages}>
+              {(message, index) => (
+                <MessageView
+                  message={message}
+                  last={index() === thread.messages.length - 1 && !busy()}
+                  onRegenerate={() => void regenerate()}
+                />
+              )}
+            </For>
+            <Show when={busy()}>
+              <div class="flex flex-col gap-2">
+                <Show
+                  when={streaming()}
+                  fallback={
+                    <span class="flex items-center gap-2 text-subhead text-label-2">
+                      <Spinner class="size-4" /> {t("chat.thinking")}
+                    </span>
+                  }
+                >
+                  <Markdown text={streaming()!} />
+                </Show>
+                <Show when={creating()}>
+                  <span class="flex items-center gap-2 text-subhead text-label-2">
+                    <Spinner class="size-4" /> {t("chat.creatingFile")}
+                  </span>
+                </Show>
+              </div>
+            </Show>
+          </div>
+        </Show>
+      </div>
+      <div class="mx-auto w-full max-w-3xl px-3 pt-1 pb-3 md:px-6 md:pb-4">
+        <Show when={quotaExhausted()}>
+          <p class="mb-2 text-center text-footnote text-warning" role="status">
+            {t("chat.quotaDaily", { time: "00:00" })}
+          </p>
+        </Show>
+        <ChatPromptBar
+          busy={busy()}
+          disabled={quotaExhausted()}
+          onSend={(text, attachments) => void send(text, attachments)}
+          onStop={() => controller?.abort()}
+        />
+        <p class="mt-2 hidden text-center text-caption text-label-2 md:block">{t("chat.disclaimer")}</p>
+      </div>
     </div>
   )
 }
@@ -309,33 +287,30 @@ function MessageView(props: { message: Message; last: boolean; onRegenerate: () 
             </div>
           </Show>
           <Show when={text()}>
-            <div class="max-w-[85%] whitespace-pre-wrap rounded-2xl rounded-br-md bg-surface-raised-strong px-4 py-2.5 text-14-regular text-text-strong">
+            <div class="max-w-[85%] rounded-card rounded-br-[6px] bg-surface-2 px-4 py-2.5 text-body whitespace-pre-wrap text-label">
               {text()}
             </div>
           </Show>
         </div>
       }
     >
-      <div class="group/message flex flex-col gap-1.5">
+      <div class="flex flex-col gap-2">
         <Show when={text()}>
           <Markdown text={text()} />
         </Show>
         <Show when={files().length > 0}>
-          <div class="flex flex-wrap gap-1.5">
+          <div class="flex flex-wrap gap-2">
             <For each={files()}>{(file) => <FileCard file={file} />}</For>
           </div>
         </Show>
         <Show when={props.last}>
-          <div class="flex items-center gap-1">
-            <Tooltip value={t("chat.regenerate")}>
-              <IconButton
-                icon="reset"
-                variant="ghost"
-                size="small"
-                aria-label={t("chat.regenerate")}
-                onClick={() => props.onRegenerate()}
-              />
-            </Tooltip>
+          <div class="-ml-2 flex items-center gap-1">
+            <IconButton
+              label={t("chat.regenerate")}
+              size="sm"
+              icon={<IconRefresh class="size-[18px]" />}
+              onClick={() => props.onRegenerate()}
+            />
           </div>
         </Show>
       </div>
@@ -353,15 +328,15 @@ function FileCard(props: { file: Extract<Part, { type: "file" }> }) {
     <a
       href={`/api/chat/files/${props.file.file_id}`}
       download={props.file.name}
-      class="flex items-center gap-2.5 rounded-xl border border-border-weak-base bg-surface-raised-base px-3 py-2 hover:border-border-base hover:bg-surface-raised-base-hover"
-      title={t("chat.download")}
+      class="flex max-w-full items-center gap-3 rounded-card bg-surface px-3 py-2.5 shadow-raised transition-[color,background-color] hover:bg-surface-2"
+      aria-label={`${props.file.name}, ${size()}, ${t("chat.download")}`}
     >
-      <span class="flex size-8 shrink-0 items-center justify-center rounded-md bg-surface-brand-base text-11-medium uppercase text-text-on-brand-base">
-        {props.file.name.includes(".") ? props.file.name.split(".").pop()!.slice(0, 4) : "file"}
+      <span class="flex size-9 shrink-0 items-center justify-center rounded-[10px] bg-accent-soft text-accent">
+        <IconDocument class="size-5" />
       </span>
       <span class="flex min-w-0 flex-col">
-        <span class="max-w-56 truncate text-13-medium text-text-strong">{props.file.name}</span>
-        <span class="text-11-regular text-text-weak">
+        <span class="max-w-56 truncate text-subhead font-medium text-label">{props.file.name}</span>
+        <span class="text-caption text-label-2">
           {size()} · {t("chat.download")}
         </span>
       </span>

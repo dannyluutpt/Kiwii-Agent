@@ -1,10 +1,15 @@
 import { useNavigate } from "@solidjs/router"
-import { createResource, createSignal, For, Show } from "solid-js"
-import { Button } from "@kiwii/ui/button"
-import { showToast } from "@kiwii/ui/toast"
-import { api, ApiError } from "@/api"
+import { createResource, createSignal, For, Show, type JSX } from "solid-js"
+import { api } from "@/api"
+import { IconCheck } from "@/components/icons"
+import { Page } from "@/components/page"
 import { useAuth } from "@/context/auth"
 import { useLanguage } from "@/context/language"
+import { errorMessage } from "@/lib/errors"
+import { Button } from "@/ui/button"
+import { Skeleton } from "@/ui/skeleton"
+import { Tag } from "@/ui/tag"
+import { toast } from "@/ui/toast"
 
 export type PlanInfo = {
   id: "free" | "starter" | "plus" | "ultra"
@@ -33,7 +38,7 @@ export default function Pricing() {
       const created = await api<{ id: string }>("/billing/orders", { body: { kind, id } })
       navigate(`/pricing/checkout/${created.id}`)
     } catch (error) {
-      showToast({ title: error instanceof ApiError ? error.message : t("error.generic"), variant: "error" })
+      toast.error(errorMessage(error, t("error.generic")))
     } finally {
       setBusy(undefined)
     }
@@ -46,57 +51,72 @@ export default function Pricing() {
   }
 
   return (
-    <div class="flex-1 overflow-y-auto">
-      <div class="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 py-10">
-        <div class="flex flex-col gap-1 text-center">
-          <h1 class="text-20-medium text-text-strong">{t("pricing.title")}</h1>
-          <p class="text-14-regular text-text-weak">{t("pricing.lead")}</p>
-        </div>
-        <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+    <Page title={t("pricing.title")} subtitle={t("pricing.lead")} align="center">
+      <div class="flex flex-col gap-8">
+        <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4" aria-busy={data.loading}>
+          <Show when={data.loading}>
+            <For each={[0, 1, 2, 3]}>
+              {() => (
+                <div class="flex flex-col gap-4 rounded-card bg-surface p-5 shadow-raised" aria-hidden="true">
+                  <Skeleton class="h-4 w-1/3" />
+                  <Skeleton class="h-7 w-2/3" />
+                  <Skeleton class="h-3 w-full" />
+                  <Skeleton class="h-3 w-5/6" />
+                  <Skeleton class="h-3 w-4/6" />
+                  <Skeleton class="mt-6 h-10 w-full rounded-control" />
+                </div>
+              )}
+            </For>
+          </Show>
           <For each={data()?.plans}>
             {(plan) => (
               <div
-                class="flex flex-col gap-4 rounded-2xl border border-border-weak-base bg-surface-raised-base p-5"
-                classList={{ "border-border-interactive-base": plan.id === "plus" }}
+                class="flex flex-col gap-4 rounded-card bg-surface p-5 shadow-raised"
+                classList={{ "shadow-[var(--k-shadow-raised),0_0_0_1.5px_var(--k-accent)]": plan.id === "plus" }}
               >
                 <div class="flex flex-col gap-1">
-                  <span class="text-14-medium text-text-strong">{plan.name}</span>
-                  <span class="text-20-medium text-text-strong">
-                    {plan.priceVnd === 0 ? t("pricing.free") : vnd(plan.priceVnd)}
-                    <Show when={plan.priceVnd > 0}>
-                      <span class="text-13-regular text-text-weak">{t("pricing.perMonth")}</span>
+                  <span class="flex items-center justify-between gap-2 text-headline text-label">
+                    {plan.name}
+                    <Show when={plan.id === "plus"}>
+                      <Tag tone="accent">{t("pricing.popular")}</Tag>
                     </Show>
                   </span>
+                  <span class="text-title-2 text-label">
+                    {vnd(plan.priceVnd)}
+                    <span class="text-footnote font-normal text-label-2">{t("pricing.perMonth")}</span>
+                  </span>
                 </div>
-                <ul class="flex flex-col gap-1.5 text-13-regular text-text-base">
-                  <li>{plan.id === "free" ? t("pricing.freeModel") : t("pricing.paidModel")}</li>
-                  <li>
+                <ul class="flex flex-col gap-2 text-subhead text-label">
+                  <Feature>{plan.id === "free" ? t("pricing.freeModel") : t("pricing.paidModel")}</Feature>
+                  <Feature>
                     {plan.chatDailyMessages !== null
                       ? t("pricing.chatDaily", { n: plan.chatDailyMessages.toLocaleString("vi-VN") })
                       : t("pricing.chatMonthly", { n: (plan.chatMonthlyMessages ?? 0).toLocaleString("vi-VN") })}
-                  </li>
-                  <li>{t("pricing.context", { k: Math.round(plan.chatContextTokens / 1000) })}</li>
-                  <li>
+                  </Feature>
+                  <Feature>{t("pricing.context", { k: Math.round(plan.chatContextTokens / 1000) })}</Feature>
+                  <Feature muted={plan.credits === 0}>
                     {plan.credits > 0
                       ? t("pricing.credits", { credits: plan.credits.toLocaleString("vi-VN") })
                       : t("pricing.noImages")}
-                  </li>
+                  </Feature>
                   <Show when={plan.credits > 0}>
-                    <li>{t("pricing.imageModels")}</li>
-                    <li>{t("pricing.parallel", { n: plan.parallelLimit })}</li>
+                    <Feature>{t("pricing.imageModels")}</Feature>
+                    <Feature>{t("pricing.parallel", { n: plan.parallelLimit })}</Feature>
                   </Show>
                 </ul>
                 <div class="flex-1" />
                 <Show
                   when={plan.id !== "free"}
                   fallback={
-                    <Button variant="secondary" disabled>
+                    <Button variant="secondary" block disabled>
                       {tier() === "free" ? t("pricing.current") : t("pricing.free")}
                     </Button>
                   }
                 >
                   <Button
                     variant={plan.id === "plus" ? "primary" : "secondary"}
+                    block
+                    loading={busy() === plan.id}
                     disabled={busy() !== undefined}
                     onClick={() => void order("plan", plan.id)}
                   >
@@ -107,16 +127,17 @@ export default function Pricing() {
             )}
           </For>
         </div>
-        <div class="flex flex-col gap-3 rounded-2xl border border-border-weak-base p-5">
+        <section class="flex flex-col gap-4 rounded-card bg-surface p-5 shadow-raised">
           <div class="flex flex-col gap-1">
-            <h2 class="text-16-medium text-text-strong">{t("pricing.topups.title")}</h2>
-            <p class="text-13-regular text-text-weak">{t("pricing.topups.lead")}</p>
+            <h2 class="text-title-3 text-label">{t("pricing.topups.title")}</h2>
+            <p class="text-subhead text-label-2">{t("pricing.topups.lead")}</p>
           </div>
           <div class="flex flex-wrap gap-3">
             <For each={data()?.topups}>
               {(pack) => (
                 <Button
                   variant="secondary"
+                  loading={busy() === pack.id}
                   disabled={!paidActive() || busy() !== undefined}
                   onClick={() => void order("topup", pack.id)}
                 >
@@ -125,8 +146,17 @@ export default function Pricing() {
               )}
             </For>
           </div>
-        </div>
+        </section>
       </div>
-    </div>
+    </Page>
+  )
+}
+
+function Feature(props: { children: JSX.Element; muted?: boolean }) {
+  return (
+    <li class="flex items-start gap-2" classList={{ "text-label-2": props.muted }}>
+      <IconCheck class="mt-0.5 size-4 shrink-0 text-accent" weight={2.25} />
+      <span>{props.children}</span>
+    </li>
   )
 }
