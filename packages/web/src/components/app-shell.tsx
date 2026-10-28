@@ -2,7 +2,7 @@ import { useNavigate } from "@solidjs/router"
 import { Show, type ParentProps } from "solid-js"
 import { useLanguage } from "@/context/language"
 import { useLayout } from "@/context/layout"
-import { NEW_CHAT_SHORTCUT, SIDEBAR_SHORTCUT, useShortcut } from "@/lib/shortcuts"
+import { NEW_CHAT_SHORTCUT, SEARCH_SHORTCUT, SIDEBAR_SHORTCUT, useShortcut } from "@/lib/shortcuts"
 import { Sheet } from "@/ui/sheet"
 import { Sidebar } from "./sidebar"
 import { TabBar } from "./tab-bar"
@@ -16,6 +16,11 @@ export function AppShell(props: ParentProps) {
 
   useShortcut(NEW_CHAT_SHORTCUT, () => navigate("/chat"))
   useShortcut(SIDEBAR_SHORTCUT, () => layout.toggleSidebar())
+  // Search lives in the sidebar; bring the sidebar (or drawer) up first when it is hidden.
+  useShortcut(SEARCH_SHORTCUT, () => {
+    if (!layout.sidebarVisible()) layout.toggleSidebar()
+    setTimeout(() => document.querySelector<HTMLInputElement>("[data-sidebar-search]")?.focus(), 60)
+  })
 
   return (
     <div class="relative flex h-full overflow-hidden bg-canvas">

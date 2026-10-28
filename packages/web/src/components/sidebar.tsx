@@ -1,11 +1,12 @@
 import { A, useNavigate } from "@solidjs/router"
-import { For, Match, Show, Switch, type JSX } from "solid-js"
+import { createSignal, For, Match, Show, Switch, type JSX } from "solid-js"
 import { useTheme } from "@kiwii/ui/theme/context"
 import { useAuth } from "@/context/auth"
 import { useConversations, type Conversation } from "@/context/conversations"
 import { useLanguage } from "@/context/language"
 import { useLayout } from "@/context/layout"
-import { NEW_CHAT_SHORTCUT, shortcutLabel, SIDEBAR_SHORTCUT } from "@/lib/shortcuts"
+import { fold, groupByDate } from "@/lib/conversations"
+import { NEW_CHAT_SHORTCUT, SEARCH_SHORTCUT, shortcutLabel, SIDEBAR_SHORTCUT } from "@/lib/shortcuts"
 import { Avatar } from "@/ui/avatar"
 import { IconButton, iconButtonClass } from "@/ui/icon-button"
 import { Menu, MenuContent, MenuItem, MenuRadioGroup, MenuSeparator } from "@/ui/menu"
@@ -22,6 +23,7 @@ import {
   IconMoon,
   IconPencil,
   IconPerson,
+  IconSearch,
   IconSidebar,
   IconSparkles,
   IconStar,
@@ -95,38 +97,80 @@ function NavLink(props: { href: string; end?: boolean; icon: JSX.Element; label:
 function RecentConversations() {
   const { t } = useLanguage()
   const conversations = useConversations()
+  const [query, setQuery] = createSignal("")
+  const matches = () => {
+    const needle = fold(query().trim())
+    return (conversations.list() ?? []).filter((c) => !needle || fold(c.title).includes(needle))
+  }
+  const groups = () => groupByDate(matches(), Date.now())
   return (
-    <section class="mt-5 flex min-h-0 flex-1 flex-col" aria-labelledby="sidebar-recent">
-      <h2 id="sidebar-recent" class="shrink-0 px-5 pb-1.5 text-caption font-semibold text-label-2">
-        {t("nav.recent")}
-      </h2>
-      <ul class="min-h-0 flex-1 overflow-y-auto overscroll-contain px-2 pb-2" aria-busy={conversations.list.loading}>
+    <section class="mt-4 flex min-h-0 flex-1 flex-col" aria-label={t("nav.recent")}>
+      <div class="shrink-0 px-2 pb-2">
+        <label class="flex h-9 items-center gap-2 rounded-[10px] bg-fill px-2.5 text-label-2 focus-within:bg-surface focus-within:shadow-[0_0_0_1.5px_var(--k-focus)] pointer-coarse:h-10">
+          <IconSearch class="size-4 shrink-0" />
+          <input
+            type="search"
+            data-sidebar-search
+            value={query()}
+            onInput={(event) => setQuery(event.currentTarget.value)}
+            onKeyDown={(event) => {
+              // First Escape clears the search; a second one reaches the drawer and closes it.
+              if (event.key !== "Escape" || !query()) return
+              event.stopPropagation()
+              setQuery("")
+            }}
+            placeholder={t("nav.search")}
+            aria-label={t("nav.search")}
+            class="min-w-0 flex-1 bg-transparent text-subhead text-label outline-none placeholder:text-label-3 [&::-webkit-search-cancel-button]:hidden"
+          />
+          <kbd class="hidden font-sans text-caption text-label-3 pointer-fine:inline" aria-hidden="true">
+            {shortcutLabel(SEARCH_SHORTCUT)}
+          </kbd>
+        </label>
+      </div>
+      <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain px-2 pb-2" aria-busy={conversations.list.loading}>
         <Switch>
           <Match when={conversations.list.loading && !conversations.list.latest}>
-            <For each={["w-[72%]", "w-[56%]", "w-[84%]", "w-[64%]", "w-[48%]"]}>
-              {(width) => (
-                <li class="flex h-9 items-center px-2.5">
-                  <Skeleton class={`h-3.5 ${width}`} />
-                </li>
-              )}
-            </For>
+            <ul>
+              <For each={["w-[72%]", "w-[56%]", "w-[84%]", "w-[64%]", "w-[48%]"]}>
+                {(width) => (
+                  <li class="flex h-9 items-center px-2.5">
+                    <Skeleton class={`h-3.5 ${width}`} />
+                  </li>
+                )}
+              </For>
+            </ul>
           </Match>
           <Match when={conversations.failed()}>
-            <li class="flex flex-col items-start gap-1 px-3 py-2 text-footnote text-label-2">
+            <p class="flex flex-col items-start gap-1 px-3 py-2 text-footnote text-label-2">
               {t("chat.listFailed")}
               <button type="button" class="font-semibold text-accent" onClick={() => void conversations.refetch()}>
                 {t("common.retry")}
               </button>
-            </li>
+            </p>
           </Match>
           <Match when={conversations.list()?.length === 0}>
-            <li class="px-3 py-2 text-footnote text-label-2">{t("chat.noConversations")}</li>
+            <p class="px-3 py-2 text-footnote text-label-2">{t("chat.noConversations")}</p>
           </Match>
-          <Match when={conversations.list()}>
-            {(items) => <For each={items()}>{(conversation) => <ConversationRow conversation={conversation} />}</For>}
+          <Match when={query().trim() && matches().length === 0}>
+            <p class="px-3 py-2 text-footnote text-label-2">{t("nav.searchEmpty")}</p>
+          </Match>
+          <Match when={groups().length > 0}>
+            <For each={groups()}>
+              {(entry) => (
+                <section class="pb-2" aria-label={t(`nav.group.${entry.group}`)}>
+                  <h2 class="px-2.5 pt-2 pb-1 text-caption font-semibold text-label-2">
+                    {t(`nav.group.${entry.group}`)}
+                  </h2>
+                  <ul>
+                    <For each={entry.items}>{(conversation) => <ConversationRow conversation={conversation} />}</For>
+                  </ul>
+                </section>
+              )}
+            </For>
           </Match>
         </Switch>
-      </ul>
+      </div>
     </section>
   )
 }
@@ -141,6 +185,17 @@ function ConversationRow(props: { conversation: Conversation }) {
         class="flex h-9 items-center rounded-[10px] pr-10 pl-2.5 text-callout transition-[color,background-color] duration-(--motion-micro) hover:bg-fill pointer-coarse:h-11"
         activeClass="bg-fill-2 text-label"
         inactiveClass="text-label-2 hover:text-label"
+        aria-keyshortcuts="F2 Delete"
+        onKeyDown={(event) => {
+          if (event.key === "F2") {
+            event.preventDefault()
+            void conversations.rename(props.conversation)
+          }
+          if (event.key === "Delete" || (event.key === "Backspace" && (event.metaKey || event.ctrlKey))) {
+            event.preventDefault()
+            void conversations.remove(props.conversation)
+          }
+        }}
       >
         <span class="truncate">{props.conversation.title}</span>
       </A>

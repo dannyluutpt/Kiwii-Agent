@@ -201,3 +201,35 @@
 html[data-keyboard="open"] [data-keyboard-hide] {
   display: none;
 }
+
+/* "Thinking" label: a soft highlight sweeping across the text while Kiwii prepares an answer. */
+.k-shimmer-text {
+  background: linear-gradient(
+    90deg,
+    var(--k-label-2) 0%,
+    var(--k-label-2) 40%,
+    var(--k-label) 50%,
+    var(--k-label-2) 60%,
+    var(--k-label-2) 100%
+  );
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: k-shimmer-text 2s linear infinite;
+}
+@keyframes k-shimmer-text {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: -100% 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .k-shimmer-text {
+    animation: none;
+    background: none;
+    color: var(--k-label-2);
+  }
+}
