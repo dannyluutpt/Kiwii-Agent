@@ -7,10 +7,22 @@ test.use({ storageState: PRO_STATE })
 const prompt = (page: Page) => page.getByRole("textbox", { name: /^Mô tả bức ảnh/ })
 const card = (page: Page, text: string) => page.getByRole("article", { name: text }).first()
 
-// Options live in a popover on wide screens and in a bottom sheet on phones; both are labelled dialogs.
+// Every option sits in the control panel on wide screens (a labelled form) and in a bottom sheet
+// on phones, opened from the chip under the prompt.
+async function openOptions(page: Page, isMobile: boolean) {
+  if (isMobile) await page.getByRole("button", { name: /^Tuỳ chọn:/ }).click()
+  return isMobile ? page.getByRole("dialog", { name: "Tuỳ chọn" }) : page.getByRole("form", { name: "Tuỳ chọn" })
+}
+
+async function closeOptions(page: Page, isMobile: boolean) {
+  if (!isMobile) return
+  const sheet = page.getByRole("dialog", { name: "Tuỳ chọn" })
+  await sheet.getByRole("button", { name: "Xong" }).click()
+  await expect(sheet).toBeHidden()
+}
+
 async function chooseOptions(page: Page, isMobile: boolean, choice: { ratio: string; count: string }) {
-  await page.getByRole("button", { name: /^Tuỳ chọn:/ }).click()
-  const panel = page.getByRole("dialog", { name: "Tuỳ chọn" })
+  const panel = await openOptions(page, isMobile)
   await panel
     .locator("label")
     .filter({ hasText: new RegExp(`^${choice.ratio}$`) })
@@ -22,15 +34,39 @@ async function chooseOptions(page: Page, isMobile: boolean, choice: { ratio: str
   await expect(panel.getByRole("radio", { name: choice.ratio })).toBeChecked()
   // Rewriting the prompt is the server's call, so the panel offers no switch for it.
   await expect(panel.getByRole("switch")).toHaveCount(0)
-  if (isMobile) await panel.getByRole("button", { name: "Xong" }).click()
-  if (!isMobile) await page.keyboard.press("Escape")
-  await expect(panel).toBeHidden()
+  await closeOptions(page, isMobile)
 }
 
-test("a run streams into the feed and its pictures open in the viewer", async ({ page, isMobile }) => {
+async function pickModel(page: Page, isMobile: boolean, name: string) {
+  const panel = await openOptions(page, isMobile)
+  // The radio input is visually hidden; its label is what a person taps.
+  await panel.getByRole("radiogroup", { name: "Model" }).locator("label").filter({ hasText: name }).click()
+  await expect(panel.getByRole("radio", { name: new RegExp(name) })).toBeChecked()
+  await closeOptions(page, isMobile)
+}
+
+// A photo of the given size, drawn in the page so the test needs no fixture file.
+async function photo(page: Page, width: number, height: number) {
+  const bytes = await page.evaluate(
+    async ([w, h]) => {
+      const canvas = document.createElement("canvas")
+      canvas.width = w!
+      canvas.height = h!
+      const context = canvas.getContext("2d")!
+      context.fillStyle = "#3a7"
+      context.fillRect(0, 0, w!, h!)
+      const blob = await new Promise<Blob>((resolve) => canvas.toBlob((b) => resolve(b!), "image/jpeg", 0.8))
+      return Array.from(new Uint8Array(await blob.arrayBuffer()))
+    },
+    [width, height],
+  )
+  return { name: "big.jpg", mimeType: "image/jpeg", buffer: Buffer.from(bytes) }
+}
+
+test("a run streams into the gallery and its pictures open in the viewer", async ({ page, isMobile }) => {
   await page.goto("/images")
   await chooseOptions(page, isMobile, { ratio: "3:4", count: "2" })
-  await expect(page.getByRole("button", { name: /^Tuỳ chọn:/ })).toHaveAccessibleName(/3:4 · 2 ảnh/)
+  if (isMobile) await expect(page.getByRole("button", { name: /^Tuỳ chọn:/ })).toHaveAccessibleName(/3:4 · 2 ảnh/)
 
   const text = `Chú mèo cam trên bậu cửa sổ ${isMobile ? "phone" : "desktop"}`
   await prompt(page).fill(text)
@@ -39,8 +75,11 @@ test("a run streams into the feed and its pictures open in the viewer", async ({
   await expect(prompt(page)).toHaveValue("")
 
   const run = card(page, text)
+  // The run is in the gallery at once, shimmering while the server prepares it.
+  await expect(run).toHaveAttribute("aria-busy", "true")
   await expect(run.getByRole("button", { name: "Mở ảnh 2 trên 2" })).toBeVisible({ timeout: 15_000 })
   await expect(run.getByRole("button", { name: "Mở ảnh 1 trên 2" })).toBeVisible()
+  await expect(run).toHaveAttribute("aria-busy", "false")
 
   const first = run.getByRole("button", { name: "Mở ảnh 1 trên 2" })
   await first.click()
@@ -92,35 +131,37 @@ test("the options sheet closes when its top bar is dragged down", async ({ page,
   await expect(sheet).toBeHidden()
 })
 
-test("a run can be reused, retried after a failure and deleted", async ({ page }, info) => {
+test("a failed run is retried in place, reused and deleted", async ({ page }, info) => {
   // Each project gets its own prompt: runs from the other project stay in the shared history.
   const text = `Ảnh lỗi FAIL để thử lại ${info.project.name}`
   await page.goto("/images")
   await prompt(page).fill(text)
   await page.keyboard.press("Enter")
-  const failed = card(page, text)
+  const runs = page.getByRole("article", { name: text })
+  const failed = runs.first()
   const alert = failed.getByRole("alert")
   await expect(alert).toBeVisible({ timeout: 15_000 })
   await expect(alert).toContainText("Đã hoàn")
 
-  const runs = page.getByRole("article", { name: text })
+  // Retrying turns the same tile back into a run in progress; no second tile appears.
   await alert.getByRole("button", { name: "Thử lại" }).click()
-  await expect(runs).toHaveCount(2)
+  await expect(failed).toHaveAttribute("aria-busy", "true")
+  await expect(alert).toBeVisible({ timeout: 15_000 })
+  await expect(runs).toHaveCount(1)
 
   await failed.getByRole("button", { name: "Dùng lại prompt" }).click()
   await expect(prompt(page)).toHaveValue(text)
   await expect(prompt(page)).toBeFocused()
 
-  await expect(runs.first().getByRole("alert")).toBeVisible({ timeout: 15_000 })
-  await runs.first().getByRole("button", { name: "Thao tác khác" }).click()
+  await failed.getByRole("button", { name: "Thao tác khác" }).click()
   await page.getByRole("menuitem", { name: "Xoá" }).click()
   const confirm = page.getByRole("dialog", { name: "Xoá lượt tạo này?" })
   await confirm.getByRole("button", { name: "Xoá" }).click()
   await expect(confirm).toBeHidden()
-  await expect(runs).toHaveCount(1)
+  await expect(runs).toHaveCount(0)
 })
 
-test("a second press while a run is being prepared starts nothing more", async ({ page }) => {
+test("a second press while a run is being prepared starts nothing more", async ({ page }, info) => {
   let posts = 0
   // Preparing a run (prompt rewrite, references) takes a few seconds in production; hold it here.
   await page.route("**/api/images/generations", async (route) => {
@@ -130,44 +171,41 @@ test("a second press while a run is being prepared starts nothing more", async (
     await route.continue()
   })
   await page.goto("/images")
-  await prompt(page).fill("Một chiếc thuyền giấy trên mặt hồ")
+  // Per project, so the other project's run in the shared history is not counted.
+  const text = `Một chiếc thuyền giấy trên mặt hồ ${info.project.name}`
+  await prompt(page).fill(text)
   const generate = page.getByRole("button", { name: /^Tạo ảnh, \d+ credit$/ })
   // Two presses in the same moment, well before the server answers the first.
   await generate.evaluate((button: HTMLButtonElement) => {
     button.click()
     button.click()
   })
+  // The gallery shows the run at once, marked as being prepared, and the button is held.
+  await expect(card(page, text)).toContainText("Đang chuẩn bị…")
   await expect(generate).toBeDisabled({ timeout: 500 })
-  await expect(card(page, "Một chiếc thuyền giấy trên mặt hồ")).toBeVisible({ timeout: 10_000 })
+  await expect(card(page, text).getByRole("button", { name: /^Mở ảnh/ })).toBeVisible({ timeout: 15_000 })
+  await expect(page.getByRole("article", { name: text })).toHaveCount(1)
   expect(posts).toBe(1)
 })
 
-test("a large reference photo is scaled down before it is uploaded", async ({ page }) => {
+test("a large reference photo is scaled to what the chosen model takes", async ({ page, isMobile }) => {
   await page.goto("/images")
-  // A 24-megapixel photo, larger than the image models accept.
-  const bytes = await page.evaluate(async () => {
-    const canvas = document.createElement("canvas")
-    canvas.width = 6000
-    canvas.height = 4000
-    const context = canvas.getContext("2d")!
-    context.fillStyle = "#3a7"
-    context.fillRect(0, 0, 6000, 4000)
-    const blob = await new Promise<Blob>((resolve) => canvas.toBlob((b) => resolve(b!), "image/jpeg", 0.8))
-    return Array.from(new Uint8Array(await blob.arrayBuffer()))
-  })
-  await page
-    .locator('input[type="file"]')
-    .setInputFiles({ name: "big.jpg", mimeType: "image/jpeg", buffer: Buffer.from(bytes) })
+  // A 24-megapixel photo, larger than the image models accept. GPT Image takes a 4096px edge.
+  await page.locator('input[type="file"]').setInputFiles(await photo(page, 6000, 4000))
   const thumb = page.getByRole("list", { name: "Ảnh tham chiếu" }).getByRole("img")
   await expect(thumb).toBeVisible()
-  await expect.poll(() => thumb.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBe(2048)
-  expect(await thumb.evaluate((img: HTMLImageElement) => img.naturalHeight)).toBe(1365)
+  await expect.poll(() => thumb.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBe(4096)
+  expect(await thumb.evaluate((img: HTMLImageElement) => img.naturalHeight)).toBe(2731)
+
+  // Nano Banana takes 3072px: switching models scales the stored copy down again.
+  await pickModel(page, isMobile, "Nano Banana")
+  await expect.poll(() => thumb.evaluate((img: HTMLImageElement) => img.naturalWidth), { timeout: 10_000 }).toBe(3072)
+  expect(await thumb.evaluate((img: HTMLImageElement) => img.naturalHeight)).toBe(2048)
 })
 
-test("every quality fits inside the options panel", async ({ page }) => {
+test("every quality fits inside the options panel", async ({ page, isMobile }) => {
   await page.goto("/images")
-  await page.getByRole("button", { name: /^Tuỳ chọn:/ }).click()
-  const panel = page.getByRole("dialog", { name: "Tuỳ chọn" })
+  const panel = await openOptions(page, isMobile)
   const quality = panel.getByRole("radiogroup", { name: "Chất lượng" })
   await expect(quality.getByRole("radio")).toHaveCount(5)
   const frame = await panel.boundingBox()
@@ -180,15 +218,13 @@ test("every quality fits inside the options panel", async ({ page }) => {
   }
 })
 
-test("the model menu switches models and the price follows", async ({ page, isMobile }) => {
-  test.skip(isMobile, "phones pick the model in the options sheet")
+test("switching models changes the price", async ({ page, isMobile }) => {
   await page.goto("/images")
-  await page.getByRole("button", { name: /^Model:/ }).click()
-  await page.getByRole("menuitemradio", { name: /FLUX 3 Klein/ }).click()
-  await expect(page.getByRole("button", { name: "Model: FLUX 3 Klein" })).toBeVisible()
   await prompt(page).fill("Phác thảo nhanh một ngọn hải đăng")
-  // FLUX 1K costs 1 credit a picture; the run keeps the count chosen earlier.
-  await expect(page.getByRole("button", { name: /^Tạo ảnh, \d+ credit$/ })).toBeEnabled()
+  await expect(page.getByRole("button", { name: "Tạo ảnh, 3 credit" })).toBeEnabled()
+  // FLUX 1K costs 1 credit a picture.
+  await pickModel(page, isMobile, "FLUX 3 Klein")
+  await expect(page.getByRole("button", { name: "Tạo ảnh, 1 credit" })).toBeEnabled()
 })
 
 test("the library steps through every picture in the viewer", async ({ page }) => {
