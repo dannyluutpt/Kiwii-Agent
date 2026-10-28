@@ -4,6 +4,8 @@ import { IconCheck } from "@/components/icons"
 
 // Thin styling layer over Kobalte's dropdown menu: keyboard navigation, typeahead, focus return and
 // dismissal all come from Kobalte. Rows grow to 44px on touch screens.
+// Menus stay modal, like macOS menus: a click outside only dismisses. A non-modal menu also grabs
+// focus back on pointer leave while it fades out, stealing it from a dialog opened by one of its items.
 export const Menu = DropdownMenu
 
 // No text colour here: items pick label or danger themselves, and two colour utilities on one element

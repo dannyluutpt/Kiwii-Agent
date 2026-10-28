@@ -5,6 +5,7 @@ type KeyLike = Pick<KeyboardEvent, "key" | "metaKey" | "ctrlKey" | "shiftKey" | 
 
 export const NEW_CHAT_SHORTCUT: Shortcut = { key: "o", mod: true, shift: true }
 export const SIDEBAR_SHORTCUT: Shortcut = { key: "s", mod: true, shift: true }
+export const SEARCH_SHORTCUT: Shortcut = { key: "k", mod: true }
 
 export const isMac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.userAgent)
 
