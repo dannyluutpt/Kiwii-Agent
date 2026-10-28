@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm"
 import { balance, grant, reserve } from "../src/credits/ledger"
 import { credit_ledger, generation_images, generations } from "../src/db/schema"
 import { blockedByDenylist } from "../src/images/enhance"
-import { reapStaleGenerations, runGeneration, STALE_AFTER_MS } from "../src/images/generate"
+import { friendly, reapStaleGenerations, runGeneration, STALE_AFTER_MS } from "../src/images/generate"
 import { IMAGE_MODELS, imageCreditCost } from "../src/images/models"
 import { testDatabase } from "./db"
 
@@ -207,5 +207,15 @@ describe("reapStaleGenerations", () => {
     })
     // Two grants of 100, two reserves of 1, one refunded.
     expect(await balance(db, "u1")).toBe(199)
+  })
+})
+
+describe("friendly", () => {
+  test("tells the customer what went wrong without the provider's own words", () => {
+    const tooBig =
+      '422: Black Forest Labs submit returned 422: {"detail":[{"msg":"Value error, Images[0] dimensions exceed 20 megapixels"}]}'
+    expect(friendly(tooBig)).toBe("Ảnh tham chiếu quá lớn, hãy dùng ảnh nhỏ hơn. Credit đã được hoàn")
+    expect(friendly("502: upstream exploded")).toBe("Không tạo được ảnh, credit đã được hoàn")
+    expect(friendly("data policy: ZDR")).not.toContain("OpenRouter")
   })
 })
