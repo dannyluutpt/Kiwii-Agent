@@ -46,11 +46,19 @@ Layout: phones (< 768px) get the bottom tab bar, tablets open the sidebar as a d
 `components/page.tsx`; screens with their own scroller use `components/top-bar.tsx` directly and pad
 by `pb-tabbar`.
 
-The image studio (`pages/images.tsx`) is a control panel (`components/studio-panel.tsx`) beside a
-masonry gallery of runs (`components/generation-tile.tsx`) from 768px, and the gallery over a docked
-composer with a bottom sheet (`components/studio-prompt-bar.tsx`) on phones. A run appears in the
-gallery the moment it is asked for. Reference photos are scaled in the browser to the chosen model's
-longest edge (`lib/image.ts`, `components/references.tsx`) before they are uploaded.
+The workspace (`pages/studio.tsx`) lives at `/` (every run) and `/p/:projectId` (one project); the
+library is `/library`, and the old `/images` addresses redirect. From 768px it has three columns:
+the project sidebar (`components/project-sidebar.tsx`: new project, search with Ctrl/⌘ + K, projects
+grouped by last activity), the gallery of runs with filter chips (`components/gallery.tsx`,
+`components/generation-tile.tsx`), and the panel that makes pictures (`components/studio-panel.tsx`).
+Phones keep the gallery over a docked composer with a bottom sheet (`components/studio-prompt-bar.tsx`)
+and make pictures into "all".
+
+State sits above the screens: `context/projects.tsx` holds the project list and its flows, and
+`context/studio.tsx` holds the options, the draft and every run seen this session with the galleries
+that list them, so a run keeps streaming into its tile while another project is open. A run appears
+in the gallery the moment it is asked for. Reference photos are scaled in the browser to the chosen
+model's longest edge (`lib/image.ts`, `components/references.tsx`) before they are uploaded.
 
 ## Home Screen app
 

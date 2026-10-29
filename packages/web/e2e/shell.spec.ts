@@ -4,12 +4,12 @@ test.describe("phone", () => {
   test.skip(({ isMobile }) => !isMobile, "phone layout only")
 
   test("the tab bar moves between the studio, the library and the account", async ({ page }) => {
-    await page.goto("/images")
+    await page.goto("/")
     const tabs = page.getByRole("navigation", { name: "Điều hướng chính" })
     await expect(tabs.getByRole("link")).toHaveText(["Tạo ảnh", "Thư viện", "Tài khoản"])
     await expect(tabs.getByRole("link", { name: "Tạo ảnh" })).toHaveClass(/text-accent/)
     await tabs.getByRole("link", { name: "Thư viện" }).click()
-    await expect(page).toHaveURL(/\/images\/assets$/)
+    await expect(page).toHaveURL(/\/library$/)
     await expect(page.getByRole("heading", { level: 1, name: "Thư viện" })).toBeVisible()
     await tabs.getByRole("link", { name: "Tài khoản" }).click()
     await expect(page.getByRole("heading", { level: 1, name: "Tài khoản" })).toBeVisible()
@@ -20,7 +20,7 @@ test.describe("phone", () => {
   // What a phone reads when the site is added to the Home Screen: without a valid manifest iOS keeps
   // the browser bars, and it paints transparent icon areas black.
   test("added to the Home Screen, the site opens as a full-screen app with solid icons", async ({ page }) => {
-    await page.goto("/images")
+    await page.goto("/")
     const response = await page.request.get("/manifest.webmanifest")
     expect(response.headers()["content-type"]).toContain("application/manifest+json")
     const cdp = await page.context().newCDPSession(page)
@@ -60,16 +60,16 @@ test.describe("desktop", () => {
   test.skip(({ isMobile }) => isMobile, "desktop layout only")
 
   test("sidebar is docked, collapses and comes back with the shortcut", async ({ page }) => {
-    await page.goto("/images")
+    await page.goto("/")
     const sidebar = page.getByRole("navigation", { name: "Điều hướng chính" })
-    await expect(sidebar.getByRole("link", { name: "Thư viện" })).toBeVisible()
+    await expect(sidebar.getByRole("link", { name: "Tất cả dự án" })).toBeVisible()
     await expect(page.getByRole("navigation")).toHaveCount(1)
 
     await sidebar.getByRole("button", { name: "Ẩn thanh bên" }).click()
     await expect(page.getByRole("button", { name: "Hiện thanh bên" })).toBeVisible()
     await page.keyboard.press("ControlOrMeta+Shift+S")
     await expect(page.getByRole("button", { name: "Hiện thanh bên" })).toHaveCount(0)
-    await expect(sidebar.getByRole("link", { name: "Thư viện" })).toBeVisible()
+    await expect(sidebar.getByRole("link", { name: "Tất cả dự án" })).toBeVisible()
   })
 })
 
@@ -91,7 +91,7 @@ test("the app is always dark", async ({ page }) => {
 test("main screens render without script errors", async ({ page }) => {
   const errors: string[] = []
   page.on("pageerror", (error) => errors.push(error.message))
-  for (const path of ["/images", "/images/assets", "/pricing", "/account"]) {
+  for (const path of ["/", "/library", "/pricing", "/account"]) {
     await page.goto(path)
     await expect(page.locator("main#main")).toBeVisible()
     await expect(page.getByRole("heading", { level: 1 }).first()).toBeVisible()
@@ -99,11 +99,14 @@ test("main screens render without script errors", async ({ page }) => {
   expect(errors).toEqual([])
 })
 
-// The chat is gone; its old links, Home Screen icons that start at /chat included, land in the studio.
-test("links to the retired chat open the image studio", async ({ page }) => {
-  for (const path of ["/", "/chat", "/chat/01ABCDEF"]) {
+// The chat is gone and the studio moved to the root; old links, Home Screen icons that start at /chat
+// or /images included, still land in the studio, and the old library address in the library.
+test("old links open the studio and the library", async ({ page }) => {
+  for (const path of ["/chat", "/chat/01ABCDEF", "/images"]) {
     await page.goto(path)
-    await expect(page).toHaveURL(/\/images$/)
+    await expect(page).toHaveURL(/^[^?#]*:\d+\/$/)
   }
   await expect(page.getByRole("main")).not.toContainText(/chat/i)
+  await page.goto("/images/assets")
+  await expect(page).toHaveURL(/\/library$/)
 })

@@ -4,6 +4,8 @@ import { PRO_STATE, STATE } from "./global-setup"
 // The image studio and library against the mock OpenRouter, as a paid account with credits.
 test.use({ storageState: PRO_STATE })
 
+// The studio's own address, the root of the site.
+const STUDIO = /^[^?#]*:\d+\/$/
 const prompt = (page: Page) => page.getByRole("textbox", { name: /^Mô tả bức ảnh/ })
 const card = (page: Page, text: string) => page.getByRole("article", { name: text }).first()
 
@@ -64,7 +66,7 @@ async function photo(page: Page, width: number, height: number) {
 }
 
 test("a run streams into the gallery and its pictures open in the viewer", async ({ page, isMobile }) => {
-  await page.goto("/images")
+  await page.goto("/")
   await chooseOptions(page, isMobile, { ratio: "3:4", count: "2" })
   if (isMobile) await expect(page.getByRole("button", { name: /^Tuỳ chọn:/ })).toHaveAccessibleName(/3:4 · 2 ảnh/)
 
@@ -116,7 +118,7 @@ test("a run streams into the gallery and its pictures open in the viewer", async
 
 test("the options sheet closes when its top bar is dragged down", async ({ page, isMobile }) => {
   test.skip(!isMobile, "the sheet is the phone layout")
-  await page.goto("/images")
+  await page.goto("/")
   await page.getByRole("button", { name: /^Tuỳ chọn:/ }).click()
   const sheet = page.getByRole("dialog", { name: "Tuỳ chọn" })
   await expect(sheet).toBeVisible()
@@ -134,7 +136,7 @@ test("the options sheet closes when its top bar is dragged down", async ({ page,
 test("a failed run is retried in place, reused and deleted", async ({ page }, info) => {
   // Each project gets its own prompt: runs from the other project stay in the shared history.
   const text = `Ảnh lỗi FAIL để thử lại ${info.project.name}`
-  await page.goto("/images")
+  await page.goto("/")
   await prompt(page).fill(text)
   await page.keyboard.press("Enter")
   const runs = page.getByRole("article", { name: text })
@@ -166,7 +168,7 @@ test("a failed run is retried in place, reused and deleted", async ({ page }, in
 // it, so the retry succeeds only if the server sends the identical prompt instead of rewriting again.
 test("retrying a failed run reuses its rewritten prompt", async ({ page }, info) => {
   const text = `Ảnh FAILONCE thử lại ${info.project.name}`
-  await page.goto("/images")
+  await page.goto("/")
   await prompt(page).fill(text)
   await page.keyboard.press("Enter")
   const run = card(page, text)
@@ -186,7 +188,7 @@ test("a second press while a run is being prepared starts nothing more", async (
     await new Promise((resolve) => setTimeout(resolve, 1500))
     await route.continue()
   })
-  await page.goto("/images")
+  await page.goto("/")
   // Per project, so the other project's run in the shared history is not counted.
   const text = `Một chiếc thuyền giấy trên mặt hồ ${info.project.name}`
   await prompt(page).fill(text)
@@ -205,7 +207,7 @@ test("a second press while a run is being prepared starts nothing more", async (
 })
 
 test("a large reference photo is scaled to what the chosen model takes", async ({ page, isMobile }) => {
-  await page.goto("/images")
+  await page.goto("/")
   // A 24-megapixel photo, larger than the image models accept. GPT Image takes a 4096px edge.
   await page.locator('input[type="file"]').setInputFiles(await photo(page, 6000, 4000))
   const thumb = page.getByRole("list", { name: "Ảnh tham chiếu" }).getByRole("img")
@@ -220,7 +222,7 @@ test("a large reference photo is scaled to what the chosen model takes", async (
 })
 
 test("every quality fits inside the options panel", async ({ page, isMobile }) => {
-  await page.goto("/images")
+  await page.goto("/")
   const panel = await openOptions(page, isMobile)
   const quality = panel.getByRole("radiogroup", { name: "Chất lượng" })
   await expect(quality.getByRole("radio")).toHaveCount(5)
@@ -242,7 +244,7 @@ test("the viewer saves a picture through the share sheet on iPhone and downloads
   isMobile,
 }) => {
   await recordShares(page)
-  await page.goto("/images")
+  await page.goto("/")
   const text = `Ảnh để lưu về máy ${isMobile ? "phone" : "desktop"}`
   await prompt(page).fill(text)
   await page.keyboard.press("Enter")
@@ -263,11 +265,11 @@ test("the viewer saves a picture through the share sheet on iPhone and downloads
   )
   // Nothing navigated: the viewer is still open over the studio.
   await expect(viewer).toBeVisible()
-  await expect(page).toHaveURL(/\/images$/)
+  await expect(page).toHaveURL(STUDIO)
 })
 
 test("switching models changes the price", async ({ page, isMobile }) => {
-  await page.goto("/images")
+  await page.goto("/")
   await prompt(page).fill("Phác thảo nhanh một ngọn hải đăng")
   await expect(page.getByRole("button", { name: "Tạo ảnh, 3 credit" })).toBeEnabled()
   // FLUX 1K costs 1 credit a picture.
@@ -277,7 +279,7 @@ test("switching models changes the price", async ({ page, isMobile }) => {
 
 // Yellow means ready: with nothing to make, the button greys out rather than fading to olive.
 test("the generate button turns yellow once there is a prompt", async ({ page }) => {
-  await page.goto("/images")
+  await page.goto("/")
   const generate = page.getByRole("button", { name: /^Tạo ảnh, \d+ credit$/ })
   await expect(generate).toBeDisabled()
   await expect(generate).toHaveCSS("background-color", "rgba(255, 255, 255, 0.1)")
@@ -288,14 +290,14 @@ test("the generate button turns yellow once there is a prompt", async ({ page })
 })
 
 test("the library steps through every picture in the viewer", async ({ page }) => {
-  await page.goto("/images")
+  await page.goto("/")
   await prompt(page).fill("Hai ảnh cho thư viện")
   await page.keyboard.press("Enter")
   await expect(card(page, "Hai ảnh cho thư viện").getByRole("button", { name: /^Mở ảnh 1 trên/ })).toBeVisible({
     timeout: 15_000,
   })
 
-  await page.goto("/images/assets")
+  await page.goto("/library")
   const tiles = page
     .getByRole("main")
     .getByRole("button", { name: /\S/ })
@@ -316,7 +318,7 @@ test.describe("free account", () => {
   test.use({ storageState: STATE })
 
   test("the studio explains the upgrade instead of offering a dead composer", async ({ page }) => {
-    await page.goto("/images")
+    await page.goto("/")
     await expect(page.getByRole("heading", { name: "Tạo ảnh dành cho gói trả phí" })).toBeVisible()
     await expect(prompt(page)).toBeDisabled()
     await expect(page.getByRole("link", { name: "Xem bảng giá" })).toHaveCount(2)

@@ -58,7 +58,7 @@ export default function Assets() {
   onMount(() => void load())
 
   const reuse = (asset: Asset) => {
-    navigate(`/images?prompt=${encodeURIComponent(asset.prompt)}&model=${encodeURIComponent(asset.model)}`)
+    navigate(`/?prompt=${encodeURIComponent(asset.prompt)}&model=${encodeURIComponent(asset.model)}`)
   }
 
   return (
@@ -70,7 +70,7 @@ export default function Assets() {
           </span>
           <h2 class="text-title-2 text-label">{t("assets.emptyTitle")}</h2>
           <p class="max-w-sm text-callout text-label-2">{t("assets.empty")}</p>
-          <A href="/images" class={buttonClass("primary", "md", "mt-2")}>
+          <A href="/" class={buttonClass("primary", "md", "mt-2")}>
             {t("images.generate")}
           </A>
         </div>

@@ -96,6 +96,8 @@ export const IMAGE_MODELS: ImageModel[] = [
 
 export const REFERENCE_SURCHARGE = 1
 export const MAX_IMAGES_PER_RUN = 4
+// Reference pictures one run may carry, whatever a model would take.
+export const MAX_REFERENCES = 4
 
 // app_config.image_models = { "<model id>": { "<option id>": credits | null } } overrides the
 // defaults above so prices can be recalibrated without a deploy.

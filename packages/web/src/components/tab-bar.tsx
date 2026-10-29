@@ -5,8 +5,8 @@ import type { I18nKey } from "@/i18n/vi"
 import { IconImage, IconLibrary, IconPerson } from "./icons"
 
 const TABS: Array<{ href: string; end?: boolean; label: I18nKey; icon: () => JSX.Element }> = [
-  { href: "/images", end: true, label: "tab.images", icon: () => <IconImage class="size-6" weight={1.6} /> },
-  { href: "/images/assets", label: "tab.library", icon: () => <IconLibrary class="size-6" weight={1.6} /> },
+  { href: "/", end: true, label: "tab.images", icon: () => <IconImage class="size-6" weight={1.6} /> },
+  { href: "/library", label: "tab.library", icon: () => <IconLibrary class="size-6" weight={1.6} /> },
   { href: "/account", label: "tab.account", icon: () => <IconPerson class="size-6" weight={1.6} /> },
 ]
 

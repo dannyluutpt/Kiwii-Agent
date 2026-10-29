@@ -9,6 +9,7 @@ import { account } from "./routes/account"
 import { auth } from "./routes/auth"
 import { billing } from "./routes/billing"
 import { images } from "./routes/images"
+import { projects } from "./routes/projects"
 
 const app = createApp()
 
@@ -35,6 +36,7 @@ app.route("/api/auth", auth)
 app.route("/api/billing", billing)
 app.route("/api/account", account)
 app.route("/api/images", images)
+app.route("/api/projects", projects)
 
 // Reports which optional settings are present (never their values) so a misplaced secret is
 // visible without reading Worker logs.

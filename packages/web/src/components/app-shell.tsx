@@ -4,7 +4,7 @@ import { useLanguage } from "@/context/language"
 import { useLayout } from "@/context/layout"
 import { SIDEBAR_SHORTCUT, useShortcut } from "@/lib/shortcuts"
 import { Sheet } from "@/ui/sheet"
-import { Sidebar } from "./sidebar"
+import { ProjectSidebar } from "./project-sidebar"
 import { TabBar } from "./tab-bar"
 
 const SIDEBAR_WIDTH = 272
@@ -44,7 +44,7 @@ export function AppShell(props: ParentProps) {
           inert={layout.collapsed() || undefined}
         >
           <div class="h-full" style={{ width: `${SIDEBAR_WIDTH}px` }}>
-            <Sidebar mode="docked" />
+            <ProjectSidebar mode="docked" />
           </div>
         </aside>
       </Show>
@@ -66,7 +66,7 @@ export function AppShell(props: ParentProps) {
       </Show>
       <Show when={!layout.docked()}>
         <Sheet open={layout.drawer()} onOpenChange={layout.setDrawer} side="left" label={t("nav.menu")}>
-          <Sidebar mode="drawer" />
+          <ProjectSidebar mode="drawer" />
         </Sheet>
       </Show>
     </div>
