@@ -25,6 +25,7 @@ export function systemPrompt(input: {
     "",
     "How to use generate_image:",
     "- The prompt is a complete description that stands on its own, because the image model sees nothing of this conversation: subject, setting, composition, lighting and style. Words the person wants printed in the picture stay exactly as given, in quotes.",
+    "- A picture exists only once you call generate_image. Writing a prompt or a picture's description in your reply makes nothing, so never do that instead of calling the tool, and never say a picture is on its way without having called it.",
     "- Write the prompt in the person's language.",
     "- To change or continue an earlier picture, pass its label in reference_images (such as #1) and describe the whole result with the change.",
     `- For different ideas, call the tool once per idea; for more pictures of one idea, use count. At most ${input.maxPictures} pictures per message in total.`,
@@ -80,20 +81,49 @@ export function generateTool(model: ImageModel, maxPictures: number): ToolDefini
   }
 }
 
-// Earlier turns as the model reads them: what was said, and the runs each reply started.
+// Earlier turns as the model reads them: what was said, and each run a reply started replayed as the
+// generate_image call that started it. Written out as text, runs taught the model to describe
+// pictures in its replies instead of calling the tool. Refused calls are left out; the reply says why.
+// A message that never got an answer (its turn failed) is left out too, or the model would carry it
+// out along with the next one, which is often the same request sent again.
 export function historyMessages(
   rows: Array<{ role: "user" | "assistant"; parts: MessagePart[] }>,
-  prompts: Map<string, string>,
+  runs: Map<string, { prompt: string; n: number }>,
 ): ChatMessage[] {
-  return rows.map((row) => {
+  return rows.flatMap((row, index): ChatMessage[] => {
+    if (row.role === "user" && rows[index + 1]?.role === "user") return []
     const text = row.parts
-      .map((part) => {
-        if (part.type === "text") return clip(part.text, 4000)
-        if (part.type === "image") return "[attached a picture]"
-        if (part.type === "generation") return `[made pictures: "${clip(prompts.get(part.id) ?? "", 200)}"]`
-        return `[could not make pictures: ${part.message}]`
+      .flatMap((part) => {
+        if (part.type === "text") return [clip(part.text, 4000)]
+        if (part.type === "image" && row.role === "user") return ["[attached a picture]"]
+        return []
       })
       .join("\n")
-    return row.role === "user" ? { role: "user", content: text } : { role: "assistant", content: text }
+    if (row.role === "user") return [{ role: "user", content: text }]
+    const started = row.parts.flatMap((part) => {
+      if (part.type !== "generation") return []
+      const run = runs.get(part.id)
+      return run ? [{ id: `call_${part.id}`, prompt: run.prompt, n: run.n }] : []
+    })
+    if (started.length === 0) return [{ role: "assistant", content: text }]
+    return [
+      {
+        role: "assistant",
+        content: null,
+        tool_calls: started.map((run) => ({
+          id: run.id,
+          type: "function",
+          function: { name: "generate_image", arguments: JSON.stringify({ prompt: clip(run.prompt, 1000) }) },
+        })),
+      },
+      ...started.map(
+        (run): ChatMessage => ({
+          role: "tool",
+          tool_call_id: run.id,
+          content: JSON.stringify({ status: "started", pictures: run.n }),
+        }),
+      ),
+      ...(text ? [{ role: "assistant" as const, content: text }] : []),
+    ]
   })
 }

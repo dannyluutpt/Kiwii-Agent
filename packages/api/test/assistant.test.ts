@@ -18,7 +18,10 @@ type Script = Array<{ text?: string; calls?: Array<Record<string, unknown>> }>
 // OpenRouter as the assistant sees it: each streamed chat call plays the next round of `script`,
 // the screener allows anything without "BLOCKME", and the image model draws one pixel.
 function openrouter(script: Script) {
-  const sent: Array<{ messages: Array<{ role: string; content: unknown }>; tools?: unknown[] }> = []
+  const sent: Array<{
+    messages: Array<{ role: string; content: unknown; tool_calls?: Array<{ function: { arguments: string } }> }>
+    tools?: unknown[]
+  }> = []
   const images: Array<Record<string, unknown>> = []
   const spy = spyOn(globalThis, "fetch").mockImplementation(async (url, init) => {
     const body = JSON.parse(String(init?.body)) as Record<string, unknown>
@@ -164,10 +167,22 @@ describe("runAssistantTurn", () => {
     expect(runs.map((r) => r.id)).toEqual([first.id, expect.any(String)])
     expect(JSON.parse(runs[0]!.reference_file_ids)).toEqual([])
     expect(JSON.parse(runs[1]!.reference_file_ids)).toHaveLength(1)
-    // The third model call (the second message) lists the picture as #1 and replays the history.
-    const system = String(calls.sent[2]!.messages[0]!.content)
-    expect(system).toContain('#1: from "Ngọn hải đăng lúc bình minh"')
-    expect(calls.sent[2]!.messages.map((m) => m.role)).toEqual(["system", "user", "assistant", "user"])
+    // The third model call (the second message) lists the picture as #1 and replays the history,
+    // the first run as the generate_image call that started it: shown as words, the model wrote
+    // pictures into its replies instead of calling the tool.
+    const history = calls.sent[2]!.messages
+    expect(String(history[0]!.content)).toContain('#1: from "Ngọn hải đăng lúc bình minh"')
+    expect(history.map((m) => m.role)).toEqual(["system", "user", "assistant", "tool", "assistant", "user"])
+    const call = { id: `call_${first.id}`, type: "function", function: { name: "generate_image" } }
+    expect(history[2]).toMatchObject({ content: null, tool_calls: [call] })
+    const args = history[2]?.tool_calls?.[0]?.function.arguments
+    expect(JSON.parse(args ?? "")).toEqual({ prompt: "Ngọn hải đăng lúc bình minh" })
+    expect(history[3]).toMatchObject({
+      tool_call_id: call.id,
+      content: JSON.stringify({ status: "started", pictures: 1 }),
+    })
+    expect(history[4]).toMatchObject({ content: "Xong." })
+    expect(JSON.stringify(history)).not.toContain("made pictures")
     expect(calls.images.at(-1)?.input_references).toHaveLength(1)
   })
 
@@ -202,14 +217,47 @@ describe("runAssistantTurn", () => {
   })
 
   test("the last round offers no tool, so the assistant ends with words", async () => {
-    const { turn } = await setup()
+    const { db, turn } = await setup()
     const calls = openrouter([
       { calls: [{ prompt: "Một" }] },
       { calls: [{ prompt: "Hai" }] },
-      { text: "Đã xong cả hai." },
+      // A call made anyway in the last round is not carried out.
+      { text: "Đã xong cả hai.", calls: [{ prompt: "Ba" }] },
     ])
     await turn("Vẽ liên tục")
     expect(calls.sent.map((s) => Array.isArray(s.tools))).toEqual([true, true, false])
+    expect((await db.select().from(generations)).map((g) => g.prompt_raw).sort()).toEqual(["Hai", "Một"])
+  })
+
+  test("a wrong picture label is answered with the labels there are", async () => {
+    const { db, turn } = await setup()
+    const calls = openrouter([
+      { calls: [{ prompt: "Ngọn hải đăng" }] },
+      { text: "Xong." },
+      { calls: [{ prompt: "Ngọn hải đăng lúc hoàng hôn", reference_images: ["R1"] }] },
+      { calls: [{ prompt: "Ngọn hải đăng lúc hoàng hôn", reference_images: ["#1"] }] },
+      { text: "Đã đổi." },
+    ])
+    await turn("Vẽ ngọn hải đăng")
+    await turn("Đổi sang hoàng hôn")
+    const answer = calls.sent[3]!.messages.at(-1)
+    expect(answer).toMatchObject({ role: "tool" })
+    expect(JSON.parse(String(answer?.content))).toEqual({
+      error: "Unknown picture label R1. Labels you can use: #1",
+    })
+    expect(await db.select().from(generations)).toHaveLength(2)
+  })
+
+  test("a message left unanswered is not carried out with the next one", async () => {
+    const { turn } = await setup()
+    // The first turn gets nothing back from the model, so it fails without a reply.
+    const calls = openrouter([{}, { calls: [{ prompt: "Chiếc thuyền buồm" }] }, { text: "Xong." }])
+    const failed = await turn("Vẽ con mèo")
+    expect(failed.at(-1)).toMatchObject({ type: "error" })
+    await turn("Vẽ chiếc thuyền buồm")
+    const history = calls.sent[1]!.messages
+    expect(history.map((m) => m.role)).toEqual(["system", "user"])
+    expect(history[1]?.content).toBe("Vẽ chiếc thuyền buồm")
   })
 })
 
