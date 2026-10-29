@@ -44,14 +44,12 @@ const FEATURES: Array<{ key: string; icon: () => JSX.Element; title: I18nKey; le
     icon: () => <IconPerson class="size-5" />,
     title: "landing.features.characters.title",
     lead: "landing.features.characters.lead",
-    soon: true,
   },
   {
     key: "ha-long",
     icon: () => <IconPlay class="size-5" />,
     title: "landing.features.video.title",
     lead: "landing.features.video.lead",
-    soon: true,
   },
 ]
 
@@ -326,7 +324,7 @@ export default function Landing() {
         </ul>
       </Section>
 
-      {/* Video, coming */}
+      {/* Video, new */}
       <section class="mx-auto w-full max-w-6xl px-4 py-12 md:px-6">
         <div class="rim relative overflow-hidden rounded-panel shadow-[var(--k-shadow-raised),0_30px_80px_-30px_rgb(255_200_0/0.35)]">
           <Picture
@@ -337,11 +335,14 @@ export default function Landing() {
           />
           <div class="absolute inset-0 bg-gradient-to-r from-black/90 via-black/60 to-black/10" />
           <div class="relative flex min-h-[340px] flex-col items-start justify-center gap-4 p-6 md:min-h-[420px] md:p-12">
-            <Tag tone="accent">{t("landing.soon")}</Tag>
+            <Tag tone="accent">{t("landing.new")}</Tag>
             <h2 class="max-w-lg text-[2rem] leading-[1.15] font-bold tracking-[-0.02em] text-white">
               {t("landing.video.title")}
             </h2>
             <p class="max-w-md text-callout text-white/80">{t("landing.video.lead")}</p>
+            <A href="/signup" class={buttonClass("primary", "lg", "mt-2 px-6", true)}>
+              {t("landing.video.cta")}
+            </A>
           </div>
           <span
             class="absolute top-1/2 right-[12%] hidden size-20 -translate-y-1/2 items-center justify-center rounded-full bg-amber-gloss text-on-accent shadow-[var(--k-shadow-amber),0_0_60px_rgb(255_200_0/0.6)] md:flex"

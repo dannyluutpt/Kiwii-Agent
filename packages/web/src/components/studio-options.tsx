@@ -44,19 +44,30 @@ export function StudioOptions(
 }
 
 export function ModelOptions(props: OptionProps & { onPickModel: (model: ImageModel) => void }) {
-  const { t } = useLanguage()
   return (
-    <RadioGroup
+    <ModelPicker
+      models={props.config.models}
       value={props.settings.model}
-      onChange={(id) => {
+      onPick={(id) => {
         const next = props.config.models.find((m) => m.id === id)
         if (next) props.onPickModel(next)
       }}
-      class="flex flex-col gap-2"
-    >
+    />
+  )
+}
+
+// The models to make a run with, each by name and what it does best.
+export function ModelPicker(props: {
+  models: Array<{ id: string; name: string; tagline: string }>
+  value: string
+  onPick: (id: string) => void
+}) {
+  const { t } = useLanguage()
+  return (
+    <RadioGroup value={props.value} onChange={props.onPick} class="flex flex-col gap-2">
       <RadioGroup.Label class="text-footnote font-semibold text-label-2">{t("images.model")}</RadioGroup.Label>
       <div class="divide-y divide-separator overflow-hidden rounded-[14px] bg-fill bg-sheen shadow-gloss">
-        <For each={props.config.models}>
+        <For each={props.models}>
           {(m) => (
             <RadioGroup.Item
               value={m.id}
@@ -83,18 +94,29 @@ export function ModelOptions(props: OptionProps & { onPickModel: (model: ImageMo
 export function QualityOptions(props: OptionProps) {
   const { t } = useLanguage()
   return (
-    <RadioGroup
+    <PriceTiles
+      label={props.model.param === "resolution" ? t("images.resolution") : t("images.quality")}
       value={props.settings.option}
       onChange={(option) => props.onSettings({ option })}
-      class="flex flex-col gap-2"
-    >
-      <RadioGroup.Label class="text-footnote font-semibold text-label-2">
-        {props.model.param === "resolution" ? t("images.resolution") : t("images.quality")}
-      </RadioGroup.Label>
-      {/* Tiles rather than one bar, so every name and price stays readable however many options a
-          model has: two or four sit in pairs, other counts in rows of three. */}
-      <div class={`grid gap-2 ${[2, 4].includes(props.model.options.length) ? "grid-cols-2" : "grid-cols-3"}`}>
-        <For each={props.model.options}>
+      options={props.model.options}
+    />
+  )
+}
+
+// One tile per option with what it costs: two or four sit in pairs, other counts in rows of three,
+// so every name and price stays readable however many options a model has.
+export function PriceTiles(props: {
+  label: string
+  value: string
+  onChange: (id: string) => void
+  options: Array<{ id: string; label: string; credits: number | undefined }>
+}) {
+  const { t } = useLanguage()
+  return (
+    <RadioGroup value={props.value} onChange={props.onChange} class="flex flex-col gap-2">
+      <RadioGroup.Label class="text-footnote font-semibold text-label-2">{props.label}</RadioGroup.Label>
+      <div class={`grid gap-2 ${[1, 2, 4].includes(props.options.length) ? "grid-cols-2" : "grid-cols-3"}`}>
+        <For each={props.options}>
           {(option) => (
             <RadioGroup.Item
               value={option.id}
@@ -103,7 +125,9 @@ export function QualityOptions(props: OptionProps) {
               <RadioGroup.ItemInput />
               <RadioGroup.ItemLabel class="flex h-14 cursor-pointer select-none flex-col items-center justify-center rounded-[12px] bg-fill bg-gloss px-2 text-center text-label-2 shadow-gloss transition-[color,background-color,box-shadow] duration-(--motion-micro) hover:bg-gloss-hover data-[checked]:bg-accent-soft data-[checked]:bg-amber-soft-gloss data-[checked]:text-accent data-[checked]:shadow-selected">
                 <span class="text-subhead font-medium">{option.label}</span>
-                <span class="text-caption opacity-80">{t("images.cost", { n: option.credits })}</span>
+                <Show when={option.credits !== undefined}>
+                  <span class="text-caption opacity-80">{t("images.cost", { n: option.credits ?? 0 })}</span>
+                </Show>
               </RadioGroup.ItemLabel>
             </RadioGroup.Item>
           )}
@@ -114,16 +138,22 @@ export function QualityOptions(props: OptionProps) {
 }
 
 export function AspectOptions(props: OptionProps) {
-  const { t } = useLanguage()
   return (
-    <RadioGroup
+    <AspectPicker
+      ratios={props.model.aspectRatios}
       value={props.settings.aspectRatio}
       onChange={(aspectRatio) => props.onSettings({ aspectRatio })}
-      class="flex flex-col gap-2"
-    >
+    />
+  )
+}
+
+export function AspectPicker(props: { ratios: string[]; value: string; onChange: (ratio: string) => void }) {
+  const { t } = useLanguage()
+  return (
+    <RadioGroup value={props.value} onChange={props.onChange} class="flex flex-col gap-2">
       <RadioGroup.Label class="text-footnote font-semibold text-label-2">{t("images.aspect")}</RadioGroup.Label>
       <div class="grid grid-cols-4 gap-2">
-        <For each={props.model.aspectRatios}>
+        <For each={props.ratios}>
           {(ratio) => (
             <RadioGroup.Item
               value={ratio}
@@ -158,7 +188,7 @@ export function CountOptions(props: OptionProps) {
   )
 }
 
-function Section(props: { title: string; children: JSX.Element }) {
+export function Section(props: { title: string; children: JSX.Element }) {
   return (
     <div class="flex flex-col gap-2">
       <p class="text-footnote font-semibold text-label-2" aria-hidden="true">

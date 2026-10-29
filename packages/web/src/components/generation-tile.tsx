@@ -1,19 +1,21 @@
 import { createSignal, For, Show } from "solid-js"
 import { useLanguage } from "@/context/language"
-import { altFor, aspectStyle, type Generation, type ImageModel } from "@/images"
+import { altFor, aspectStyle, type Generation } from "@/images"
 import { Button } from "@/ui/button"
 import { IconButton, iconButtonClass } from "@/ui/icon-button"
 import { Menu, MenuContent, MenuItem, MenuSeparator } from "@/ui/menu"
 import { Spinner } from "@/ui/spinner"
 import { toast } from "@/ui/toast"
-import { IconCopy, IconEllipsis, IconImage, IconPersonAdd, IconRefresh, IconTrash } from "./icons"
+import { IconCopy, IconEllipsis, IconImage, IconPersonAdd, IconPlay, IconRefresh, IconTrash, IconVideo } from "./icons"
 
 // One run in the gallery: its pictures edge to edge, then a short bar with the prompt and actions.
 // A run that is still being prepared or rendered shows a shimmer in each frame, with the blurred
-// partial preview once one streams in; the final picture sharpens into place.
+// partial preview once one streams in; the final picture sharpens into place. A clip shows its
+// first frame and plays, muted, while the pointer rests on it.
 export function GenerationTile(props: {
   generation: Generation
-  model?: ImageModel
+  // The image or video model the run used, for its name and the option's label.
+  model?: { name: string; options: Array<{ id: string; label: string }> }
   onOpen: (index: number) => void
   onReuse: () => void
   onRetry: () => void
@@ -26,6 +28,7 @@ export function GenerationTile(props: {
   const option = () => props.model?.options.find((o) => o.id === g().option)?.label ?? g().option
   const credits = () => (g().status === "running" ? g().creditsReserved : (g().creditsFinal ?? g().creditsReserved))
   const busy = () => g().status === "running" || g().preparing === true
+  const clip = () => g().kind === "video"
   // Pictures from history are already there; only runs started in this session reveal themselves.
   const fresh = () => g().previews !== undefined
   const shown = () =>
@@ -63,16 +66,25 @@ export function GenerationTile(props: {
                         when={busy() || image()}
                         fallback={
                           <span class="absolute inset-0 flex flex-col items-center justify-center gap-1.5 p-3 text-center text-footnote text-label-2">
-                            <IconImage class="size-6 text-label-3" />
-                            {t("images.missing")}
+                            <Show when={clip()} fallback={<IconImage class="size-6 text-label-3" />}>
+                              <IconVideo class="size-6 text-label-3" />
+                            </Show>
+                            {clip() ? t("video.missing") : t("images.missing")}
                           </span>
                         }
                       >
                         <span class="k-skeleton absolute inset-0 flex flex-col items-center justify-center gap-2 p-3 text-center">
                           <Spinner class="size-5 text-label-3" label="" />
                           <span class="k-shimmer-text text-footnote font-medium">
-                            {g().preparing ? t("images.status.preparing") : t("images.status.running")}
+                            {g().preparing
+                              ? t("images.status.preparing")
+                              : clip()
+                                ? t("video.status.running")
+                                : t("images.status.running")}
                           </span>
+                          <Show when={clip() && !g().preparing && !image()}>
+                            <span class="text-caption text-label-3">{t("video.status.wait")}</span>
+                          </Show>
                         </span>
                       </Show>
                     }
@@ -82,22 +94,37 @@ export function GenerationTile(props: {
                 </Show>
                 <Show when={image()}>
                   {(img) => (
-                    <button
-                      type="button"
-                      class="group/img absolute inset-0 size-full cursor-zoom-in"
-                      aria-label={t("images.open", { n: position + 1, total: g().n })}
-                      onClick={() => props.onOpen(shown().findIndex((item) => item.id === img().id))}
+                    <Show
+                      when={clip()}
+                      fallback={
+                        <button
+                          type="button"
+                          class="group/img absolute inset-0 size-full cursor-zoom-in"
+                          aria-label={t("images.open", { n: position + 1, total: g().n })}
+                          onClick={() => props.onOpen(shown().findIndex((item) => item.id === img().id))}
+                        >
+                          <img
+                            src={img().url}
+                            alt={altFor(g())}
+                            loading="lazy"
+                            decoding="async"
+                            onLoad={() => setLoaded(true)}
+                            class="size-full object-cover transition-[opacity,transform] duration-(--motion-standard) ease-standard group-hover/img:scale-[1.02]"
+                            classList={{ "opacity-0": !loaded(), "animate-reveal": loaded() && fresh() }}
+                          />
+                        </button>
+                      }
                     >
-                      <img
+                      <ClipFrame
                         src={img().url}
-                        alt={altFor(g())}
-                        loading="lazy"
-                        decoding="async"
-                        onLoad={() => setLoaded(true)}
-                        class="size-full object-cover transition-[opacity,transform] duration-(--motion-standard) ease-standard group-hover/img:scale-[1.02]"
-                        classList={{ "opacity-0": !loaded(), "animate-reveal": loaded() && fresh() }}
+                        label={t("video.open")}
+                        seconds={g().duration}
+                        fresh={fresh()}
+                        loaded={loaded()}
+                        onLoaded={() => setLoaded(true)}
+                        onOpen={() => props.onOpen(0)}
                       />
-                    </button>
+                    </Show>
                   )}
                 </Show>
               </div>
@@ -126,7 +153,9 @@ export function GenerationTile(props: {
             {g().prompt}
           </p>
           <p class="truncate text-caption text-label-2">
-            {props.model?.name ?? g().model} · {option()} · {g().aspectRatio} · {t("images.cost", { n: credits() })}
+            {props.model?.name ?? g().model} · {option()} · {g().aspectRatio}
+            {clip() && g().duration ? ` · ${t("video.seconds", { n: g().duration ?? 0 })}` : ""} ·{" "}
+            {t("images.cost", { n: credits() })}
           </p>
         </div>
         <IconButton
@@ -143,7 +172,7 @@ export function GenerationTile(props: {
             <MenuItem icon={<IconCopy class="size-[18px]" />} onSelect={copyPrompt}>
               {t("images.copyPrompt")}
             </MenuItem>
-            <Show when={props.onCharacter && g().images.length > 0}>
+            <Show when={props.onCharacter && g().images.length > 0 && !clip()}>
               <MenuItem icon={<IconPersonAdd class="size-[18px]" />} onSelect={() => props.onCharacter?.()}>
                 {t("characters.saveAs")}
               </MenuItem>
@@ -161,5 +190,50 @@ export function GenerationTile(props: {
         </Menu>
       </div>
     </article>
+  )
+}
+
+// A finished clip in its frame: the first frame at rest, playing muted while a mouse rests on it; a
+// tap or click opens it in the viewer with sound and controls. "#t=0.1" makes iOS draw that first
+// frame, which it otherwise leaves black until the clip plays.
+function ClipFrame(props: {
+  src: string
+  label: string
+  seconds: number | null
+  fresh: boolean
+  loaded: boolean
+  onLoaded: () => void
+  onOpen: () => void
+}) {
+  const { t } = useLanguage()
+  let video: HTMLVideoElement | undefined
+  return (
+    <button
+      type="button"
+      class="group/img absolute inset-0 size-full cursor-pointer"
+      aria-label={props.label}
+      onClick={() => props.onOpen()}
+      onPointerEnter={(event) => event.pointerType === "mouse" && void video?.play().catch(() => undefined)}
+      onPointerLeave={() => video?.pause()}
+    >
+      <video
+        ref={video}
+        src={`${props.src}#t=0.1`}
+        muted
+        loop
+        playsinline
+        preload="metadata"
+        aria-hidden="true"
+        // iOS loads no frame data before a clip plays, so the metadata is the sign it is there.
+        onLoadedMetadata={() => props.onLoaded()}
+        onError={() => props.onLoaded()}
+        class="size-full object-cover transition-[opacity,transform] duration-(--motion-standard) ease-standard group-hover/img:scale-[1.02]"
+        classList={{ "opacity-0": !props.loaded, "animate-reveal": props.loaded && props.fresh }}
+      />
+      <span class="pointer-events-none absolute right-2 bottom-2 flex items-center gap-1 rounded-full bg-black/55 px-2 py-0.5 text-caption font-medium text-white backdrop-blur-sm">
+        <IconPlay class="size-3" weight={2.25} />
+        {props.seconds ? t("video.seconds", { n: props.seconds }) : ""}
+      </span>
+    </button>
   )
 }

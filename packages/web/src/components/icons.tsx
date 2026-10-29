@@ -181,6 +181,13 @@ export const IconCreditCard = icon(() => (
 
 export const IconArrowRight = icon(() => <path d="M4.5 12h15M13.5 6l6 6-6 6" />)
 
+export const IconVideo = icon(() => (
+  <>
+    <rect x="3" y="6" width="12.5" height="12" rx="3" />
+    <path d="m15.5 10.6 4.3-2.7a.8.8 0 0 1 1.2.7v6.8a.8.8 0 0 1-1.2.7l-4.3-2.7" />
+  </>
+))
+
 export const IconPlay = icon(() => (
   <path d="M8 5.6v12.8a1 1 0 0 0 1.5.86l10.6-6.4a1 1 0 0 0 0-1.72L9.5 4.74A1 1 0 0 0 8 5.6z" />
 ))

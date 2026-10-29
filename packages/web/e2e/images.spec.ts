@@ -385,10 +385,11 @@ test("the library steps through every picture in the viewer", async ({ page }) =
   })
 
   await page.goto("/library")
+  // The library lists clips too, which show a <video> instead of an <img>.
   const tiles = page
     .getByRole("main")
     .getByRole("button", { name: /\S/ })
-    .filter({ has: page.locator("img") })
+    .filter({ has: page.locator("img, video") })
   await expect(tiles.first()).toBeVisible()
   const total = await tiles.count()
   expect(total).toBeGreaterThan(1)

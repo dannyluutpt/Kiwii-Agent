@@ -25,14 +25,34 @@ export type ModelsResponse = {
   models: ImageModel[]
 }
 
+// A clip's price is per length in seconds; MiniMax adds a little when it starts from a picture.
+export type VideoOption = { id: string; label: string; credits: Record<string, number> }
+export type VideoModel = {
+  id: string
+  name: string
+  tagline: string
+  options: VideoOption[]
+  durations: number[]
+  aspectRatios: string[]
+  sound: boolean
+  maxReferences: number
+  maxReferenceEdge: number
+  firstFrameCredits: number
+}
+export type VideoModelsResponse = { canGenerate: boolean; models: VideoModel[] }
+
 export type GenerationImage = { id: string; fileID: string; position: number; url: string }
 export type Generation = {
   id: string
+  // A video run makes one clip, its only "image" (an mp4).
+  kind: "image" | "video"
   status: "running" | "done" | "failed"
   model: string
   option: string
   aspectRatio: string
   n: number
+  // Seconds, for a video.
+  duration: number | null
   prompt: string
   referenceFileIDs: string[]
   characterIDs: string[]
@@ -105,4 +125,14 @@ export type StudioSettings = {
   option: string
   aspectRatio: string
   n: number
+}
+
+// What the studio makes: pictures, or a clip.
+export type StudioMode = "image" | "video"
+
+export type VideoSettings = {
+  model: string
+  option: string
+  aspectRatio: string
+  duration: number
 }

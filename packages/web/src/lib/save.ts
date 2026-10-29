@@ -11,9 +11,14 @@ export function savesThroughShare() {
   return typeof navigator.canShare === "function" && isAppleTouch(navigator.userAgent, navigator.maxTouchPoints)
 }
 
-const EXTENSIONS: Record<string, string> = { "image/png": "png", "image/jpeg": "jpg", "image/webp": "webp" }
+const EXTENSIONS: Record<string, string> = {
+  "image/png": "png",
+  "image/jpeg": "jpg",
+  "image/webp": "webp",
+  "video/mp4": "mp4",
+}
 
-// Gives a picture's name the extension its type implies when it has none ("amberpix-1" → "amberpix-1.png").
+// Gives a file's name the extension its type implies when it has none ("amberpix-1" → "amberpix-1.png").
 export function withExtension(name: string, type: string) {
   const extension = EXTENSIONS[type]
   return /\.\w+$/.test(name) || !extension ? name : `${name}.${extension}`
