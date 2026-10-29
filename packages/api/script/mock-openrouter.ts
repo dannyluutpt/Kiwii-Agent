@@ -3,7 +3,10 @@
 //
 //   bun script/mock-openrouter.ts            (port 8899, or MOCK_PORT)
 //
-// JSON-mode chat calls answer like the prompt screener and rewriter ("BLOCKME" is refused). The
+// JSON-mode chat calls answer like the prompt screener and rewriter ("BLOCKME" is refused). Streamed
+// calls answer like the image assistant: a greeting gets words only; "2 phương án" starts two runs;
+// "đổi", "sửa" or "thêm" works from the newest picture (#1); "9:16" asks for that frame; anything else
+// starts one run with the message as its prompt; after the tools it says it is done, or why not. The
 // Images API returns gradient PNGs; "FAIL" in the prompt returns 400, and "FAILONCE" fails only the
 // first time that exact prompt arrives.
 import { deflateSync } from "node:zlib"
@@ -69,6 +72,7 @@ async function chat(body: Record<string, unknown>) {
   const messages = body.messages as Array<{ role: string; content: unknown }>
   const last = messages.at(-1)
   const text = typeof last?.content === "string" ? last.content : ""
+  if (body.stream) return assistant(body, messages)
   if (!body.response_format) return Response.json({ error: { message: "mock: JSON mode only" } }, { status: 400 })
   const blocked = text.includes("BLOCKME")
   const content = JSON.stringify({
@@ -78,6 +82,59 @@ async function chat(body: Record<string, unknown>) {
     prompt: `Enhanced #${++rewrites}: ${text}, cinematic lighting, 35mm`,
   })
   return Response.json({ choices: [{ message: { content } }], usage: { cost: 0.00012 } })
+}
+
+async function assistant(body: Record<string, unknown>, messages: Array<{ role: string; content: unknown }>) {
+  const model = body.model
+  const last = messages.at(-1)
+  const finish = (reason: string) => ({
+    model,
+    choices: [{ delta: {}, finish_reason: reason }],
+    usage: { prompt_tokens: 900, completion_tokens: 40, cost: 0.00021 },
+  })
+  const say = (text: string, reason = "stop") =>
+    sse(async (send) => {
+      for (const word of text.split(/(?<=\s)/)) {
+        send({ model, choices: [{ delta: { content: word } }] })
+        await Bun.sleep(15)
+      }
+      send(finish(reason))
+    })
+  if (last?.role === "tool") {
+    const results = messages.filter((m) => m.role === "tool").map((m) => String(m.content))
+    const refused = results.find((r) => r.includes('"error"'))
+    if (refused) return say(`Mình chưa tạo được ảnh này: ${(JSON.parse(refused) as { error: string }).error}`)
+    return say("Xong rồi! Ảnh đang được vẽ, bạn xem trong thư viện của dự án nhé.")
+  }
+  const text = typeof last?.content === "string" ? last.content : ""
+  if (/^(xin chào|chào|hello|hi)\b/i.test(text.trim())) return say("Chào bạn! Bạn muốn tạo ảnh gì hôm nay?")
+  const frame = text.includes("9:16") ? { aspect_ratio: "9:16" } : {}
+  const calls = /2 phương án/i.test(text)
+    ? [1, 2].map((n) => ({ prompt: `${text}, phương án ${n}`, count: 1, ...frame }))
+    : /(^|\s)(đổi|sửa|thêm)(\s|$)/i.test(text)
+      ? [{ prompt: `${text}, giữ nguyên bố cục ảnh trước`, reference_images: ["#1"], ...frame }]
+      : [{ prompt: text, ...frame }]
+  return sse(async (send) => {
+    send({ model, choices: [{ delta: { content: "Mình tạo ngay cho bạn." } }] })
+    for (const [index, args] of calls.entries()) {
+      const json = JSON.stringify(args)
+      // Arguments arrive in pieces, as they do from a real provider.
+      send({
+        model,
+        choices: [
+          {
+            delta: {
+              tool_calls: [
+                { index, id: `call_${index}`, function: { name: "generate_image", arguments: json.slice(0, 12) } },
+              ],
+            },
+          },
+        ],
+      })
+      send({ model, choices: [{ delta: { tool_calls: [{ index, function: { arguments: json.slice(12) } }] } }] })
+    }
+    send(finish("tool_calls"))
+  })
 }
 
 function sse(produce: (send: (data: unknown) => void) => Promise<void>) {

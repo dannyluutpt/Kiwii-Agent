@@ -2,7 +2,7 @@ import { and, desc, eq, notExists } from "drizzle-orm"
 import { ulid } from "ulid"
 import { ApiError } from "../app"
 import type { Database } from "../db/client"
-import { generations, projects } from "../db/schema"
+import { generations, project_messages, projects } from "../db/schema"
 
 export type Project = typeof projects.$inferSelect
 
@@ -62,12 +62,13 @@ export async function renameProject(db: Database, project: Project, name: string
   return { ...project, name }
 }
 
-// The project goes; its runs stay and show under "all" again.
+// The project and its conversation go; its runs stay and show under "all" again.
 export async function deleteProject(db: Database, project: Project) {
   await db
     .update(generations)
     .set({ project_id: null })
     .where(and(eq(generations.user_id, project.user_id), eq(generations.project_id, project.id)))
+  await db.delete(project_messages).where(eq(project_messages.project_id, project.id))
   await db.delete(projects).where(eq(projects.id, project.id))
 }
 

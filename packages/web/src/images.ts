@@ -48,6 +48,23 @@ export type Generation = {
   preparing?: boolean
 }
 
+// A turn of a project's conversation with the image assistant. The person's turn holds their text
+// and the pictures they attached; the assistant's holds its reply, the runs it started and a notice
+// for a run that could not start. `pending` is a reply still being written, `failed` why it stopped.
+export type MessagePart =
+  | { type: "text"; text: string }
+  | { type: "image"; fileID: string }
+  | { type: "generation"; id: string }
+  | { type: "notice"; code: string; message: string }
+export type Message = {
+  id: string
+  role: "user" | "assistant"
+  parts: MessagePart[]
+  createdAt: number
+  pending?: boolean
+  failed?: string
+}
+
 // `edge` is the longest side of the stored copy, so a model with a smaller limit can be served a
 // smaller copy.
 export type Reference = { id: string; url: string; name: string; edge: number }

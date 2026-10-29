@@ -1,4 +1,4 @@
-import { expect, recordShares, test, type Page } from "./fixtures"
+import { expect, recordShares, test, type Locator, type Page } from "./fixtures"
 import { PRO_STATE, STATE } from "./global-setup"
 
 // The image studio and library against the mock OpenRouter, as a paid account with credits.
@@ -9,11 +9,26 @@ const STUDIO = /^[^?#]*:\d+\/$/
 const prompt = (page: Page) => page.getByRole("textbox", { name: /^Mô tả bức ảnh/ })
 const card = (page: Page, text: string) => page.getByRole("article", { name: text }).first()
 
-// Every option sits in the control panel on wide screens (a labelled form) and in a bottom sheet
-// on phones, opened from the chip under the prompt.
-async function openOptions(page: Page, isMobile: boolean) {
-  if (isMobile) await page.getByRole("button", { name: /^Tuỳ chọn:/ }).click()
-  return isMobile ? page.getByRole("dialog", { name: "Tuỳ chọn" }) : page.getByRole("form", { name: "Tuỳ chọn" })
+// Phones make pictures straight from the composer. Wide screens ask the image assistant, which in the
+// mock starts one run with the message as its prompt; its button names the cheapest a reply costs.
+const generateButton = (page: Page, isMobile: boolean, cost?: number) => {
+  const label = isMobile ? "Tạo ảnh, " : "Gửi, từ "
+  return page.getByRole("button", {
+    name: cost === undefined ? new RegExp(`^${label}\\d+ credit$`) : `${label}${cost} credit`,
+  })
+}
+
+type Setting = "Model" | "Chất lượng" | "Tỷ lệ" | "Số ảnh"
+
+// On phones every option sits in one bottom sheet, opened from the chip under the prompt; on wide
+// screens each setting is a chip of the assistant's composer with its own popover, closed by a pick.
+async function openOptions(page: Page, isMobile: boolean, setting: Setting) {
+  if (isMobile) {
+    await page.getByRole("button", { name: /^Tuỳ chọn:/ }).click()
+    return page.getByRole("dialog", { name: "Tuỳ chọn" })
+  }
+  await page.getByRole("button", { name: new RegExp(`^${setting}:`) }).click()
+  return page.getByRole("dialog", { name: setting })
 }
 
 async function closeOptions(page: Page, isMobile: boolean) {
@@ -23,27 +38,26 @@ async function closeOptions(page: Page, isMobile: boolean) {
   await expect(sheet).toBeHidden()
 }
 
-async function chooseOptions(page: Page, isMobile: boolean, choice: { ratio: string; count: string }) {
-  const panel = await openOptions(page, isMobile)
-  await panel
-    .locator("label")
-    .filter({ hasText: new RegExp(`^${choice.ratio}$`) })
-    .click()
-  await panel
-    .locator("label")
-    .filter({ hasText: new RegExp(`^${choice.count}$`) })
-    .click()
-  await expect(panel.getByRole("radio", { name: choice.ratio })).toBeChecked()
-  // Rewriting the prompt is the server's call, so the panel offers no switch for it.
-  await expect(panel.getByRole("switch")).toHaveCount(0)
+const choice = (panel: Locator, text: string) => panel.locator("label").filter({ hasText: new RegExp(`^${text}$`) })
+
+async function chooseOptions(page: Page, isMobile: boolean, picked: { ratio: string; count: string }) {
+  const frame = await openOptions(page, isMobile, "Tỷ lệ")
+  await choice(frame, picked.ratio).click()
+  const count = isMobile ? frame : await openOptions(page, isMobile, "Số ảnh")
+  await choice(count, picked.count).click()
+  if (isMobile) await expect(frame.getByRole("radio", { name: picked.ratio })).toBeChecked()
+  if (!isMobile) await expect(page.getByRole("button", { name: `Tỷ lệ: ${picked.ratio}` })).toBeVisible()
+  // Rewriting the prompt is the server's call, so no switch offers it.
+  await expect(page.getByRole("switch")).toHaveCount(0)
   await closeOptions(page, isMobile)
 }
 
 async function pickModel(page: Page, isMobile: boolean, name: string) {
-  const panel = await openOptions(page, isMobile)
+  const panel = await openOptions(page, isMobile, "Model")
   // The radio input is visually hidden; its label is what a person taps.
   await panel.getByRole("radiogroup", { name: "Model" }).locator("label").filter({ hasText: name }).click()
-  await expect(panel.getByRole("radio", { name: new RegExp(name) })).toBeChecked()
+  if (isMobile) await expect(panel.getByRole("radio", { name: new RegExp(name) })).toBeChecked()
+  if (!isMobile) await expect(page.getByRole("button", { name: new RegExp(`^Model: ${name}`) })).toBeVisible()
   await closeOptions(page, isMobile)
 }
 
@@ -73,7 +87,7 @@ test("a run streams into the gallery and its pictures open in the viewer", async
   const text = `Chú mèo cam trên bậu cửa sổ ${isMobile ? "phone" : "desktop"}`
   await prompt(page).fill(text)
   // Two Standard GPT pictures at 3 credits each.
-  await page.getByRole("button", { name: "Tạo ảnh, 6 credit" }).click()
+  await generateButton(page, isMobile, 6).click()
   await expect(prompt(page)).toHaveValue("")
 
   const run = card(page, text)
@@ -179,10 +193,10 @@ test("retrying a failed run reuses its rewritten prompt", async ({ page }, info)
   await expect(run.getByRole("alert")).toHaveCount(0)
 })
 
-test("a second press while a run is being prepared starts nothing more", async ({ page }, info) => {
+test("a second press while a run is being prepared starts nothing more", async ({ page, isMobile }, info) => {
   let posts = 0
   // Preparing a run (prompt rewrite, references) takes a few seconds in production; hold it here.
-  await page.route("**/api/images/generations", async (route) => {
+  await page.route(isMobile ? "**/api/images/generations" : "**/api/projects/*/messages", async (route) => {
     if (route.request().method() !== "POST") return route.continue()
     posts++
     await new Promise((resolve) => setTimeout(resolve, 1500))
@@ -192,14 +206,16 @@ test("a second press while a run is being prepared starts nothing more", async (
   // Per project, so the other project's run in the shared history is not counted.
   const text = `Một chiếc thuyền giấy trên mặt hồ ${info.project.name}`
   await prompt(page).fill(text)
-  const generate = page.getByRole("button", { name: /^Tạo ảnh, \d+ credit$/ })
+  const generate = generateButton(page, isMobile)
   // Two presses in the same moment, well before the server answers the first.
   await generate.evaluate((button: HTMLButtonElement) => {
     button.click()
     button.click()
   })
-  // The gallery shows the run at once, marked as being prepared, and the button is held.
-  await expect(card(page, text)).toContainText("Đang chuẩn bị…")
+  // The work shows at once and the button is held: a run being prepared in the gallery on phones,
+  // the assistant thinking on wide screens.
+  if (isMobile) await expect(card(page, text)).toContainText("Đang chuẩn bị…")
+  if (!isMobile) await expect(page.getByRole("log")).toContainText("Đang suy nghĩ…")
   await expect(generate).toBeDisabled({ timeout: 500 })
   await expect(card(page, text).getByRole("button", { name: /^Mở ảnh/ })).toBeVisible({ timeout: 15_000 })
   await expect(page.getByRole("article", { name: text })).toHaveCount(1)
@@ -223,7 +239,7 @@ test("a large reference photo is scaled to what the chosen model takes", async (
 
 test("every quality fits inside the options panel", async ({ page, isMobile }) => {
   await page.goto("/")
-  const panel = await openOptions(page, isMobile)
+  const panel = await openOptions(page, isMobile, "Chất lượng")
   const quality = panel.getByRole("radiogroup", { name: "Chất lượng" })
   await expect(quality.getByRole("radio")).toHaveCount(5)
   const frame = await panel.boundingBox()
@@ -271,16 +287,16 @@ test("the viewer saves a picture through the share sheet on iPhone and downloads
 test("switching models changes the price", async ({ page, isMobile }) => {
   await page.goto("/")
   await prompt(page).fill("Phác thảo nhanh một ngọn hải đăng")
-  await expect(page.getByRole("button", { name: "Tạo ảnh, 3 credit" })).toBeEnabled()
+  await expect(generateButton(page, isMobile, 3)).toBeEnabled()
   // FLUX 1K costs 1 credit a picture.
   await pickModel(page, isMobile, "FLUX 3 Klein")
-  await expect(page.getByRole("button", { name: "Tạo ảnh, 1 credit" })).toBeEnabled()
+  await expect(generateButton(page, isMobile, 1)).toBeEnabled()
 })
 
 // Yellow means ready: with nothing to make, the button greys out rather than fading to olive.
-test("the generate button turns yellow once there is a prompt", async ({ page }) => {
+test("the generate button turns yellow once there is a prompt", async ({ page, isMobile }) => {
   await page.goto("/")
-  const generate = page.getByRole("button", { name: /^Tạo ảnh, \d+ credit$/ })
+  const generate = generateButton(page, isMobile)
   await expect(generate).toBeDisabled()
   await expect(generate).toHaveCSS("background-color", "rgba(255, 255, 255, 0.1)")
   await prompt(page).fill("Một ngọn hải đăng lúc bình minh")

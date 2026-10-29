@@ -249,6 +249,31 @@ export const projects = sqliteTable(
   (t) => [index("projects_user").on(t.user_id, t.updated_at)],
 )
 
+export const MessageRole = ["user", "assistant"] as const
+
+// One turn of the conversation with the image assistant inside a project. `parts` is a JSON array
+// (src/assistant/parts.ts): the person's text and the pictures they attached, or the assistant's
+// reply and the runs it started. The model, tokens and cost belong to assistant turns.
+export const project_messages = sqliteTable(
+  "project_messages",
+  {
+    id: text().primaryKey(),
+    project_id: text().notNull(),
+    user_id: text().notNull(),
+    role: text({ enum: MessageRole }).notNull(),
+    parts: text().notNull(),
+    model: text(),
+    input_tokens: integer(),
+    output_tokens: integer(),
+    cost_usd: real(),
+    ...Timestamps,
+  },
+  (t) => [
+    index("project_messages_project").on(t.project_id, t.created_at),
+    index("project_messages_user").on(t.user_id, t.created_at),
+  ],
+)
+
 export const generation_images = sqliteTable(
   "generation_images",
   {
