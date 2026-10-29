@@ -58,7 +58,8 @@ export const sessions = sqliteTable(
 )
 
 // "attachment" and "generated" are files of the retired chat; their rows and objects remain.
-export const FileKind = ["attachment", "generated", "reference", "image"] as const
+// "character" files are a character's own copies of its photos.
+export const FileKind = ["attachment", "generated", "reference", "image", "character"] as const
 
 export const files = sqliteTable(
   "files",
@@ -216,8 +217,10 @@ export const generations = sqliteTable(
     prompt_raw: text().notNull(),
     prompt_enhanced: text(),
     enhance: integer().notNull().default(1),
-    // JSON array of files.id used as references.
+    // JSON array of files.id of the pictures the run works from, besides its characters' photos.
     reference_file_ids: text().notNull().default("[]"),
+    // JSON array of characters.id in the run; their photos lead the references.
+    character_ids: text().notNull().default("[]"),
     credits_reserved: integer().notNull(),
     credits_final: integer(),
     cost_usd: real(),
@@ -247,6 +250,21 @@ export const projects = sqliteTable(
     ...Timestamps,
   },
   (t) => [index("projects_user").on(t.user_id, t.updated_at)],
+)
+
+// A person (or a mascot) saved from one to four photos, shared by every project of the account.
+// `file_ids` is a JSON array of files of kind "character": copies made when it was saved, so deleting
+// the run a photo came from leaves the character whole.
+export const characters = sqliteTable(
+  "characters",
+  {
+    id: text().primaryKey(),
+    user_id: text().notNull(),
+    name: text().notNull(),
+    file_ids: text().notNull().default("[]"),
+    ...Timestamps,
+  },
+  (t) => [index("characters_user").on(t.user_id, t.created_at)],
 )
 
 export const MessageRole = ["user", "assistant"] as const

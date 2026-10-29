@@ -28,7 +28,7 @@ function fakeBucket(objects: Array<{ key: string; uploaded: number }>, pageSize 
   return { store, bucket }
 }
 
-const file = (id: string, kind: "reference" | "generation", age: number) => ({
+const file = (id: string, kind: "reference" | "image" | "character", age: number) => ({
   id,
   user_id: "u1",
   r2_key: `u/u1/${id}.jpg`,
@@ -37,21 +37,20 @@ const file = (id: string, kind: "reference" | "generation", age: number) => ({
   size: 1,
   kind,
   created_at: NOW - age,
-  updated_at: NOW - age,
 })
 
 describe("removeUnusedReferences", () => {
   test("drops week-old references no run or conversation uses, and keeps the rest", async () => {
     const db = await testDatabase()
-    await db
-      .insert(files)
-      .values([
-        file("UNUSED", "reference", 8 * DAY),
-        file("INRUN", "reference", 8 * DAY),
-        file("INCHAT", "reference", 8 * DAY),
-        file("FRESH", "reference", 1 * DAY),
-        file("OUTPUT", "generation", 30 * DAY),
-      ])
+    await db.insert(files).values([
+      file("UNUSED", "reference", 8 * DAY),
+      file("INRUN", "reference", 8 * DAY),
+      file("INCHAT", "reference", 8 * DAY),
+      file("FRESH", "reference", 1 * DAY),
+      file("OUTPUT", "image", 30 * DAY),
+      // A character's copy of a photo is never a leftover upload.
+      file("FACE", "character", 30 * DAY),
+    ])
     await db.insert(generations).values({
       id: "G1",
       user_id: "u1",
@@ -77,20 +76,26 @@ describe("removeUnusedReferences", () => {
       updated_at: NOW,
     })
     const { store, bucket } = fakeBucket(
-      ["UNUSED", "INRUN", "INCHAT", "FRESH", "OUTPUT"].map((id) => ({ key: `u/u1/${id}.jpg`, uploaded: NOW })),
+      ["UNUSED", "INRUN", "INCHAT", "FRESH", "OUTPUT", "FACE"].map((id) => ({ key: `u/u1/${id}.jpg`, uploaded: NOW })),
     )
 
     expect(await removeUnusedReferences(db, bucket, NOW)).toBe(1)
-    expect([...store.keys()].sort()).toEqual(["u/u1/FRESH.jpg", "u/u1/INCHAT.jpg", "u/u1/INRUN.jpg", "u/u1/OUTPUT.jpg"])
+    expect([...store.keys()].sort()).toEqual([
+      "u/u1/FACE.jpg",
+      "u/u1/FRESH.jpg",
+      "u/u1/INCHAT.jpg",
+      "u/u1/INRUN.jpg",
+      "u/u1/OUTPUT.jpg",
+    ])
     const left = await db.select({ id: files.id }).from(files)
-    expect(left.map((row) => row.id).sort()).toEqual(["FRESH", "INCHAT", "INRUN", "OUTPUT"])
+    expect(left.map((row) => row.id).sort()).toEqual(["FACE", "FRESH", "INCHAT", "INRUN", "OUTPUT"])
   })
 })
 
 describe("sweepOrphans", () => {
   test("deletes old pictures without a files row, a page at a time, and starts over after the last", async () => {
     const db = await testDatabase()
-    await db.insert(files).values(file("KEPT", "generation", 10 * DAY))
+    await db.insert(files).values(file("KEPT", "image", 10 * DAY))
     const { store, bucket } = fakeBucket(
       [
         { key: "u/u1/KEPT.jpg", uploaded: NOW - 10 * DAY },

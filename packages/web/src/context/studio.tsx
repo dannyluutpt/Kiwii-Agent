@@ -4,6 +4,7 @@ import { createStore, produce } from "solid-js/store"
 import { createSimpleContext } from "@kiwii/ui/context/helper"
 import { api, ApiError, apiStream, type SSEEvent } from "@/api"
 import { useAuth } from "@/context/auth"
+import { useCharacters } from "@/context/characters"
 import { useLanguage } from "@/context/language"
 import { useProjects } from "@/context/projects"
 import type { Generation, ModelsResponse, Reference, StudioSettings } from "@/images"
@@ -42,6 +43,7 @@ export const { use: useStudio, provider: StudioProvider } = createSimpleContext(
   init: () => {
     const { t } = useLanguage()
     const auth = useAuth()
+    const characters = useCharacters()
     const projects = useProjects()
     const navigate = useNavigate()
     const [config, { refetch: refreshConfig }] = createResource(() => api<ModelsResponse>("/images/models"))
@@ -80,7 +82,9 @@ export const { use: useStudio, provider: StudioProvider } = createSimpleContext(
       const model = cfg?.models.find((m) => m.id === settings.model)
       const option = model?.options.find((o) => o.id === settings.option)
       if (!model || !option) return undefined
-      return option.credits * settings.n + (references().length > 0 ? model.referenceSurcharge : 0)
+      // The characters' photos are read as reference pictures too.
+      const read = references().length + characters.picked().length
+      return option.credits * settings.n + (read > 0 ? model.referenceSurcharge : 0)
     })
 
     const gallery = (key: string) => state.galleries[key]
@@ -240,6 +244,7 @@ export const { use: useStudio, provider: StudioProvider } = createSimpleContext(
             n: from.n,
             prompt: from.prompt,
             referenceFileIDs: from.referenceFileIDs,
+            characterIDs: from.characterIDs,
             // The server reuses the prompt it already screened and rewrote for this run.
             retryOf: from.id,
             projectID: from.projectID ?? undefined,
@@ -251,6 +256,7 @@ export const { use: useStudio, provider: StudioProvider } = createSimpleContext(
             n: settings.n,
             prompt: prompt().trim(),
             referenceFileIDs: references().map((r) => r.id),
+            characterIDs: characters.picked(),
             projectID,
           }
       const into = body.projectID ? [ALL, body.projectID] : [ALL]

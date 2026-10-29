@@ -41,25 +41,64 @@ const STYLE_HINTS: Record<ImageModelID, string> = {
     "Write natural sentences. Words that should appear in the picture go in double quotes, exactly as given, with where they sit.",
 }
 
+// A character in a run, and how many of its photos the run sends.
+export type CastMember = { name: string; images: number }
+
+const imagesLabel = (first: number, count: number) =>
+  count === 1 ? `Reference image ${first}` : `Reference images ${first}–${first + count - 1}`
+
+// The opening lines of the prompt of a run with characters. The image model gets each character's
+// photos first, then the pictures the run works from; the legend ties each name to its photos.
+export function castLegend(cast: CastMember[], references: number) {
+  if (cast.length === 0) return ""
+  let next = 1
+  const lines = cast.map((member) => {
+    const line = `${imagesLabel(next, member.images)}: ${member.name}.`
+    next += member.images
+    return line
+  })
+  if (references > 0)
+    lines.push(`${imagesLabel(next, references)}: the picture${references > 1 ? "s" : ""} to work from.`)
+  // Photos used whole made the person pose as in them, usually facing the camera: they are for the
+  // identity alone, and the prompt sets the pose and the gaze.
+  const whose = cast.length === 1 ? `${cast[0]!.name}'s reference images` : "each character's reference images"
+  lines.push(
+    `Use ${whose} only for who they are: keep their face, facial features, skin tone, hairstyle and build, and their clothes unless the prompt below changes them. Do not copy the pose, head angle, gaze, expression, framing, background or light of those photos.`,
+  )
+  return lines.join("\n")
+}
+
 // The rewrite translates and clarifies; it must not stage the picture. Embellished prompts ("a
 // subtle smile", "50mm lens", "shallow depth of field", a change of clothes) made people pose and
 // look at the camera, which reads as a stock photo, and drifted edits away from the reference.
-function rewriteRules(model: ImageModelID, references: number) {
+function rewriteRules(model: ImageModelID, references: number, cast: CastMember[]) {
+  const names = cast.map((member) => `"${member.name}"`).join(" and ")
   return [
     `When allowed, rewrite the prompt in English for ${model} as a faithful, clear translation:`,
     "- Keep everything the person asked for: subjects, actions, poses, expressions, clothing, counts, named styles and quoted text. Translate the meaning faithfully and no stronger: a faint smile stays faint.",
     "- Add nothing they did not ask for: no new people, objects, clothes, expressions or gestures, and no camera, lens, depth-of-field or quality words (8k, masterpiece, ultra-detailed, cinematic).",
     "- Photographs should look natural and believable. Unless they ask for a posed shot such as a portrait or a selfie, a photo shows an ordinary, candid moment: people carry on with what they are doing and do not look at the camera, in the light the place really has.",
-    references > 0
+    cast.length
+      ? `- The picture features ${names}, saved characters whose photos the image model gets with a note saying which is which. Call each one by that name, and do not describe their face, hair, body or clothes unless the person asks to change them: the photos show them. Say what each one is doing, where they are in the frame and what they are looking at, which is not the camera unless the person asks for a posed shot.`
+      : "",
+    references > 0 && cast.length
+      ? `- They also attached ${references} picture(s) to work from, which you cannot see, so this is an edit. Say the change they asked for, then that everything else stays exactly as in the picture(s) to work from: the objects, the room, the framing, the camera angle, the light and the style. Call them "the picture to work from", without describing what is in them.`
+      : "",
+    references > 0 && !cast.length
       ? `- They attached ${references} reference image(s), which you cannot see, so this is an edit. Say the change they asked for, then that everything else stays exactly as in the reference image(s): people's faces, hair and clothes, the objects, the room, the framing, the camera angle, the light and the style. Refer to each one the way they do (for example "the photo of the scanner") or as "the reference image", without describing what is in it.`
-      : "- Fill in only what the picture needs and they left open (setting, light, framing), briefly and plainly.",
+      : "",
+    references === 0
+      ? "- Fill in only what the picture needs and they left open (setting, light, framing), briefly and plainly."
+      : "",
     `- At most 100 words, no preamble. ${STYLE_HINTS[model]}`,
-  ].join("\n")
+  ]
+    .filter(Boolean)
+    .join("\n")
 }
 
 type Previous = Pick<
   typeof generations.$inferSelect,
-  "status" | "prompt_raw" | "prompt_enhanced" | "model" | "reference_file_ids" | "enhance"
+  "status" | "prompt_raw" | "prompt_enhanced" | "model" | "reference_file_ids" | "character_ids" | "enhance"
 >
 
 // Retrying a failed run sends the image model the prompt that run was given: it passed the
@@ -67,13 +106,14 @@ type Previous = Pick<
 // add a wait and its cost. Anything else gets screened and rewritten afresh.
 export function reusableRewrite(
   previous: Previous | undefined,
-  request: { prompt: string; model: string; referenceIDs: string[]; enhance: boolean },
+  request: { prompt: string; model: string; referenceIDs: string[]; characterIDs: string[]; enhance: boolean },
 ) {
   if (previous?.status !== "failed" || !previous.prompt_enhanced) return undefined
   const same =
     previous.prompt_raw === request.prompt &&
     previous.model === request.model &&
     previous.reference_file_ids === JSON.stringify(request.referenceIDs) &&
+    previous.character_ids === JSON.stringify(request.characterIDs) &&
     previous.enhance === (request.enhance ? 1 : 0)
   return same ? previous.prompt_enhanced : undefined
 }
@@ -84,7 +124,9 @@ export async function enhancePrompt(input: {
   model: ImageModelID
   prompt: string
   rewrite: boolean
+  // The pictures the run works from, besides the photos of its characters.
   references: number
+  cast?: CastMember[]
   // The language model that screens and rewrites; see languageModels.
   languageModel?: string
 }): Promise<EnhanceResult> {
@@ -96,7 +138,7 @@ export async function enhancePrompt(input: {
     'Reply with JSON only: {"allowed": boolean, "reason": string, "prompt": string}.',
     "Set allowed=false (and explain briefly in Vietnamese in reason) for: sexual content involving minors, sexual deepfakes or nudity of real identifiable people, gore or graphic violence, hate symbols or propaganda, instructions for weapons or drugs. Everything else is allowed, including artistic nudity-free portraits of public figures in neutral contexts.",
     input.rewrite
-      ? rewriteRules(input.model, input.references)
+      ? rewriteRules(input.model, input.references, input.cast ?? [])
       : "When allowed, return the user's prompt unchanged in prompt (translate to English only if it is not already English; keep quoted text exactly).",
   ]
     .filter(Boolean)

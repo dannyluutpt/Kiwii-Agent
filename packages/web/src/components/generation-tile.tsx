@@ -6,7 +6,7 @@ import { IconButton, iconButtonClass } from "@/ui/icon-button"
 import { Menu, MenuContent, MenuItem, MenuSeparator } from "@/ui/menu"
 import { Spinner } from "@/ui/spinner"
 import { toast } from "@/ui/toast"
-import { IconCopy, IconEllipsis, IconImage, IconRefresh, IconTrash } from "./icons"
+import { IconCopy, IconEllipsis, IconImage, IconPersonAdd, IconRefresh, IconTrash } from "./icons"
 
 // One run in the gallery: its pictures edge to edge, then a short bar with the prompt and actions.
 // A run that is still being prepared or rendered shows a shimmer in each frame, with the blurred
@@ -18,6 +18,8 @@ export function GenerationTile(props: {
   onReuse: () => void
   onRetry: () => void
   onDelete: () => void
+  // Opens the dialog that saves a character from the run's pictures.
+  onCharacter?: () => void
 }) {
   const { t } = useLanguage()
   const g = () => props.generation
@@ -141,6 +143,11 @@ export function GenerationTile(props: {
             <MenuItem icon={<IconCopy class="size-[18px]" />} onSelect={copyPrompt}>
               {t("images.copyPrompt")}
             </MenuItem>
+            <Show when={props.onCharacter && g().images.length > 0}>
+              <MenuItem icon={<IconPersonAdd class="size-[18px]" />} onSelect={() => props.onCharacter?.()}>
+                {t("characters.saveAs")}
+              </MenuItem>
+            </Show>
             <MenuSeparator />
             <MenuItem
               icon={<IconTrash class="size-[18px]" />}

@@ -19,6 +19,8 @@ export type ModelsResponse = {
   parallelLimit: number
   maxImages: number
   maxReferences: number
+  // Saved characters one run may feature.
+  maxCharacters: number
   credits: number
   models: ImageModel[]
 }
@@ -33,6 +35,7 @@ export type Generation = {
   n: number
   prompt: string
   referenceFileIDs: string[]
+  characterIDs: string[]
   creditsReserved: number
   creditsFinal: number | null
   error: string | null
@@ -55,6 +58,7 @@ export type Generation = {
 export type MessagePart =
   | { type: "text"; text: string }
   | { type: "image"; fileID: string }
+  | { type: "character"; id: string; name: string }
   | { type: "generation"; id: string }
   | { type: "notice"; code: string; message: string }
 export type Message = {
@@ -69,6 +73,9 @@ export type Message = {
 // `edge` is the longest side of the stored copy, so a model with a smaller limit can be served a
 // smaller copy.
 export type Reference = { id: string; url: string; name: string; edge: number }
+
+// A person (or a mascot) saved from one to four photos, for every project; the first photo is its face.
+export type Character = { id: string; name: string; images: Array<{ fileID: string; url: string }>; createdAt: number }
 
 export const aspectStyle = (ratio: string) => ({ "aspect-ratio": ratio.replace(":", " / ") })
 

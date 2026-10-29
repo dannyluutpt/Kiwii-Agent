@@ -1,8 +1,9 @@
 import { afterEach, describe, expect, mock, setSystemTime, spyOn, test } from "bun:test"
 import { asc, eq } from "drizzle-orm"
 import { checkAssistant, DAILY_MESSAGES, runAssistantTurn, type AssistantEvent } from "../src/assistant/turn"
+import { createCharacter } from "../src/characters/store"
 import { balance, grant } from "../src/credits/ledger"
-import { generations, project_messages, users } from "../src/db/schema"
+import { files, generations, project_messages, users } from "../src/db/schema"
 import { createProject, ownProject } from "../src/projects/store"
 import { testDatabase } from "./db"
 
@@ -101,7 +102,7 @@ async function setup(tier: "plus" | "free" = "plus", credits = 100) {
   const user = (await db.select().from(users).where(eq(users.id, "u1")).get())!
   const project = await createProject(db, { userID: "u1", name: "" })
   const bucket = fakeBucket()
-  const turn = async (text: string, settings: Partial<typeof SETTINGS> = {}) => {
+  const turn = async (text: string, settings: Partial<typeof SETTINGS> = {}, characterIDs: string[] = []) => {
     const events: AssistantEvent[] = []
     await runAssistantTurn({
       db,
@@ -110,14 +111,35 @@ async function setup(tier: "plus" | "free" = "plus", credits = 100) {
       user,
       project: await ownProject(db, "u1", project.id),
       parallel: 4,
-      request: { text, settings: { ...SETTINGS, ...settings }, referenceFileIDs: [] },
+      request: { text, settings: { ...SETTINGS, ...settings }, referenceFileIDs: [], characterIDs },
       emit: (event) => {
         events.push(event)
       },
     })
     return events
   }
-  return { db, user, project, turn }
+  // A character saved from one photo.
+  const character = async (name: string) => {
+    const id = `photo-${name}`
+    await bucket.put(
+      `u/u1/${id}.jpg`,
+      Uint8Array.from(atob(PIXEL), (c) => c.charCodeAt(0)),
+      {
+        httpMetadata: { contentType: "image/jpeg" },
+      },
+    )
+    await db.insert(files).values({
+      id,
+      user_id: "u1",
+      r2_key: `u/u1/${id}.jpg`,
+      name: `${id}.jpg`,
+      mime: "image/jpeg",
+      size: 1,
+      kind: "reference",
+    })
+    return createCharacter(db, bucket, { userID: "u1", name, fileIDs: [id] })
+  }
+  return { db, user, project, turn, character }
 }
 
 describe("runAssistantTurn", () => {
@@ -275,6 +297,37 @@ describe("runAssistantTurn", () => {
     expect(runs.map((run) => run.aspect_ratio)).toEqual(["9:16", "16:9"])
   })
 
+  test("a picked character is in every run of the reply, and the model may add a saved one by label", async () => {
+    const { db, turn, character } = await setup()
+    const lan = await character("Lan")
+    const minh = await character("Minh")
+    const calls = openrouter([
+      { calls: [{ prompt: "Lan ở bãi biển" }, { prompt: "Lan và Minh ở bãi biển", characters: ["C2"] }] },
+      { text: "Xong." },
+    ])
+    await turn("Vẽ Lan ở bãi biển, thêm một ảnh có cả Minh", {}, [lan.id])
+
+    const runs = await db.select().from(generations).orderBy(asc(generations.id))
+    expect(runs.map((run) => JSON.parse(run.character_ids))).toEqual([[lan.id], [lan.id, minh.id]])
+    const system = String(calls.sent[0]!.messages[0]!.content)
+    expect(system).toContain('Saved characters: C1 "Lan", C2 "Minh".')
+    expect(system).toContain("The person picked C1 for this message")
+    const asked = (await db.select().from(project_messages).orderBy(asc(project_messages.created_at)).get())!
+    expect(JSON.parse(asked.parts)).toContainEqual({ type: "character", id: lan.id, name: "Lan" })
+  })
+
+  test("an unknown character is refused with the labels the model can use", async () => {
+    const { db, turn, character } = await setup()
+    await character("Lan")
+    const calls = openrouter([{ calls: [{ prompt: "Hùng", characters: ["C7"] }] }, { text: "Không có nhân vật đó." }])
+    await turn("Vẽ Hùng")
+    expect(await db.select().from(generations)).toHaveLength(0)
+    expect(calls.sent[1]!.messages.at(-1)).toMatchObject({
+      role: "tool",
+      content: JSON.stringify({ error: "Unknown character. Characters you can use: C1" }),
+    })
+  })
+
   test("a prompt no model could screen starts no run and costs nothing", async () => {
     const { db, turn } = await setup()
     openrouter([{ calls: [{ prompt: "NOVERDICT con mèo" }] }, { text: "Chưa tạo được, bạn thử lại nhé." }])
@@ -300,7 +353,7 @@ describe("runAssistantTurn", () => {
 })
 
 describe("checkAssistant", () => {
-  const request = { text: "Vẽ mèo", settings: SETTINGS, referenceFileIDs: [] }
+  const request = { text: "Vẽ mèo", settings: SETTINGS, referenceFileIDs: [], characterIDs: [] }
 
   test("a free account without credits is asked to upgrade", async () => {
     const { db, user } = await setup("free", 0)
