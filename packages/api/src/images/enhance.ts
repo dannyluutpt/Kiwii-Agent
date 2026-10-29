@@ -35,16 +35,11 @@ export function blockedByDenylist(prompt: string) {
 
 const STYLE_HINTS: Record<ImageModelID, string> = {
   "flux-3-klein":
-    "Write plain descriptive prose, not a list: the subject and what it does first, then what is around it and where, then the light.",
+    "Write one plain descriptive paragraph: the subject and what it does first, then the setting and its light.",
   "nano-banana-2.1": "Write natural sentences.",
   "gpt-image-2.5":
     "Write natural sentences. Words that should appear in the picture go in double quotes, exactly as given, with where they sit.",
 }
-
-// FLUX 3 Klein was trained on captions of whole scenes, mostly 200 to 350 words, and Black Forest Labs
-// warns that a prompt sent as typed gives it noticeably weaker pictures. The other models take a
-// short, plain prompt.
-const FULL_CAPTIONS: ReadonlySet<ImageModelID> = new Set(["flux-3-klein"])
 
 // A character in a run, and how many of its photos the run sends.
 export type CastMember = { name: string; images: number }
@@ -78,27 +73,19 @@ export function castLegend(cast: CastMember[], references: number) {
 // look at the camera, which reads as a stock photo, and drifted edits away from the reference.
 function rewriteRules(model: ImageModelID, aspectRatio: string, references: number, cast: CastMember[], seen: boolean) {
   const names = cast.map((member) => `"${member.name}"`).join(" and ")
-  const full = FULL_CAPTIONS.has(model)
   return [
     `When allowed, rewrite the prompt in English for ${model} as a faithful, clear translation:`,
     "- Keep everything the person asked for: subjects, actions, poses, expressions, clothing, counts, named styles and quoted text. Translate the meaning faithfully and no stronger: a faint smile stays faint.",
-    full
-      ? "- Add nothing to the people and things they asked for: no new clothes, expressions or gestures. No camera, lens, depth-of-field or blur words unless they ask, no quality, praise or sales words (8k, masterpiece, ultra-detailed, cinematic, stunning), and no names, brands or logos they did not give."
-      : "- Add nothing they did not ask for: no new people, objects, clothes, expressions or gestures, and no camera, lens, depth-of-field or quality words (8k, masterpiece, ultra-detailed, cinematic).",
+    "- Add nothing they did not ask for: no new people, objects, clothes, expressions or gestures, and no camera, lens, depth-of-field or quality words (8k, masterpiece, ultra-detailed, cinematic).",
     "- Photographs should look natural and believable. Unless they ask for a posed shot such as a portrait or a selfie, a photo shows an ordinary, candid moment: people carry on with what they are doing and do not look at the camera, in the light the place really has.",
     cast.length
       ? `- The picture features ${names}, ${cast.length === 1 ? "a saved character" : "saved characters"} whose photos the image model gets with a note saying which is which. Call each one by that name, and do not describe their face, hair, body or clothes unless the person asks to change them: the photos show them. Say what each one is doing, where they are in the frame and what they are looking at, which is not the camera unless the person asks for a posed shot.`
       : "",
-    references > 0 ? pictureRules(references, cast.length > 0, seen) : "",
-    full
-      ? "- For a new picture or a new scene, decide everything they left open as one concrete, consistent plan and write it out: the setting and what is in it and where, the materials, textures and colors, the light and the time of day. A real place has ordinary things in it, such as passers-by on a busy street or goods on a stall; keep them in the background, so that what they asked for stays the subject. For an edit, describe the change and what stays, not the whole picture."
-      : references > 0
-        ? ""
-        : "- Fill in only what the picture needs and they left open (setting, light, framing), briefly and plainly.",
+    references > 0
+      ? pictureRules(references, cast.length > 0, seen)
+      : "- Fill in only what the picture needs and they left open (setting, light, framing), briefly and plainly.",
     `- The picture is ${aspectRatio}, ${orientation(aspectRatio)}: compose for that frame, without writing the ratio.`,
-    full
-      ? `- A new picture takes 150 to 300 words and an edit 50 to 120. Stop once the picture is fully described, without padding, and write no preamble. ${STYLE_HINTS[model]}`
-      : `- At most 100 words, no preamble. ${STYLE_HINTS[model]}`,
+    `- At most 100 words, no preamble. ${STYLE_HINTS[model]}`,
   ]
     .filter(Boolean)
     .join("\n")
