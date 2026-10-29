@@ -30,7 +30,7 @@ export function AppShell(props: ParentProps) {
   useShortcut(SIDEBAR_SHORTCUT, () => layout.toggleSidebar())
 
   return (
-    <div class="relative flex h-full overflow-hidden bg-canvas">
+    <div class="relative flex h-full overflow-hidden bg-ambient">
       <a
         href="#main"
         class="sr-only z-(--z-toast) rounded-control bg-elevated px-4 py-2 text-subhead font-semibold text-label shadow-floating focus:not-sr-only focus:fixed focus:top-3 focus:left-3"

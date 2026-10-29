@@ -1,6 +1,5 @@
 import { Navigate, Route, Router, useLocation, useSearchParams } from "@solidjs/router"
 import { lazy, onMount, Show, type ParentProps } from "solid-js"
-import { ThemeProvider } from "@kiwii/ui/theme/context"
 import { AppShell } from "@/components/app-shell"
 import { Splash } from "@/components/splash"
 import { AuthProvider, useAuth } from "@/context/auth"
@@ -24,25 +23,15 @@ const Pricing = lazy(() => import("@/pages/pricing"))
 const Checkout = lazy(() => import("@/pages/checkout"))
 const Account = lazy(() => import("@/pages/account"))
 
-// Browser chrome (status bar tint, overscroll) matches the canvas of the active scheme.
-const CANVAS = { light: "#fbfbf9", dark: "#141513" }
-
-function paintChrome(mode: "light" | "dark") {
-  document.documentElement.style.backgroundColor = CANVAS[mode]
-  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", CANVAS[mode])
-}
-
 function Providers(props: ParentProps) {
   return (
-    <ThemeProvider defaultTheme="kiwii" onThemeApplied={(_, mode) => paintChrome(mode)}>
-      <LanguageProvider>
-        <AuthProvider>
-          {props.children}
-          <ToastRegion />
-          <ConfirmHost />
-        </AuthProvider>
-      </LanguageProvider>
-    </ThemeProvider>
+    <LanguageProvider>
+      <AuthProvider>
+        {props.children}
+        <ToastRegion />
+        <ConfirmHost />
+      </AuthProvider>
+    </LanguageProvider>
   )
 }
 

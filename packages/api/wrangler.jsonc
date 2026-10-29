@@ -40,7 +40,7 @@
   "keep_vars": true,
   "vars": {
     "APP_URL": "https://kiwiiagent.com",
-    "EMAIL_FROM": "Kiwii <no-reply@kiwiiagent.com>",
+    "EMAIL_FROM": "Amberpix <no-reply@kiwiiagent.com>",
     // Receiving account shown on every VietQR; public by nature, so it lives here.
     "SEPAY_BANK_CODE": "ACB",
     "SEPAY_BANK_ACCOUNT": "20097141",

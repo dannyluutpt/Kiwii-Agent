@@ -1,6 +1,8 @@
 // Thin OpenAI-compatible streaming client for OpenRouter. Event names mirror @kiwii/llm so the
 // consumer can swap to that package later without touching its callers.
 
+import { BRAND, BRAND_URL } from "../brand"
+
 export type ChatMessage =
   | { role: "system"; content: string }
   | {
@@ -45,8 +47,8 @@ export async function* streamChat(request: StreamRequest): AsyncGenerator<LLMEve
     headers: {
       authorization: `Bearer ${request.apiKey}`,
       "content-type": "application/json",
-      "http-referer": "https://kiwii.luuhoanghiep.com",
-      "x-title": "Kiwii",
+      "http-referer": BRAND_URL,
+      "x-title": BRAND,
     },
     body: JSON.stringify({
       model: request.model,

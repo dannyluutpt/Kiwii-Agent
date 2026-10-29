@@ -1,122 +1,54 @@
 /*
-  Kiwii colour schemes: warm neutrals with the kiwi green accent.
+  Amberpix colours: one dark scheme, near-black surfaces and an amber-yellow accent.
 
-  The selectors outrank the `:root` block @kiwii/ui's ThemeProvider injects, so the shared theme
-  keeps feeding syntax highlighting while every surface here follows these values. Accent shades
-  are chosen for WCAG AA contrast: text and filled buttons use --k-accent, the brighter brand green
-  is kept for focus rings, selection marks and the logo.
+  Text on the yellow is always the near-black of the canvas (about 14:1), and the yellow reads at
+  about 14:1 on the canvas, so the accent works both as a fill and as a text colour. Warnings are
+  orange so they never pass for the accent. src/styles/contrast.test.ts checks the main pairs.
 */
 
-html[data-color-scheme="light"],
-html:not([data-color-scheme]) {
-  color-scheme: light;
-
-  --k-canvas: #fbfbf9;
-  --k-sidebar: #f3f3ef;
-  --k-surface: #ffffff;
-  --k-surface-2: #f2f2ee;
-  --k-surface-3: #e7e7e1;
-  --k-elevated: #ffffff;
-  --k-fill: rgb(48 48 36 / 0.05);
-  --k-fill-2: rgb(48 48 36 / 0.09);
-  --k-fill-3: rgb(48 48 36 / 0.14);
-  --k-separator: rgb(40 40 28 / 0.09);
-  --k-separator-strong: rgb(40 40 28 / 0.16);
-
-  --k-label: #1c1c18;
-  --k-label-2: #5f5f56;
-  --k-label-3: #8b8b80;
-
-  --k-accent: #3b7718;
-  --k-accent-hover: #326614;
-  --k-accent-brand: #5d9c2f;
-  --k-accent-soft: rgb(93 156 47 / 0.14);
-  --k-on-accent: #ffffff;
-
-  --k-danger: #c42b1c;
-  --k-danger-soft: rgb(196 43 28 / 0.1);
-  --k-on-danger: #ffffff;
-  --k-warning: #9a5b00;
-  --k-warning-soft: rgb(214 140 0 / 0.14);
-  --k-success: #2e7d32;
-  --k-success-soft: rgb(46 125 50 / 0.12);
-  --k-info: #1f63c4;
-  --k-info-soft: rgb(31 99 196 / 0.1);
-
-  --k-scrim: rgb(24 24 18 / 0.3);
-  --k-focus: #5d9c2f;
-  --k-glass: rgb(251 251 249 / 0.74);
-  --k-glass-opaque: #fbfbf9;
-
-  --k-shadow-raised: 0 0 0 0.5px rgb(30 30 20 / 0.08), 0 1px 2px rgb(30 30 20 / 0.05);
-  --k-shadow-floating:
-    0 0 0 0.5px rgb(30 30 20 / 0.08), 0 2px 4px rgb(30 30 20 / 0.04), 0 12px 32px -6px rgb(30 30 20 / 0.14);
-  --k-shadow-overlay: 0 0 0 0.5px rgb(30 30 20 / 0.1), 0 24px 64px -12px rgb(30 30 20 / 0.3);
-}
-
-html[data-color-scheme="dark"] {
+html {
   color-scheme: dark;
 
-  --k-canvas: #141513;
-  --k-sidebar: #1a1b18;
-  --k-surface: #1e1f1c;
-  --k-surface-2: #262724;
-  --k-surface-3: #31322e;
-  --k-elevated: #262724;
-  --k-fill: rgb(240 240 225 / 0.06);
-  --k-fill-2: rgb(240 240 225 / 0.1);
-  --k-fill-3: rgb(240 240 225 / 0.15);
-  --k-separator: rgb(240 240 225 / 0.09);
-  --k-separator-strong: rgb(240 240 225 / 0.16);
+  --k-canvas: #0a0a0a;
+  --k-sidebar: #0f0f0f;
+  --k-surface: #141414;
+  --k-surface-2: #1c1c1c;
+  --k-surface-3: #262626;
+  --k-elevated: #1a1a1a;
+  --k-fill: rgb(255 255 255 / 0.06);
+  --k-fill-2: rgb(255 255 255 / 0.1);
+  --k-fill-3: rgb(255 255 255 / 0.15);
+  --k-separator: rgb(255 255 255 / 0.08);
+  --k-separator-strong: rgb(255 255 255 / 0.14);
 
-  --k-label: #eeeee8;
-  --k-label-2: #a8a89d;
-  --k-label-3: #76766d;
+  --k-label: #f5f5f4;
+  --k-label-2: #a3a3a3;
+  --k-label-3: #7a7a7a;
 
-  --k-accent: #a3d36c;
-  --k-accent-hover: #b4dd85;
-  --k-accent-brand: #9ccc65;
-  --k-accent-soft: rgb(156 204 101 / 0.16);
-  --k-on-accent: #111a07;
+  --k-accent: #ffd60a;
+  --k-accent-hover: #ffe04d;
+  --k-accent-brand: #ffd60a;
+  --k-accent-soft: rgb(255 214 10 / 0.14);
+  --k-on-accent: #0a0a0a;
 
   --k-danger: #ff6b5e;
   --k-danger-soft: rgb(255 107 94 / 0.14);
   --k-on-danger: #240804;
-  --k-warning: #f5b544;
-  --k-warning-soft: rgb(245 181 68 / 0.14);
+  --k-warning: #ff9f0a;
+  --k-warning-soft: rgb(255 159 10 / 0.14);
   --k-success: #8fd88a;
   --k-success-soft: rgb(143 216 138 / 0.14);
   --k-info: #73aaff;
   --k-info-soft: rgb(115 170 255 / 0.14);
 
-  --k-scrim: rgb(0 0 0 / 0.56);
-  --k-focus: #9ccc65;
-  --k-glass: rgb(20 21 19 / 0.74);
-  --k-glass-opaque: #141513;
+  --k-scrim: rgb(0 0 0 / 0.6);
+  --k-focus: #ffd60a;
+  --k-glass: rgb(16 16 16 / 0.84);
+  --k-glass-opaque: #101010;
 
-  --k-shadow-raised: 0 0 0 0.5px rgb(255 255 240 / 0.07), 0 1px 2px rgb(0 0 0 / 0.35);
-  --k-shadow-floating: 0 0 0 0.5px rgb(255 255 240 / 0.09), 0 12px 32px -6px rgb(0 0 0 / 0.55);
-  --k-shadow-overlay: 0 0 0 0.5px rgb(255 255 240 / 0.11), 0 32px 80px -16px rgb(0 0 0 / 0.7);
-}
-
-/* Shared tokens the markdown renderer and remaining @kiwii/ui pieces read, mapped onto the scheme
-   above so every surface agrees. */
-html[data-color-scheme] {
-  --background-base: var(--k-canvas);
-  --background-weak: var(--k-sidebar);
-  --surface-base: var(--k-surface);
-  --surface-raised-base: var(--k-surface);
-  --surface-raised-base-hover: var(--k-surface-2);
-  --surface-raised-strong: var(--k-surface-2);
-  --surface-inset-base: var(--k-surface-2);
-  --border-weak-base: var(--k-separator);
-  --border-base: var(--k-separator-strong);
-  --text-strong: var(--k-label);
-  --text-base: var(--k-label);
-  --text-weak: var(--k-label-2);
-  --text-weaker: var(--k-label-3);
-  --text-interactive-base: var(--k-accent);
-  --icon-base: var(--k-label-2);
-  --surface-brand-base: var(--k-accent);
-  --text-on-brand-base: var(--k-on-accent);
+  --k-shadow-raised: 0 0 0 1px rgb(255 255 255 / 0.06), 0 1px 2px rgb(0 0 0 / 0.4);
+  --k-shadow-floating: 0 0 0 1px rgb(255 255 255 / 0.08), 0 16px 40px -8px rgb(0 0 0 / 0.6);
+  --k-shadow-overlay: 0 0 0 1px rgb(255 255 255 / 0.1), 0 32px 80px -16px rgb(0 0 0 / 0.75);
+  /* A thin yellow ring with a soft halo, for the one element a screen wants the eye on. */
+  --k-shadow-glow: 0 0 0 1px rgb(255 214 10 / 0.35), 0 8px 32px -8px rgb(255 214 10 / 0.4);
 }

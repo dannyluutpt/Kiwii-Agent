@@ -6,8 +6,8 @@ test.describe("phone", () => {
   test("the tab bar moves between the studio, the library and the account", async ({ page }) => {
     await page.goto("/images")
     const tabs = page.getByRole("navigation", { name: "Điều hướng chính" })
-    await expect(tabs.getByRole("link")).toHaveText(["Ảnh", "Thư viện", "Tài khoản"])
-    await expect(tabs.getByRole("link", { name: "Ảnh" })).toHaveClass(/text-accent/)
+    await expect(tabs.getByRole("link")).toHaveText(["Tạo ảnh", "Thư viện", "Tài khoản"])
+    await expect(tabs.getByRole("link", { name: "Tạo ảnh" })).toHaveClass(/text-accent/)
     await tabs.getByRole("link", { name: "Thư viện" }).click()
     await expect(page).toHaveURL(/\/images\/assets$/)
     await expect(page.getByRole("heading", { level: 1, name: "Thư viện" })).toBeVisible()
@@ -73,21 +73,19 @@ test.describe("desktop", () => {
   })
 })
 
-test("appearance follows the setting and survives a reload", async ({ page }) => {
+// There is one dark scheme: a light system setting changes nothing and the account screen offers no choice.
+test("the app is always dark", async ({ page }) => {
   await page.emulateMedia({ colorScheme: "light" })
   await page.goto("/account")
   const html = page.locator("html")
-  await expect(html).toHaveAttribute("data-color-scheme", "light")
-
-  await page.getByRole("radio", { name: "Tối" }).click({ force: true })
-  await expect(html).toHaveAttribute("data-color-scheme", "dark")
-  await page.reload()
-  await expect(html).toHaveAttribute("data-color-scheme", "dark")
-
-  await page.getByRole("radio", { name: "Tự động" }).click({ force: true })
-  await expect(html).toHaveAttribute("data-color-scheme", "light")
-  await page.emulateMedia({ colorScheme: "dark" })
-  await expect(html).toHaveAttribute("data-color-scheme", "dark")
+  await expect(html).toHaveCSS("color-scheme", "dark")
+  await expect(html).toHaveCSS("background-color", "rgb(10, 10, 10)")
+  await expect(page.getByRole("heading", { level: 1 })).toHaveCSS("color", "rgb(245, 245, 244)")
+  await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute("content", "#0a0a0a")
+  // On an iPhone Home Screen app the status bar stays black with white text, whatever the phone's setting.
+  await expect(page.locator('meta[name="apple-mobile-web-app-status-bar-style"]')).toHaveAttribute("content", "black")
+  await expect(page.getByRole("heading", { name: "Cài đặt" })).toBeVisible()
+  await expect(page.getByRole("radio", { name: "Tối" })).toHaveCount(0)
 })
 
 test("main screens render without script errors", async ({ page }) => {

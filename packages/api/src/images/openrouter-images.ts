@@ -1,3 +1,4 @@
+import { BRAND, BRAND_URL } from "../brand"
 import { DEFAULT_BASE_URL } from "../llm/openrouter"
 
 export type ImageReference = { type: "image_url"; image_url: { url: string } }
@@ -53,8 +54,8 @@ function headers(apiKey: string) {
   return {
     authorization: `Bearer ${apiKey}`,
     "content-type": "application/json",
-    "http-referer": "https://kiwiiagent.com",
-    "x-title": "Kiwii",
+    "http-referer": BRAND_URL,
+    "x-title": BRAND,
   }
 }
 

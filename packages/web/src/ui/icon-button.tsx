@@ -11,7 +11,7 @@ const VARIANTS: Record<IconButtonVariant, string> = {
   filled: "bg-fill-2 text-label hover:bg-fill-3",
   tinted: "bg-accent-soft text-accent hover:brightness-105",
   primary: "bg-accent text-on-accent shadow-raised hover:bg-accent-hover",
-  overlay: "bg-black/45 text-white backdrop-blur-md hover:bg-black/60",
+  overlay: "bg-black/50 text-white shadow-[inset_0_0_0_1px_rgb(255_255_255/0.1)] backdrop-blur-md hover:bg-black/65",
 }
 
 // Visual sizes stay compact (28 to 44px); on touch screens a transparent ::before widens the hit

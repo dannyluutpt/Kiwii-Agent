@@ -1,5 +1,6 @@
 import { and, eq, lt } from "drizzle-orm"
 import { ulid } from "ulid"
+import { BRAND_SLUG } from "../brand"
 import { refund, settle } from "../credits/ledger"
 import type { Database } from "../db/client"
 import { files, generation_images, generations } from "../db/schema"
@@ -68,7 +69,7 @@ export async function runGeneration(input: RunInput) {
       id: fileID,
       user_id: generation.user_id,
       r2_key: key,
-      name: `kiwii-${generation.id}-${position + 1}.${key.split(".").pop()}`,
+      name: `${BRAND_SLUG}-${generation.id}-${position + 1}.${key.split(".").pop()}`,
       mime: image.mime,
       size: image.bytes.byteLength,
       kind: "image",

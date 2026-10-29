@@ -126,22 +126,6 @@ export const IconSliders = icon(() => (
   </>
 ))
 
-export const IconSun = icon(() => (
-  <>
-    <circle cx="12" cy="12" r="3.75" />
-    <path d="M12 3v1.5M12 19.5V21M3 12h1.5M19.5 12H21M5.6 5.6l1.1 1.1M17.3 17.3l1.1 1.1M5.6 18.4l1.1-1.1M17.3 6.7l1.1-1.1" />
-  </>
-))
-
-export const IconMoon = icon(() => <path d="M19.5 14.6A8 8 0 0 1 9.4 4.5a8 8 0 1 0 10.1 10.1Z" />)
-
-export const IconAuto = icon(() => (
-  <>
-    <circle cx="12" cy="12" r="8.5" />
-    <path d="M12 3.5a8.5 8.5 0 0 1 0 17z" fill="currentColor" stroke="none" />
-  </>
-))
-
 export const IconStar = icon(() => <path d="m12 3.8 2.5 5.1 5.6.8-4 4 .9 5.6-5-2.6-5 2.6.9-5.6-4-4 5.6-.8z" />)
 
 export const IconLogout = icon(() => (

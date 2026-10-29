@@ -1,6 +1,6 @@
 # @kiwii/web
 
-The Kiwii web app (image studio) at https://kiwiiagent.com: a SolidJS single-page app that
+The Amberpix web app (image studio) at https://kiwiiagent.com: a SolidJS single-page app that
 `@kiwii/api` serves as static assets from the same Worker.
 
 ## Develop
@@ -26,12 +26,12 @@ Everything visual comes from `src/styles/`:
   `@kiwii/ui`'s stylesheet, which carries the desktop app's component CSS.
 - `tokens.css`: semantic colours (`bg-canvas`, `bg-surface`, `text-label-2`, `bg-accent`, …), the type
   scale (`text-large-title` … `text-caption-2`), named radii (`rounded-control`, `rounded-card`,
-  `rounded-panel`, `rounded-sheet`), elevation (`shadow-raised`, `shadow-floating`, `shadow-overlay`),
-  motion durations and easings, safe-area and `glass` utilities. With the theme reset, anything not
-  listed in these two files does not exist.
-- `theme.css`: the light and dark values, keyed on `html[data-color-scheme]`. The accent used for
-  text and filled buttons is a deeper kiwi green chosen for WCAG AA contrast; the brand green is
-  kept for focus rings and marks.
+  `rounded-panel`, `rounded-sheet`), elevation (`shadow-raised`, `shadow-floating`, `shadow-overlay`,
+  `shadow-glow`), motion durations and easings, safe-area, `glass`, `glass-panel` and `bg-ambient`
+  utilities. With the theme reset, anything not listed in these two files does not exist.
+- `theme.css`: the one colour scheme, dark: near-black surfaces and an amber-yellow accent
+  (`#ffd60a`). Text on the yellow is always black; `src/styles/contrast.test.ts` checks the main
+  pairs against WCAG AA.
 - `components.css`: enter and exit animations driven by Kobalte's `data-expanded` / `data-closed`
   attributes, the spinner and skeleton.
 
@@ -63,14 +63,19 @@ In that app a download link opens a file preview with no way back, and iPhone ke
 Photos anyway, so on iPhone and iPad the viewer's Download hands the picture
 to the share sheet instead ("Lưu hình ảnh", "Lưu vào Tệp"; `lib/save.ts`). Other devices download.
 
-The icons in `public/icons/` are `assets/logo.png` on an opaque `#141513` square, since iOS paints
-transparent areas black: about 78% of the square, 58% for the maskable one so Android's masks never
-cut it. Made with ImageMagick, from this folder:
+The mark (a black "A" whose crossbar is a pixel, on amber yellow) is drawn by `script/icons.ts`,
+which writes `public/logo.svg` (in-app logo and favicon), `public/logo.png` and the Home Screen
+icons in `public/icons/`. Those are full-bleed and opaque, since iOS paints transparent areas black
+and rounds the corners itself; the maskable one shrinks the glyph to 80% so Android's masks never
+cut it. After changing the mark, run from this folder:
 
 ```sh
-icon() { convert ../../assets/logo.png -trim +repage -resize "$2x$2" -background '#141513' -gravity center -extent "$3x$3" -alpha remove -alpha off -strip "public/icons/$1"; }
-icon apple-touch-icon.png 140 180; icon icon-192.png 150 192; icon icon-512.png 400 512; icon icon-maskable-512.png 297 512
+bun script/icons.ts
 ```
+
+The product name lives in `src/brand.ts` (and `packages/api/src/brand.ts`); strings say `{{brand}}`
+and `t()` fills it in. `index.html` and the manifest spell it out, and `src/brand.test.ts` keeps
+them in step.
 
 ## End-to-end tests
 

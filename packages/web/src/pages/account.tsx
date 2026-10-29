@@ -1,9 +1,8 @@
 import { useNavigate } from "@solidjs/router"
 import { createResource, createSignal, For, Show } from "solid-js"
-import { useTheme } from "@kiwii/ui/theme/context"
 import { api } from "@/api"
 import { orderItem, vnd, type Order } from "@/billing"
-import { IconAuto, IconLogout, IconMoon, IconSparkles, IconSun } from "@/components/icons"
+import { IconLogout, IconSparkles } from "@/components/icons"
 import { Page } from "@/components/page"
 import { useAuth } from "@/context/auth"
 import { useLanguage, type Locale } from "@/context/language"
@@ -33,7 +32,6 @@ const LEDGER_PAGE = 8
 export default function Account() {
   const { t, locale, setLocale } = useLanguage()
   const auth = useAuth()
-  const theme = useTheme()
   const navigate = useNavigate()
   const [sub] = createResource(() => api<Subscription>("/billing/subscription"))
   // Settled runs that used exactly what they reserved move no credit; they would only be noise here.
@@ -106,21 +104,8 @@ export default function Account() {
           />
         </ListGroup>
 
-        <ListSection title={t("theme.title")}>
+        <ListSection title={t("account.settings")}>
           <ListGroup>
-            <div class="p-3">
-              <Segmented
-                label={t("theme.title")}
-                block
-                value={theme.colorScheme()}
-                onChange={(scheme) => theme.setColorScheme(scheme)}
-                options={[
-                  { value: "system", label: t("theme.system"), icon: <IconAuto class="size-4" /> },
-                  { value: "light", label: t("theme.light"), icon: <IconSun class="size-4" /> },
-                  { value: "dark", label: t("theme.dark"), icon: <IconMoon class="size-4" /> },
-                ]}
-              />
-            </div>
             <ListRow label={t("account.language")}>
               <Segmented
                 label={t("account.language")}
