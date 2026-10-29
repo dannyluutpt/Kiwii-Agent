@@ -10,6 +10,8 @@ export type ImageModel = {
   aspectRatios: string[]
   maxReferences: number
   maxReferenceEdge: number
+  // Credits a run with reference pictures adds, where the provider bills them.
+  referenceSurcharge: number
 }
 export type ModelsResponse = {
   canGenerate: boolean
@@ -17,7 +19,6 @@ export type ModelsResponse = {
   parallelLimit: number
   maxImages: number
   maxReferences: number
-  referenceSurcharge: number
   credits: number
   models: ImageModel[]
 }

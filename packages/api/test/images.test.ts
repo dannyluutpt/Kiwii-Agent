@@ -16,6 +16,12 @@ describe("imageCreditCost", () => {
     expect(imageCreditCost(IMAGE_MODELS, { model: "flux-3-klein", option: "4K", n: 3, references: 0 })).toBe(6)
     expect(imageCreditCost(IMAGE_MODELS, { model: "gpt-image-2.5", option: "high", n: 1, references: 2 })).toBe(11)
     expect(imageCreditCost(IMAGE_MODELS, { model: "nano-banana-2.1", option: "2K", n: 4, references: 0 })).toBe(12)
+    expect(imageCreditCost(IMAGE_MODELS, { model: "nano-banana-2.1", option: "1K", n: 1, references: 1 })).toBe(3)
+  })
+
+  // OpenRouter bills the pictures Gemini and GPT Image read, but not FLUX 3 Klein's.
+  test("references cost nothing extra on FLUX", () => {
+    expect(imageCreditCost(IMAGE_MODELS, { model: "flux-3-klein", option: "1K", n: 1, references: 4 })).toBe(1)
   })
   test("rejects unknown or uncalibrated options and bad counts", () => {
     expect(

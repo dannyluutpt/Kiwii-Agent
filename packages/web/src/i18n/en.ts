@@ -132,6 +132,7 @@ export const dict: Record<I18nKey, string> = {
   "images.countShort": "×{{n}}",
   "images.modelPick": "Model: {{name}}",
   "images.references.addHint": "Add reference images (up to {{n}}, +{{extra}} credit)",
+  "images.references.addHintFree": "Add reference images (up to {{n}})",
   "images.options": "Options",
   "images.generateFor": "Generate, {{n}} credits",
   "images.generateCost": "Generate · {{n}} credits",

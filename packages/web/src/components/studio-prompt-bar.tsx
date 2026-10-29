@@ -107,7 +107,10 @@ export function StudioPromptBar(props: {
           onChange={(event) => event.currentTarget.files && void uploads.upload(event.currentTarget.files)}
         />
         <IconButton
-          label={t("images.references.addHint", { n: maxReferences(), extra: props.config.referenceSurcharge })}
+          label={t(model()?.referenceSurcharge ? "images.references.addHint" : "images.references.addHintFree", {
+            n: maxReferences(),
+            extra: model()?.referenceSurcharge ?? 0,
+          })}
           size="lg"
           icon={<IconImage class="size-[22px]" />}
           disabled={props.locked || uploads.uploading() || props.references.length >= maxReferences()}

@@ -77,9 +77,10 @@ export const { use: useStudio, provider: StudioProvider } = createSimpleContext(
 
     const cost = createMemo(() => {
       const cfg = config()
-      const option = cfg?.models.find((m) => m.id === settings.model)?.options.find((o) => o.id === settings.option)
-      if (!cfg || !option) return undefined
-      return option.credits * settings.n + (references().length > 0 ? cfg.referenceSurcharge : 0)
+      const model = cfg?.models.find((m) => m.id === settings.model)
+      const option = model?.options.find((o) => o.id === settings.option)
+      if (!model || !option) return undefined
+      return option.credits * settings.n + (references().length > 0 ? model.referenceSurcharge : 0)
     })
 
     const gallery = (key: string) => state.galleries[key]
