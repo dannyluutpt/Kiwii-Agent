@@ -1,4 +1,4 @@
-import { test as base, expect } from "@playwright/test"
+import { test as base, expect, type Page } from "@playwright/test"
 
 // The local Worker rate-limits by client IP and, unlike production behind Cloudflare, takes the
 // address from this header; give each test its own so a full run never trips the limit.
@@ -11,3 +11,17 @@ export const test = base.extend({
 
 export { expect }
 export type { Page } from "@playwright/test"
+
+// Web Share as iPhone has it (Chromium on Linux has none): what a page shares is written to
+// body[data-shared] as JSON, so a test can check the file without a share sheet.
+export async function recordShares(page: Page) {
+  await page.addInitScript(() => {
+    Object.assign(navigator, {
+      canShare: () => true,
+      share: async (data: ShareData) => {
+        const files = (data.files ?? []).map((file) => ({ name: file.name, type: file.type, size: file.size }))
+        document.body.dataset.shared = JSON.stringify(files)
+      },
+    })
+  })
+}

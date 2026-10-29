@@ -1,10 +1,13 @@
 import { Dialog as KDialog } from "@kobalte/core/dialog"
 import { createEffect, createSignal, Show } from "solid-js"
 import { useLanguage } from "@/context/language"
+import { prepareFile, savesThroughShare } from "@/lib/save"
 import { IconButton, iconButtonClass } from "@/ui/icon-button"
 import { IconChevronLeft, IconChevronRight, IconClose, IconDownload, IconRefresh } from "./icons"
+import { useShareFile } from "./save"
 
-export type LightboxItem = { src: string; alt: string; caption: string; download: string }
+// `download` is the picture's download link; `name` is what it is saved as through the share sheet.
+export type LightboxItem = { src: string; alt: string; caption: string; download: string; name: string }
 
 // Full-screen viewer over a set of pictures: arrow keys, the side buttons or a horizontal swipe step
 // through them; Escape, the close button or a tap on the backdrop leave. Kobalte traps focus, locks
@@ -35,6 +38,15 @@ export function Lightbox(props: {
     if (props.index === undefined || next < 0 || next >= count()) return
     props.onIndex(next)
   }
+
+  // On iPhone and iPad, Download hands the picture to the share sheet ("Lưu hình ảnh"); the open
+  // picture is fetched ahead so the sheet opens on the first tap.
+  const share = savesThroughShare()
+  const save = useShareFile()
+  createEffect(() => {
+    const current = item()
+    if (share && current && props.index !== undefined) void prepareFile(current.src, current.name)
+  })
 
   // Preload the neighbours so stepping through feels instant.
   createEffect(() => {
@@ -90,14 +102,31 @@ export function Lightbox(props: {
                 onClick={() => props.onReuse?.(position())}
               />
             </Show>
-            <a
-              href={item()?.download}
-              download=""
-              aria-label={t("images.download")}
-              class={iconButtonClass("overlay", "xl", undefined, true)}
+            <Show
+              when={share}
+              fallback={
+                <a
+                  href={item()?.download}
+                  download=""
+                  aria-label={t("images.download")}
+                  class={iconButtonClass("overlay", "xl", undefined, true)}
+                >
+                  <IconDownload class="size-5" />
+                </a>
+              }
             >
-              <IconDownload class="size-5" />
-            </a>
+              <IconButton
+                label={t("images.download")}
+                variant="overlay"
+                size="xl"
+                circle
+                icon={<IconDownload class="size-5" />}
+                onClick={() => {
+                  const current = item()
+                  if (current) void save(current.src, current.name)
+                }}
+              />
+            </Show>
             <IconButton
               label={t("common.close")}
               keys="Esc"

@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "./fixtures"
+import { expect, recordShares, test, type Page } from "./fixtures"
 import { PRO_STATE, STATE } from "./global-setup"
 
 // The image studio and library against the mock OpenRouter, as a paid account with credits.
@@ -216,6 +216,38 @@ test("every quality fits inside the options panel", async ({ page, isMobile }) =
     expect(box.x).toBeGreaterThanOrEqual(frame.x)
     expect(box.x + box.width).toBeLessThanOrEqual(frame.x + frame.width)
   }
+})
+
+// iPhone keeps pictures in Photos, and a download strands the Home Screen app on a file preview with
+// no way back; there Download hands the picture to the share sheet ("Lưu hình ảnh"). A computer
+// downloads it, even one whose browser could share.
+test("the viewer saves a picture through the share sheet on iPhone and downloads it elsewhere", async ({
+  page,
+  isMobile,
+}) => {
+  await recordShares(page)
+  await page.goto("/images")
+  const text = `Ảnh để lưu về máy ${isMobile ? "phone" : "desktop"}`
+  await prompt(page).fill(text)
+  await page.keyboard.press("Enter")
+  const first = card(page, text).getByRole("button", { name: /^Mở ảnh 1 trên/ })
+  await expect(first).toBeVisible({ timeout: 15_000 })
+  await first.click()
+  const viewer = page.getByRole("dialog")
+  if (!isMobile) {
+    const link = viewer.getByRole("link", { name: "Tải về" })
+    await expect(link).toHaveAttribute("download", "")
+    await expect(link).toHaveAttribute("href", /^\/api\/images\/files\/\w+\?download$/)
+    return
+  }
+  await viewer.getByRole("button", { name: "Tải về" }).click()
+  await expect(page.locator("body")).toHaveAttribute(
+    "data-shared",
+    /^\[\{"name":"kiwii-\w+\.png","type":"image\/png","size":[1-9]\d*\}\]$/,
+  )
+  // Nothing navigated: the viewer is still open over the studio.
+  await expect(viewer).toBeVisible()
+  await expect(page).toHaveURL(/\/images$/)
 })
 
 test("switching models changes the price", async ({ page, isMobile }) => {

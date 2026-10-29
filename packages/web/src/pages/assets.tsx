@@ -118,6 +118,7 @@ export default function Assets() {
           alt: altFor(asset),
           caption: asset.prompt,
           download: `${asset.url}?download`,
+          name: `kiwii-${asset.id}`,
         }))}
         index={viewer()}
         onIndex={setViewer}

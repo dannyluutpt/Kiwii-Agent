@@ -1,9 +1,11 @@
 import { createSignal, For, Show } from "solid-js"
 import { useLanguage } from "@/context/language"
+import { savesThroughShare } from "@/lib/save"
 import { IconButton } from "@/ui/icon-button"
 import { toast } from "@/ui/toast"
 import { IconCheck, IconCopy, IconDocument, IconRefresh } from "./icons"
 import { Markdown } from "./markdown"
+import { useShareFile } from "./save"
 
 export type Part =
   | { type: "text"; text: string }
@@ -101,20 +103,23 @@ export function MessageView(props: { message: Message; last: boolean; busy: bool
   )
 }
 
+const FILE_CARD =
+  "flex max-w-full items-center gap-3 rounded-card bg-surface py-2.5 pr-4 pl-2.5 text-left shadow-raised transition-[background-color] duration-(--motion-micro) hover:bg-surface-2"
+
+// A file Kiwii made. A link downloads it; on iPhone and iPad a tap hands it to the share sheet
+// ("Lưu vào Tệp", Word, Excel) instead, since a download there strands the Home Screen app.
 export function FileCard(props: { file: FilePart }) {
   const { t } = useLanguage()
+  const save = useShareFile()
+  const url = () => `/api/chat/files/${props.file.file_id}`
   const size = () =>
     props.file.size > 1024 * 1024
       ? `${(props.file.size / 1024 / 1024).toFixed(1)} MB`
       : `${Math.max(1, Math.round(props.file.size / 1024))} KB`
   const extension = () => (props.file.name.includes(".") ? props.file.name.split(".").pop()!.toUpperCase() : "")
-  return (
-    <a
-      href={`/api/chat/files/${props.file.file_id}`}
-      download={props.file.name}
-      class="flex max-w-full items-center gap-3 rounded-card bg-surface py-2.5 pr-4 pl-2.5 shadow-raised transition-[background-color] duration-(--motion-micro) hover:bg-surface-2"
-      aria-label={`${props.file.name}, ${size()}, ${t("chat.download")}`}
-    >
+  const label = () => `${props.file.name}, ${size()}, ${t("chat.download")}`
+  const body = () => (
+    <>
       <span class="flex size-10 shrink-0 items-center justify-center rounded-[11px] bg-accent-soft text-accent">
         <IconDocument class="size-5" />
       </span>
@@ -124,6 +129,20 @@ export function FileCard(props: { file: FilePart }) {
           {[extension(), size(), t("chat.download")].filter(Boolean).join(" · ")}
         </span>
       </span>
-    </a>
+    </>
+  )
+  return (
+    <Show
+      when={savesThroughShare()}
+      fallback={
+        <a href={url()} download={props.file.name} class={FILE_CARD} aria-label={label()}>
+          {body()}
+        </a>
+      }
+    >
+      <button type="button" class={FILE_CARD} aria-label={label()} onClick={() => void save(url(), props.file.name)}>
+        {body()}
+      </button>
+    </Show>
   )
 }

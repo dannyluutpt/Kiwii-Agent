@@ -7,6 +7,8 @@ export const dict = {
   "common.close": "Đóng",
   "common.retry": "Thử lại",
   "common.done": "Xong",
+  "save.again": "Đã sẵn sàng, bấm lần nữa để lưu",
+  "save.failed": "Không lưu được tệp, hãy thử lại",
   "nav.chat": "Kiwii Chat",
   "nav.images": "Kiwii Image",
   "nav.assets": "Thư viện",
