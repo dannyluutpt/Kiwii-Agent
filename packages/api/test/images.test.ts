@@ -142,6 +142,18 @@ describe("enhancePrompt", () => {
     expect(system).not.toContain("which you cannot see")
   })
 
+  // Seeing the pictures, the rewrite put a man into a street photo by removing the woman in it, posed
+  // him like his portrait, and copied a coffee bag's label with a missing accent.
+  test("seen pictures keep their people and their text, and nobody brings the pose of their photo", async () => {
+    const { system } = await enhanceWith(answer({ allowed: true, reason: "", prompt: "Put him in" }, 0), 2, {
+      pictures: ["data:image/jpeg;base64,AAAA", "data:image/jpeg;base64,BBBB"],
+    })
+    expect(system).toContain("Remove, replace or move no one unless they ask.")
+    expect(system).toContain("Someone put into it joins the people already there")
+    expect(system).toContain("without the pose or gaze of the photo they come from")
+    expect(system).toContain("Do not copy out text already written in a picture")
+  })
+
   test("without the small copies, the words go alone and the rewrite knows only how many pictures there are", async () => {
     const { system, asked } = await enhanceWith(
       answer({ allowed: true, reason: "", prompt: "Put the fox in snow" }, 0),
