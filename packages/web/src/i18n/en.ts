@@ -62,6 +62,11 @@ export const dict: Record<I18nKey, string> = {
   "video.status.wait": "Usually 2–5 minutes",
   "video.open": "Play the video",
   "video.missing": "This video could not be made",
+  "video.lead":
+    "Describe the video: it is made straight from your words with the settings below, usually in 2–5 minutes.",
+  "video.suggest.waves": "Waves breaking on the rocks at dawn, the camera slowly panning right",
+  "video.suggest.coffee": "An iced Vietnamese coffee beading with water on a wooden table, close-up",
+  "video.suggest.lanterns": "Hội An old town at night, lanterns swaying in the breeze",
   "video.empty.title": "No videos yet",
   "video.empty.lead": "Pick Video in the composer, describe the scene and press Make video.",
   "characters.title": "Characters",

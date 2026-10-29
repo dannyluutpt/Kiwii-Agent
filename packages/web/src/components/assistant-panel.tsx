@@ -11,6 +11,7 @@ import { AssistantMessage } from "./assistant-message"
 import { IconSparkles } from "./icons"
 
 const SUGGESTIONS: I18nKey[] = ["assistant.suggest.poster", "assistant.suggest.variants", "assistant.suggest.edit"]
+const VIDEO_SUGGESTIONS: I18nKey[] = ["video.suggest.waves", "video.suggest.coffee", "video.suggest.lanterns"]
 
 // The right column of the workspace: the project's conversation with the image assistant above
 // its composer. In "all", the first message opens a project of its own. In video mode the composer
@@ -27,6 +28,7 @@ export function AssistantPanel(props: {
   let log: HTMLDivElement | undefined
   const thread = () => assistant.thread(props.projectID)
   const messages = () => thread()?.messages ?? []
+  const clip = () => studio.mode() === "video"
 
   createEffect(
     on(
@@ -82,9 +84,9 @@ export function AssistantPanel(props: {
               <IconSparkles class="size-6" />
             </span>
             <h3 class="text-title-3 text-label">{t("assistant.greeting")}</h3>
-            <p class="text-footnote text-label-2">{t("assistant.lead")}</p>
+            <p class="text-footnote text-label-2">{clip() ? t("video.lead") : t("assistant.lead")}</p>
             <ul class="mt-1 flex flex-col items-stretch gap-2 self-stretch" aria-label={t("images.suggest.label")}>
-              <For each={SUGGESTIONS}>
+              <For each={clip() ? VIDEO_SUGGESTIONS : SUGGESTIONS}>
                 {(key) => (
                   <li>
                     <button
