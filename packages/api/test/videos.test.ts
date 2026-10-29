@@ -1,9 +1,11 @@
 import { afterEach, describe, expect, mock, spyOn, test } from "bun:test"
 import { eq } from "drizzle-orm"
+import { createCharacter } from "../src/characters/store"
 import { balance, grant } from "../src/credits/ledger"
 import { app_config, credit_ledger, files, generation_images, generations, users } from "../src/db/schema"
 import { enhancePrompt } from "../src/images/enhance"
 import { reapStaleGenerations } from "../src/images/generate"
+import { CreateGeneration, prepareGeneration } from "../src/images/prepare"
 import { byteSpan } from "../src/images/r2"
 import { loadVideoModels, videoCreditCost, VIDEO_MODELS } from "../src/videos/models"
 import { CreateVideo, prepareVideo } from "../src/videos/prepare"
@@ -330,6 +332,48 @@ describe("a video run", () => {
       job_id: "job1",
     })
     expect(await balance(context.db, "u1")).toBe(100)
+  })
+})
+
+describe("a clip is never used as a picture", () => {
+  test("as a reference, a first frame or a character's photo", async () => {
+    const { db, user, bucket } = await setup()
+    await bucket.put("u/u1/clip.mp4", CLIP, { httpMetadata: { contentType: "video/mp4" } })
+    await db.insert(files).values({
+      id: "clip",
+      user_id: "u1",
+      r2_key: "u/u1/clip.mp4",
+      name: "clip.mp4",
+      mime: "video/mp4",
+      size: CLIP.byteLength,
+      kind: "video",
+    })
+    openRouter()
+    const reference = CreateGeneration.parse({
+      model: "nano-banana-2.1",
+      option: "1K",
+      aspectRatio: "1:1",
+      prompt: "Một chiếc thuyền",
+      referenceFileIDs: ["clip"],
+    })
+    expect(
+      await prepareGeneration({ db, bucket, apiKey: "k", user, request: reference }).catch((e: unknown) => e),
+    ).toMatchObject({
+      status: 404,
+      code: "FILE_NOT_FOUND",
+    })
+    const frame = request({ referenceFileIDs: ["clip"] })
+    expect(
+      await prepareVideo({ db, bucket, apiKey: "k", user, request: frame }).catch((e: unknown) => e),
+    ).toMatchObject({
+      status: 404,
+      code: "FILE_NOT_FOUND",
+    })
+    const character = await createCharacter(db, bucket, { userID: "u1", name: "Lan", fileIDs: ["clip"] }).catch(
+      (e: unknown) => e,
+    )
+    expect(character).toMatchObject({ status: 400, code: "NOT_A_PICTURE" })
+    expect(await balance(db, "u1")).toBe(100)
   })
 })
 

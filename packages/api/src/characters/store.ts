@@ -4,7 +4,7 @@ import { ApiError } from "../app"
 import type { Database } from "../db/client"
 import { characters, files } from "../db/schema"
 import { fileURL } from "../images/present"
-import { objectKey } from "../images/r2"
+import { IMAGE_MIMES, objectKey } from "../images/r2"
 
 export type Character = typeof characters.$inferSelect
 
@@ -84,6 +84,7 @@ export async function createCharacter(
   const copies: Array<typeof files.$inferInsert> = []
   for (const id of ids) {
     const source = sources.find((file) => file.id === id)
+    if (source && !IMAGE_MIMES.has(source.mime)) throw new ApiError(400, "NOT_A_PICTURE", "Nhân vật chỉ dùng được ảnh")
     const object = source && (await bucket.get(source.r2_key))
     if (!source || !object) throw new ApiError(404, "FILE_NOT_FOUND", "Không tìm thấy ảnh")
     const key = objectKey(input.userID, source.mime)

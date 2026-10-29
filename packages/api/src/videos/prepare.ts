@@ -8,7 +8,7 @@ import { files, generations } from "../db/schema"
 import { enhancePrompt } from "../images/enhance"
 import { reapStaleGenerations } from "../images/generate"
 import { glance } from "../images/glance"
-import { toDataURL } from "../images/r2"
+import { IMAGE_MIMES, toDataURL } from "../images/r2"
 import { languageModels } from "../llm/models"
 import { loadPlan } from "../plans"
 import { ownProject, touchProject } from "../projects/store"
@@ -74,12 +74,14 @@ export async function prepareVideo(input: {
   const fileID = body.referenceFileIDs[0]
   const row = fileID
     ? await db
-        .select({ r2_key: files.r2_key })
+        .select({ r2_key: files.r2_key, mime: files.mime })
         .from(files)
         .where(and(eq(files.id, fileID), eq(files.user_id, input.user.id)))
         .get()
     : undefined
-  if (fileID && !row) throw new ApiError(404, "FILE_NOT_FOUND", "Ảnh tham chiếu không tồn tại")
+  if (fileID && (!row || !IMAGE_MIMES.has(row.mime))) {
+    throw new ApiError(404, "FILE_NOT_FOUND", "Ảnh tham chiếu không tồn tại")
+  }
   const images = input.images
   const firstFrame = row
     ? await (images

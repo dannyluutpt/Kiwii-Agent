@@ -226,9 +226,12 @@ images.get("/assets", async (c) => {
       fileID: generation_images.file_id,
       generationID: generation_images.generation_id,
       createdAt: generation_images.created_at,
+      kind: generations.kind,
       model: generations.model,
       option: generations.option,
       aspectRatio: generations.aspect_ratio,
+      // Seconds, for a video.
+      duration: generations.duration,
       prompt: generations.prompt_raw,
     })
     .from(generation_images)

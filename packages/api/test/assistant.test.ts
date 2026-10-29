@@ -3,7 +3,7 @@ import { asc, eq } from "drizzle-orm"
 import { checkAssistant, DAILY_MESSAGES, runAssistantTurn, type AssistantEvent } from "../src/assistant/turn"
 import { createCharacter } from "../src/characters/store"
 import { balance, grant } from "../src/credits/ledger"
-import { files, generations, project_messages, users } from "../src/db/schema"
+import { files, generation_images, generations, project_messages, users } from "../src/db/schema"
 import { createProject, ownProject } from "../src/projects/store"
 import { testDatabase } from "./db"
 
@@ -211,6 +211,55 @@ describe("runAssistantTurn", () => {
     expect(history[4]).toMatchObject({ content: "Xong." })
     expect(JSON.stringify(history)).not.toContain("made pictures")
     expect(calls.images.at(-1)?.input_references).toHaveLength(1)
+  })
+
+  test("a video in the project is never offered as a picture to work from", async () => {
+    const { db, project, turn } = await setup()
+    const calls = openrouter([
+      { calls: [{ prompt: "Ngọn hải đăng lúc bình minh" }] },
+      { text: "Xong." },
+      { calls: [{ prompt: "Ngọn hải đăng lúc hoàng hôn", reference_images: ["#1"] }] },
+      { text: "Đã đổi sang hoàng hôn." },
+    ])
+    await turn("Ngọn hải đăng lúc bình minh")
+    const picture = (await db.select().from(generation_images).get())!
+    // A clip made since, in the same project: the newest run.
+    await db.insert(generations).values({
+      id: "zz-clip",
+      user_id: "u1",
+      kind: "video",
+      status: "done",
+      model: "wan-3.0",
+      option: "720p",
+      aspect_ratio: "16:9",
+      n: 1,
+      duration: 5,
+      prompt_raw: "Sóng vỗ vào chân hải đăng",
+      credits_reserved: 27,
+      project_id: project.id,
+    })
+    await db.insert(files).values({
+      id: "clip",
+      user_id: "u1",
+      r2_key: "u/u1/clip.mp4",
+      name: "clip.mp4",
+      mime: "video/mp4",
+      size: 1,
+      kind: "video",
+      generation_id: "zz-clip",
+    })
+    await db
+      .insert(generation_images)
+      .values({ id: "clip", generation_id: "zz-clip", user_id: "u1", file_id: "clip", position: 0 })
+    await turn("Đổi nền sang hoàng hôn")
+
+    expect(String(calls.sent[2]!.messages[0]!.content)).not.toContain("Sóng vỗ")
+    const edited = (await db
+      .select()
+      .from(generations)
+      .where(eq(generations.prompt_raw, "Ngọn hải đăng lúc hoàng hôn"))
+      .get())!
+    expect(JSON.parse(edited.reference_file_ids)).toEqual([picture.file_id])
   })
 
   test("a refused prompt becomes a notice and costs nothing", async () => {

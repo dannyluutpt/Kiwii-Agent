@@ -15,7 +15,7 @@ import { reapStaleGenerations } from "./generate"
 import { glance } from "./glance"
 import { imageCreditCost, ImageModelID, loadImageModels, MAX_IMAGES_PER_RUN, MAX_REFERENCES } from "./models"
 import type { ImageReference } from "./openrouter-images"
-import { toDataURL } from "./r2"
+import { IMAGE_MIMES, toDataURL } from "./r2"
 
 export const CreateGeneration = z.object({
   model: z.enum(ImageModelID),
@@ -110,14 +110,14 @@ export async function prepareGeneration(input: {
   // In the order the legend numbers them.
   const rows = sent.length
     ? await db
-        .select({ id: files.id, r2_key: files.r2_key })
+        .select({ id: files.id, r2_key: files.r2_key, mime: files.mime })
         .from(files)
         .where(and(eq(files.user_id, input.user.id), inArray(files.id, sent)))
     : []
   const references: ImageReference[] = []
   for (const fileID of sent) {
     const row = rows.find((item) => item.id === fileID)
-    const url = row && (await toDataURL(input.bucket, row.r2_key))
+    const url = row && IMAGE_MIMES.has(row.mime) ? await toDataURL(input.bucket, row.r2_key) : undefined
     if (!url) throw new ApiError(404, "FILE_NOT_FOUND", "Ảnh tham chiếu không tồn tại")
     references.push({ type: "image_url", image_url: { url } })
   }
