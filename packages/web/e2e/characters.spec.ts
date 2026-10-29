@@ -65,13 +65,13 @@ test("a picture saved as a character can be picked, and the next run features it
   await expect(
     card(page, `${name} đi dạo trong công viên`).getByRole("button", { name: /^Mở ảnh 1 trên/ }),
   ).toBeVisible({ timeout: 15_000 })
-  const characters = (await (await page.request.get("/api/characters")).json()) as {
-    characters: Array<{ id: string; name: string }>
-  }
+  const characters: { characters: Array<{ id: string; name: string }> } = await (
+    await page.request.get("/api/characters")
+  ).json()
   const id = characters.characters.find((c) => c.name === name)?.id
-  const runs = (await (await page.request.get("/api/images/generations?limit=24")).json()) as {
-    generations: Array<{ prompt: string; characterIDs: string[] }>
-  }
+  const runs: { generations: Array<{ prompt: string; characterIDs: string[] }> } = await (
+    await page.request.get("/api/images/generations?limit=24")
+  ).json()
   // The mock assistant's prompt is the message as the model reads it, which names the picked character.
   const run = runs.generations.find((g) => g.prompt.startsWith(`${name} đi dạo trong công viên`))
   expect(run?.characterIDs).toEqual([id])

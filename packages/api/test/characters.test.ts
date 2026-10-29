@@ -54,7 +54,7 @@ async function setup() {
   const { store, bucket } = fakeBucket()
   // A picture of the account: `key` in R2 holds bytes that say which picture it is.
   const picture = async (id: string, userID = "u1") => {
-    await bucket.put(`u/${userID}/${id}.jpg`, new TextEncoder().encode(id).buffer as ArrayBuffer, {
+    await bucket.put(`u/${userID}/${id}.jpg`, new TextEncoder().encode(id).buffer, {
       httpMetadata: { contentType: "image/jpeg" },
     })
     await db.insert(files).values({
@@ -119,8 +119,13 @@ describe("characters", () => {
   })
 
   test("each character keeps one photo at least and takes more in turn while there is room", () => {
-    const character = (id: string, photos: number) =>
-      ({ id, file_ids: JSON.stringify(Array.from({ length: photos }, (_, i) => `${id}${i + 1}`)) }) as Character
+    const character = (id: string, photos: number): Character => ({
+      id,
+      user_id: "u1",
+      name: id,
+      file_ids: JSON.stringify(Array.from({ length: photos }, (_, i) => `${id}${i + 1}`)),
+      created_at: 0,
+    })
     const lan = character("lan", 4)
     const minh = character("minh", 2)
     expect(castPhotos([lan], 4)).toEqual([["lan1", "lan2", "lan3", "lan4"]])

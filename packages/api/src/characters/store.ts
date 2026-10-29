@@ -56,9 +56,9 @@ export async function ownCharacters(db: Database, userID: string, ids: string[])
     .select()
     .from(characters)
     .where(and(eq(characters.user_id, userID), inArray(characters.id, ids)))
-  const found = ids.map((id) => rows.find((row) => row.id === id))
-  if (found.some((row) => !row)) throw new ApiError(404, "CHARACTER_NOT_FOUND", "Không tìm thấy nhân vật")
-  return found as Character[]
+  const found = ids.flatMap((id) => rows.filter((row) => row.id === id))
+  if (found.length !== ids.length) throw new ApiError(404, "CHARACTER_NOT_FOUND", "Không tìm thấy nhân vật")
+  return found
 }
 
 // Saves a character from pictures of the account: uploads or generated pictures. Each photo is copied,
