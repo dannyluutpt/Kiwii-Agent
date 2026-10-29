@@ -28,11 +28,26 @@ export function blockedByDenylist(prompt: string) {
 
 const STYLE_HINTS: Record<ImageModelID, string> = {
   "flux-3-klein":
-    "Write one dense descriptive paragraph (not a conversation): subject, setting, composition, lighting, lens, materials, colour palette.",
-  "nano-banana-2.1":
-    "If reference images are provided, write it as an editing instruction that keeps the identity, pose and style of the references. Otherwise write a vivid natural description.",
+    "Write one plain descriptive paragraph: the subject and what it does first, then the setting and its light.",
+  "nano-banana-2.1": "Write natural sentences.",
   "gpt-image-2.5":
-    "Use natural language. If the user asks for text in the image, quote the exact text in double quotes and describe its placement and typography.",
+    "Write natural sentences. Words that should appear in the picture go in double quotes, exactly as given, with where they sit.",
+}
+
+// The rewrite translates and clarifies; it must not stage the picture. Embellished prompts ("a
+// subtle smile", "50mm lens", "shallow depth of field", a change of clothes) made people pose and
+// look at the camera, which reads as a stock photo, and drifted edits away from the reference.
+function rewriteRules(model: ImageModelID, references: number) {
+  return [
+    `When allowed, rewrite the prompt in English for ${model} as a faithful, clear translation:`,
+    "- Keep everything the person asked for: subjects, actions, poses, expressions, clothing, counts, named styles and quoted text. Translate the meaning faithfully and no stronger: a faint smile stays faint.",
+    "- Add nothing they did not ask for: no new people, objects, clothes, expressions or gestures, and no camera, lens, depth-of-field or quality words (8k, masterpiece, ultra-detailed, cinematic).",
+    "- Photographs should look natural and believable. Unless they ask for a posed shot such as a portrait or a selfie, a photo shows an ordinary, candid moment: people carry on with what they are doing and do not look at the camera, in the light the place really has.",
+    references > 0
+      ? `- They attached ${references} reference image(s), which you cannot see, so this is an edit. Say the change they asked for, then that everything else stays exactly as in the reference image(s): people's faces, hair and clothes, the objects, the room, the framing, the camera angle, the light and the style. Refer to each one the way they do (for example "the photo of the scanner") or as "the reference image", without describing what is in it.`
+      : "- Fill in only what the picture needs and they left open (setting, light, framing), briefly and plainly.",
+    `- At most 100 words, no preamble. ${STYLE_HINTS[model]}`,
+  ].join("\n")
 }
 
 export const ENHANCE_MODEL = ASSISTANT_MODEL
@@ -74,11 +89,8 @@ export async function enhancePrompt(input: {
     'Reply with JSON only: {"allowed": boolean, "reason": string, "prompt": string}.',
     "Set allowed=false (and explain briefly in Vietnamese in reason) for: sexual content involving minors, sexual deepfakes or nudity of real identifiable people, gore or graphic violence, hate symbols or propaganda, instructions for weapons or drugs. Everything else is allowed, including artistic nudity-free portraits of public figures in neutral contexts.",
     input.rewrite
-      ? `When allowed, rewrite the prompt in English for ${input.model}: keep the user's subject, intent, named styles and any quoted text exactly; translate from Vietnamese if needed; add composition, lighting, lens or medium details only where the user left them open; at most 120 words; no preamble. ${STYLE_HINTS[input.model]}`
+      ? rewriteRules(input.model, input.references)
       : "When allowed, return the user's prompt unchanged in prompt (translate to English only if it is not already English; keep quoted text exactly).",
-    input.references > 0
-      ? `The user attached ${input.references} reference image(s); the prompt should refer to them as "the reference image(s)".`
-      : "",
   ]
     .filter(Boolean)
     .join("\n")
@@ -90,12 +102,19 @@ export async function enhancePrompt(input: {
       { role: "system", content: system },
       { role: "user", content: input.prompt },
     ],
-    maxTokens: 350,
-    temperature: 0.4,
-    timeoutMs: 8000,
-  }).catch(() => ({ value: undefined, costUsd: 0 }))
+    // About a quarter of rewrites came back empty or late at 350 tokens and 8 seconds, and those runs
+    // went out unscreened and unrewritten; completeJSON now also turns the model's thinking off.
+    maxTokens: 900,
+    temperature: 0.3,
+    timeoutMs: 12000,
+  }).catch((error: unknown) => ({
+    value: undefined,
+    costUsd: 0,
+    failure: error instanceof Error ? error.name : "network error",
+  }))
   const { value: result, costUsd } = reply
   if (!result || typeof result.allowed !== "boolean") {
+    console.warn(`[enhance] kept the prompt as written: ${reply.failure ?? "no allowed field in the reply"}`)
     return { allowed: true, prompt: input.prompt, rewritten: false, costUsd }
   }
   if (!result.allowed) {

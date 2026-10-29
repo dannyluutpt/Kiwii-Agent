@@ -182,21 +182,33 @@ export async function completeJSON(request: Omit<StreamRequest, "signal"> & { ti
       max_tokens: request.maxTokens,
       temperature: request.temperature,
       response_format: { type: "json_object" },
+      // A short JSON answer needs no thinking. A thinking model otherwise spends max_tokens on it and
+      // returns empty content; ASSISTANT_MODEL lets it be turned off.
+      reasoning: { effort: "none" },
       usage: { include: true },
     }),
     signal: AbortSignal.timeout(request.timeoutMs ?? 8000),
   })
-  if (!res.ok) return { costUsd: 0 }
+  if (!res.ok) return { costUsd: 0, failure: `HTTP ${res.status}` }
   const body = (await res.json()) as {
     choices?: Array<{ message?: { content?: string } }>
     usage?: { cost?: number }
   }
   const costUsd = body.usage?.cost ?? 0
   const content = body.choices?.[0]?.message?.content
-  if (!content) return { costUsd }
+  if (!content) return { costUsd, failure: "empty reply" }
+  const value = parseObject(content)
+  return value ? { value, costUsd } : { costUsd, failure: "no JSON object in the reply" }
+}
+
+// Some models wrap the object in a code fence or a sentence even in JSON mode.
+function parseObject(text: string): Record<string, unknown> | undefined {
+  const start = text.indexOf("{")
+  const end = text.lastIndexOf("}")
+  if (start < 0 || end <= start) return undefined
   try {
-    return { value: JSON.parse(content) as Record<string, unknown>, costUsd }
+    return JSON.parse(text.slice(start, end + 1)) as Record<string, unknown>
   } catch {
-    return { costUsd }
+    return undefined
   }
 }
