@@ -241,6 +241,41 @@ test("a run whose stream breaks off still shows its picture", async ({ page, isM
   await expect(card(page, text)).toHaveAttribute("aria-busy", "false")
 })
 
+// A 600 × 400 JPEG whose EXIF tag says to turn it a quarter clockwise, as a phone saves a photo taken
+// upright.
+async function rotatedPhoto(page: Page) {
+  const { buffer } = await photo(page, 600, 400)
+  const exif = Buffer.from([
+    ...[0xff, 0xe1, 0x00, 0x22],
+    ...Buffer.from("Exif\0\0", "binary"),
+    ...[0x4d, 0x4d, 0x00, 0x2a, 0x00, 0x00, 0x00, 0x08],
+    ...[0x00, 0x01, 0x01, 0x12, 0x00, 0x03, 0x00, 0x00, 0x00, 0x01, 0x00, 0x06, 0x00, 0x00],
+    ...[0x00, 0x00, 0x00, 0x00],
+  ])
+  return {
+    name: "phone.jpg",
+    mimeType: "image/jpeg",
+    buffer: Buffer.concat([buffer.subarray(0, 2), exif, buffer.subarray(2)]),
+  }
+}
+
+// The size a JPEG's frame header gives.
+function jpegSize(bytes: Buffer) {
+  const at = bytes.findIndex((byte, i) => byte === 0xff && [0xc0, 0xc1, 0xc2].includes(bytes[i + 1] ?? 0))
+  return { width: bytes.readUInt16BE(at + 7), height: bytes.readUInt16BE(at + 5) }
+}
+
+// Some image models ignore the EXIF rotation, and the same metadata holds where the photo was taken.
+test("a reference photo goes up upright and without its metadata", async ({ page }) => {
+  await page.goto("/")
+  await page.locator('input[type="file"]').setInputFiles(await rotatedPhoto(page))
+  const thumb = page.getByRole("list", { name: "Ảnh tham chiếu" }).getByRole("img")
+  await expect(thumb).toBeVisible({ timeout: 15_000 })
+  const stored = await (await page.request.get((await thumb.getAttribute("src"))!)).body()
+  expect(stored.includes("Exif")).toBe(false)
+  expect(jpegSize(stored)).toEqual({ width: 400, height: 600 })
+})
+
 test("a large reference photo is scaled to what the chosen model takes", async ({ page, isMobile }) => {
   await page.goto("/")
   // A 24-megapixel photo, larger than the image models accept. GPT Image takes a 4096px edge.
