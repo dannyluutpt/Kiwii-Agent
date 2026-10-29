@@ -1,5 +1,5 @@
 import { useNavigate } from "@solidjs/router"
-import { createEffect, createMemo, createResource, createSignal } from "solid-js"
+import { createEffect, createMemo, createResource, createSignal, onCleanup } from "solid-js"
 import { createStore, produce } from "solid-js/store"
 import { createSimpleContext } from "@kiwii/ui/context/helper"
 import { api, ApiError, apiStream, type SSEEvent } from "@/api"
@@ -180,6 +180,42 @@ export const { use: useStudio, provider: StudioProvider } = createSimpleContext(
       }
     }
 
+    // A run's stream can end or stall before its last event: iOS suspends a page in the background,
+    // and a phone network may drop a quiet connection while a picture renders. The tile would then
+    // spin as if the run were starting over, though the server finished long ago. So while any run
+    // here is running, the studio asks the server how the latest runs stand: every 10 seconds, when
+    // the page comes back, and right after a stream ends early.
+    const settle = async () => {
+      const waiting = Object.values(state.runs).filter((g) => g.status === "running" && !g.id.startsWith("pending-"))
+      if (waiting.length === 0) return
+      const page = await api<{ generations: Generation[] }>("/images/generations?limit=24").catch(() => undefined)
+      for (const run of waiting) {
+        const known =
+          page?.generations.find((g) => g.id === run.id) ??
+          (await api<Generation>(`/images/generations/${run.id}`).catch(() => undefined))
+        if (!known || known.status === "running") continue
+        update(run.id, (g) => {
+          g.status = known.status
+          g.images = known.images
+          g.creditsFinal = known.creditsFinal
+          g.error = known.error
+          g.finishedAt = known.finishedAt
+        })
+        void auth.refresh()
+      }
+    }
+    const back = () => {
+      if (document.visibilityState === "visible") void settle()
+    }
+    const timer = setInterval(() => void settle(), 10_000)
+    document.addEventListener("visibilitychange", back)
+    window.addEventListener("online", back)
+    onCleanup(() => {
+      clearInterval(timer)
+      document.removeEventListener("visibilitychange", back)
+      window.removeEventListener("online", back)
+    })
+
     const drop = (id: string) =>
       setState(
         produce((s) => {
@@ -253,6 +289,8 @@ export const { use: useStudio, provider: StudioProvider } = createSimpleContext(
           }
           if (id) follow(id, event)
         }
+        // The stream ended before the run's last event; the server knows how it went.
+        if (id && state.runs[id]?.status === "running") void settle()
       } catch (error) {
         const insufficient = error instanceof ApiError && error.code === "INSUFFICIENT_CREDITS"
         if (insufficient) {
