@@ -9,8 +9,8 @@ import { IconSidebar } from "./icons"
 // Toolbar at the top of every screen. Phones centre the title like a navigation bar (two equal side
 // columns keep it centred, and a long title gives way to the buttons rather than running under
 // them); wider screens align it left like a window toolbar. Without a `leading` slot it shows the
-// sidebar button whenever the sidebar is not on screen; on phones only screens that pass `menu` show
-// it, since the tab bar already covers navigation there.
+// sidebar button whenever the sidebar is not on screen, except on phones, where the tab bar already
+// covers navigation.
 export function TopBar(props: {
   title?: JSX.Element
   leading?: JSX.Element
@@ -19,7 +19,6 @@ export function TopBar(props: {
   titleHidden?: boolean
   // The bar title is the page heading (h1) when the page has no large heading of its own.
   heading?: boolean
-  menu?: boolean
 }) {
   const { t } = useLanguage()
   const layout = useLayout()
@@ -33,7 +32,7 @@ export function TopBar(props: {
           <Show
             when={props.leading}
             fallback={
-              <Show when={!layout.sidebarVisible() && (!layout.phone() || props.menu)}>
+              <Show when={!layout.sidebarVisible() && !layout.phone()}>
                 <IconButton
                   label={layout.docked() ? t("nav.showSidebar") : t("nav.menu")}
                   keys={layout.docked() ? shortcutLabel(SIDEBAR_SHORTCUT) : undefined}

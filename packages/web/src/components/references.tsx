@@ -102,7 +102,7 @@ export function ReferenceStrip(props: {
         </For>
         <Show when={props.uploading}>
           <li class="flex size-14 shrink-0 items-center justify-center rounded-[12px] bg-fill text-label-2">
-            <Spinner class="size-5" label={t("chat.uploading")} />
+            <Spinner class="size-5" label={t("images.uploading")} />
           </li>
         </Show>
       </ul>

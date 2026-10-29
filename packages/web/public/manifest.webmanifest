@@ -2,9 +2,9 @@
   "id": "/",
   "name": "Kiwii",
   "short_name": "Kiwii",
-  "description": "Kiwii: trợ lý chat và tạo ảnh AI.",
+  "description": "Kiwii: tạo ảnh bằng AI.",
   "lang": "vi",
-  "start_url": "/chat",
+  "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "background_color": "#fbfbf9",
@@ -15,7 +15,6 @@
     { "src": "/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ],
   "shortcuts": [
-    { "name": "Chat mới", "url": "/chat", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }] },
     { "name": "Tạo ảnh", "url": "/images", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }] }
   ]
 }

@@ -3,11 +3,9 @@
 //
 //   bun script/mock-openrouter.ts            (port 8899, or MOCK_PORT)
 //
-// Chat streams a short markdown answer word by word; a prompt containing "dài" or "long" streams a
-// long one (for scroll tests), "excel"/"word"/"file"/"tệp" triggers a file tool call and "giá vàng" a
-// web_search call when tools are offered, "RATELIMIT" returns 429. JSON-mode calls answer like the prompt enhancer ("BLOCKME" is
-// refused). The Images API returns gradient PNGs; "FAIL" in the prompt returns 400, and "FAILONCE"
-// fails only the first time that exact prompt arrives.
+// JSON-mode chat calls answer like the prompt screener and rewriter ("BLOCKME" is refused). The
+// Images API returns gradient PNGs; "FAIL" in the prompt returns 400, and "FAILONCE" fails only the
+// first time that exact prompt arrives.
 import { deflateSync } from "node:zlib"
 
 const port = Number(process.env.MOCK_PORT ?? 8899)
@@ -66,158 +64,20 @@ async function images(body: Record<string, unknown>) {
   })
 }
 
+// The prompt screener and rewriter is the only chat-completions caller; it asks for JSON.
 async function chat(body: Record<string, unknown>) {
   const messages = body.messages as Array<{ role: string; content: unknown }>
   const last = messages.at(-1)
   const text = typeof last?.content === "string" ? last.content : ""
-  if (body.response_format) {
-    const blocked = text.includes("BLOCKME")
-    const content = JSON.stringify({
-      allowed: !blocked,
-      reason: blocked ? "Nội dung không được phép (mock)" : "",
-      // Numbered, so every rewrite differs and a retry that rewrote again would send a new prompt.
-      prompt: `Enhanced #${++rewrites}: ${text}, cinematic lighting, 35mm`,
-    })
-    return Response.json({ choices: [{ message: { content } }], usage: { cost: 0.00012 } })
-  }
-  if (text.includes("RATELIMIT")) return Response.json({ error: { message: "rate limited" } }, { status: 429 })
-  const model = body.model
-  // A buffered call with the web plugin answers like OpenRouter's web search: a summary plus
-  // url_citation annotations.
-  if (Array.isArray(body.plugins)) {
-    // A real search takes a moment; long enough for the status line to show.
-    await new Promise((resolve) => setTimeout(resolve, 700))
-    return Response.json({
-      choices: [
-        {
-          message: {
-            content: `Kết quả mock cho "${text}": giá vàng SJC hôm nay là 150 triệu đồng một lượng.`,
-            annotations: [
-              {
-                type: "url_citation",
-                url_citation: {
-                  url: "https://example.com/gia-vang",
-                  title: "Giá vàng hôm nay",
-                  content: "SJC 150 triệu",
-                },
-              },
-              {
-                type: "url_citation",
-                url_citation: { url: "https://example.com/gia-vang", title: "Trùng", content: "bỏ qua" },
-              },
-            ],
-          },
-        },
-      ],
-      usage: { prompt_tokens: 40, completion_tokens: 30, cost: 0.0071 },
-    })
-  }
-  if (last?.role === "tool" && String(last.content).includes('"results"')) {
-    return sse(async (send) => {
-      send({
-        model,
-        choices: [
-          {
-            delta: {
-              content: "Theo [Giá vàng hôm nay](https://example.com/gia-vang), SJC đang ở 150 triệu đồng một lượng.",
-            },
-          },
-        ],
-      })
-      send({
-        model,
-        choices: [{ delta: {}, finish_reason: "stop" }],
-        usage: { prompt_tokens: 60, completion_tokens: 20, cost: 0.00006 },
-      })
-    })
-  }
-  if (last?.role === "tool") {
-    return sse(async (send) => {
-      send({ model, choices: [{ delta: { content: "Tệp đã sẵn sàng, bạn tải ở bên dưới nhé." } }] })
-      send({
-        model,
-        choices: [{ delta: {}, finish_reason: "stop" }],
-        usage: { prompt_tokens: 50, completion_tokens: 12, cost: 0.00005 },
-      })
-    })
-  }
-  if (Array.isArray(body.tools) && /excel|word|file|tệp|giá vàng/i.test(text)) {
-    const call = /giá vàng/i.test(text)
-      ? { name: "web_search", arguments: JSON.stringify({ query: "giá vàng SJC hôm nay" }) }
-      : /excel/i.test(text)
-        ? {
-            name: "create_xlsx",
-            arguments: JSON.stringify({
-              filename: "doanh-thu",
-              sheets: [
-                {
-                  name: "Q3",
-                  rows: [
-                    ["Tháng", "Doanh thu"],
-                    ["7", 100],
-                    ["8", 250],
-                  ],
-                },
-              ],
-            }),
-          }
-        : {
-            name: "create_docx",
-            arguments: JSON.stringify({
-              filename: "bao-cao",
-              title: "Báo cáo",
-              blocks: [
-                { type: "heading", text: "Tổng quan", level: 1 },
-                { type: "paragraph", text: "Nội dung báo cáo." },
-              ],
-            }),
-          }
-    return sse(async (send) => {
-      send({ model, choices: [{ delta: { content: "Mình tạo tệp cho bạn ngay." } }] })
-      send({
-        model,
-        choices: [
-          {
-            delta: {
-              tool_calls: [
-                { index: 0, id: "call_1", function: { name: call.name, arguments: call.arguments.slice(0, 20) } },
-              ],
-            },
-          },
-        ],
-      })
-      send({
-        model,
-        choices: [{ delta: { tool_calls: [{ index: 0, function: { arguments: call.arguments.slice(20) } }] } }],
-      })
-      send({
-        model,
-        choices: [{ delta: {}, finish_reason: "tool_calls" }],
-        usage: { prompt_tokens: 80, completion_tokens: 40, cost: 0.0001 },
-      })
-    })
-  }
-  const words = answer(text).split(/(?<=\s)/)
-  return sse(async (send) => {
-    for (const word of words) {
-      send({ model, choices: [{ delta: { content: word } }] })
-      await Bun.sleep(20)
-    }
-    send({
-      model,
-      choices: [{ delta: {}, finish_reason: "stop" }],
-      usage: { prompt_tokens: 120, completion_tokens: words.length, cost: 0.0001 },
-    })
+  if (!body.response_format) return Response.json({ error: { message: "mock: JSON mode only" } }, { status: 400 })
+  const blocked = text.includes("BLOCKME")
+  const content = JSON.stringify({
+    allowed: !blocked,
+    reason: blocked ? "Nội dung không được phép (mock)" : "",
+    // Numbered, so every rewrite differs and a retry that rewrote again would send a new prompt.
+    prompt: `Enhanced #${++rewrites}: ${text}, cinematic lighting, 35mm`,
   })
-}
-
-function answer(text: string) {
-  const fence = "```"
-  const short = `Chào bạn! Bạn vừa nói: **${text.slice(0, 40)}**\n\n${fence}ts\nconst x = 1\n${fence}\n\n- Gạch đầu dòng một\n- Gạch đầu dòng hai`
-  if (!/dài|long/i.test(text)) return short
-  const paragraph =
-    "Đây là một đoạn văn dài để kiểm tra việc tự cuộn khi câu trả lời đang được viết ra. Kiwii viết từng chữ một, và khung chat phải bám theo dòng cuối trừ khi người dùng đã cuộn lên để đọc lại."
-  return [short, ...Array.from({ length: 12 }, (_, i) => `### Phần ${i + 1}\n\n${paragraph}`)].join("\n\n")
+  return Response.json({ choices: [{ message: { content } }], usage: { cost: 0.00012 } })
 }
 
 function sse(produce: (send: (data: unknown) => void) => Promise<void>) {

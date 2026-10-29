@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Kiwii web app frontend: chat and image generation SPA served by @kiwii/api.",
+  "description": "Kiwii web app frontend: image generation SPA served by @kiwii/api.",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
@@ -16,8 +16,6 @@
     "@kobalte/core": "catalog:",
     "@kiwii/ui": "workspace:*",
     "@solidjs/router": "catalog:",
-    "dompurify": "catalog:",
-    "katex": "0.16.27",
     "solid-js": "catalog:"
   },
   "devDependencies": {

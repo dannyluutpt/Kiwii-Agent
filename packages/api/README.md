@@ -13,8 +13,8 @@ bun dev                                  # wrangler dev on :8787
 ```
 
 `bun dev` in `../web` proxies `/api` to `:8787`, so run both for hot reload. Without
-`OPENROUTER_API_KEY`, chat answers `LLM_NOT_CONFIGURED`; set `OPENROUTER_BASE_URL` to point at a
-mock server when testing streaming offline.
+`OPENROUTER_API_KEY`, image runs answer `LLM_NOT_CONFIGURED`; set `OPENROUTER_BASE_URL` to point at
+the mock server (`bun script/mock-openrouter.ts`) to test offline.
 
 ## Deploying
 
@@ -58,12 +58,9 @@ Measured on 2026-10-27 through production (1:1 is the most expensive ratio): low
 High = 10 and sets XHigh = 15, Max = 28 in `app_config.image_models`; the formula alone would
 give 1 / 1 / 3 / 5 / 10, so every GPT tier carries a wide margin.
 
-## Chat tools and attachments
+## Retired chat
 
-Paid plans chat with MiMo and get four function-calling tools (`src/chat/tools/`):
-`create_docx`, `create_xlsx`, `create_code_file` and `web_search`. The search goes through
-OpenRouter's web plugin (Exa, about $0.007 a search on the same key) and returns a summary with
-cited pages. The system prompt carries the time of the question in Vietnam time. File results are
-stored in R2 under `u/<user>/` and returned as `file` message parts; `GET /api/chat/files/:id` serves them owner-checked.
-Users can attach up to five text-like files (1 MB each) through `POST /api/chat/files`; their
-content is inlined into the model context. Free models never receive tools.
+The general chat (conversations, file tools, web search) was removed in favour of image
+generation. Its D1 tables (`conversations`, `messages`, `chat_usage`), the `plans.chat_*` columns and
+old `files` rows of kind `attachment`/`generated` with their R2 objects remain; nothing reads them,
+and they must not be dropped without a backup.

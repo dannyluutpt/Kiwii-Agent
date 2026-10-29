@@ -5,7 +5,6 @@ import { AppShell } from "@/components/app-shell"
 import { Splash } from "@/components/splash"
 import { AuthProvider, useAuth } from "@/context/auth"
 import { safeNext } from "@/lib/next"
-import { ConversationsProvider } from "@/context/conversations"
 import { LanguageProvider } from "@/context/language"
 import { LayoutProvider } from "@/context/layout"
 // The sign-in screens are small and are the first thing a signed-out visitor sees, so they ship in
@@ -19,7 +18,6 @@ import Verify from "@/pages/auth/verify"
 import { ConfirmHost } from "@/ui/confirm"
 import { ToastRegion } from "@/ui/toast"
 
-const Chat = lazy(() => import("@/pages/chat"))
 const Images = lazy(() => import("@/pages/images"))
 const Assets = lazy(() => import("@/pages/assets"))
 const Pricing = lazy(() => import("@/pages/pricing"))
@@ -54,7 +52,7 @@ function preloadScreens() {
   const connection = (navigator as Navigator & { connection?: { saveData?: boolean } }).connection
   if (connection?.saveData) return
   const run = () => {
-    for (const screen of [Chat, Images, Assets, Pricing, Account, Checkout]) void screen.preload()
+    for (const screen of [Images, Assets, Pricing, Account, Checkout]) void screen.preload()
   }
   // Safari has no requestIdleCallback; a short delay keeps the fetches clear of the first paint.
   const later =
@@ -75,9 +73,7 @@ function Private(props: ParentProps) {
         fallback={<Navigate href={`/login?next=${encodeURIComponent(location.pathname + location.search)}`} />}
       >
         <LayoutProvider>
-          <ConversationsProvider>
-            <AppShell>{props.children}</AppShell>
-          </ConversationsProvider>
+          <AppShell>{props.children}</AppShell>
         </LayoutProvider>
       </Show>
     </Show>
@@ -99,7 +95,7 @@ function Public(props: ParentProps) {
 export function App() {
   return (
     <Router root={Providers}>
-      <Route path="/" component={() => <Navigate href="/chat" />} />
+      <Route path="/" component={() => <Navigate href="/images" />} />
       <Route component={Public}>
         <Route path="/login" component={Login} />
         <Route path="/signup" component={Signup} />
@@ -108,14 +104,14 @@ export function App() {
         <Route path="/reset" component={Reset} />
       </Route>
       <Route component={Private}>
-        <Route path="/chat/:id?" component={Chat} />
         <Route path="/images" component={Images} />
         <Route path="/images/assets" component={Assets} />
         <Route path="/pricing" component={Pricing} />
         <Route path="/pricing/checkout/:orderId" component={Checkout} />
         <Route path="/account" component={Account} />
       </Route>
-      <Route path="*" component={() => <Navigate href="/chat" />} />
+      {/* Also catches the retired /chat links, Home Screen icons that start there included. */}
+      <Route path="*" component={() => <Navigate href="/images" />} />
     </Router>
   )
 }

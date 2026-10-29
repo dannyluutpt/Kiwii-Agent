@@ -8,7 +8,6 @@ import { rateLimitBy } from "./middleware/ratelimit"
 import { account } from "./routes/account"
 import { auth } from "./routes/auth"
 import { billing } from "./routes/billing"
-import { chat } from "./routes/chat"
 import { images } from "./routes/images"
 
 const app = createApp()
@@ -35,7 +34,6 @@ app.use(
 )
 
 app.route("/api/auth", auth)
-app.route("/api/chat", chat)
 app.route("/api/billing", billing)
 app.route("/api/account", account)
 app.route("/api/images", images)
@@ -59,9 +57,8 @@ app.get("/api/health", (c) =>
 // HTML responses get a CSP that allows only the origins the app actually talks to.
 const CSP = [
   "default-src 'self'",
-  // wasm-unsafe-eval: shiki highlights code blocks with a WebAssembly build of Oniguruma.
   // cloudflareinsights: Cloudflare Web Analytics injects its beacon into proxied pages.
-  "script-src 'self' 'wasm-unsafe-eval' https://challenges.cloudflare.com https://static.cloudflareinsights.com",
+  "script-src 'self' https://challenges.cloudflare.com https://static.cloudflareinsights.com",
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https://img.vietqr.io",
   "font-src 'self' data:",

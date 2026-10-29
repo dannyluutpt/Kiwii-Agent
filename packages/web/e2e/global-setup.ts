@@ -3,7 +3,7 @@ import { execFileSync } from "node:child_process"
 import { mkdirSync, writeFileSync } from "node:fs"
 import { fileURLToPath } from "node:url"
 
-// Free account: chat quota, upgrade prompts, locked image studio.
+// Free account: upgrade prompts, locked image studio.
 export const STATE = fileURLToPath(new URL(".auth/state.json", import.meta.url))
 // Paid account with credits: the image studio and the library.
 export const PRO_STATE = fileURLToPath(new URL(".auth/pro.json", import.meta.url))
@@ -18,9 +18,6 @@ export default function globalSetup() {
   const pro = session()
   const sql = [
     "DELETE FROM sessions WHERE user_id IN ('e2e-user', 'e2e-pro')",
-    "DELETE FROM messages WHERE conversation_id IN (SELECT id FROM conversations WHERE user_id = 'e2e-user')",
-    "DELETE FROM conversations WHERE user_id = 'e2e-user'",
-    "DELETE FROM chat_usage WHERE user_id = 'e2e-user'",
     "DELETE FROM generation_images WHERE generation_id IN (SELECT id FROM generations WHERE user_id = 'e2e-pro')",
     "DELETE FROM generations WHERE user_id = 'e2e-pro'",
     "DELETE FROM credit_ledger WHERE user_id = 'e2e-pro'",
@@ -33,7 +30,6 @@ export default function globalSetup() {
     `INSERT OR REPLACE INTO users (id, email, password_hash, password_salt, password_iterations, tier, tier_until, locale, created_at) VALUES ('e2e-pro', 'pro@kiwii.test', 'x', 'x', 1, 'plus', ${now + 30 * DAY}, 'vi', ${now})`,
     `INSERT INTO credit_grants (id, user_id, source, amount, remaining, expires_at, created_at) VALUES ('e2e-pro-grant', 'e2e-pro', 'bonus', 5000, 5000, ${now + 30 * DAY}, ${now})`,
     `INSERT INTO sessions (token_hash, user_id, expires_at, created_at) VALUES ('${free.hash}', 'e2e-user', ${now + DAY}, ${now}), ('${pro.hash}', 'e2e-pro', ${now + DAY}, ${now})`,
-    `INSERT INTO conversations (id, user_id, title, model, last_message_at, created_at) VALUES ('e2e-conv-1', 'e2e-user', 'Kế hoạch du lịch Đà Lạt', 'mock', ${now}, ${now}), ('e2e-conv-2', 'e2e-user', 'Viết email xin nghỉ phép', 'mock', ${now - 1000}, ${now})`,
     // An order left unpaid past its 24 hours, for the expired checkout screen.
     `INSERT INTO plan_orders (id, user_id, kind, item_id, amount_vnd, memo, status, expires_at, created_at) VALUES ('e2e-order-expired', 'e2e-user', 'plan', 'starter', 299000, 'KWE2EOLD01', 'pending', ${now - DAY}, ${now - 2 * DAY})`,
     // Production prices GPT Image's two top qualities, so the studio offers five of them.

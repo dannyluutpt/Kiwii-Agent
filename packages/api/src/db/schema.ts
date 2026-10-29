@@ -1,4 +1,4 @@
-import { index, integer, primaryKey, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core"
+import { index, integer, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core"
 
 export const Tier = ["free", "starter", "plus", "ultra"] as const
 export type Tier = (typeof Tier)[number]
@@ -57,39 +57,7 @@ export const sessions = sqliteTable(
   (t) => [index("sessions_user").on(t.user_id)],
 )
 
-export const conversations = sqliteTable(
-  "conversations",
-  {
-    id: text().primaryKey(),
-    user_id: text().notNull(),
-    title: text().notNull(),
-    model: text().notNull(),
-    archived: integer().notNull().default(0),
-    last_message_at: integer().notNull(),
-    ...Timestamps,
-  },
-  (t) => [index("conversations_user").on(t.user_id, t.last_message_at)],
-)
-
-export const MessageRole = ["user", "assistant"] as const
-
-export const messages = sqliteTable(
-  "messages",
-  {
-    id: text().primaryKey(),
-    conversation_id: text().notNull(),
-    role: text({ enum: MessageRole }).notNull(),
-    // JSON array of parts: {type:"text",text} | {type:"file",file_id,name,mime,size} | {type:"tool",name,input,output}
-    parts: text().notNull(),
-    model: text(),
-    input_tokens: integer().notNull().default(0),
-    output_tokens: integer().notNull().default(0),
-    cost_usd: real().notNull().default(0),
-    ...Timestamps,
-  },
-  (t) => [index("messages_conversation").on(t.conversation_id, t.created_at)],
-)
-
+// "attachment" and "generated" are files of the retired chat; their rows and objects remain.
 export const FileKind = ["attachment", "generated", "reference", "image"] as const
 
 export const files = sqliteTable(
@@ -109,20 +77,6 @@ export const files = sqliteTable(
   (t) => [index("files_user").on(t.user_id, t.created_at)],
 )
 
-export const chat_usage = sqliteTable(
-  "chat_usage",
-  {
-    user_id: text().notNull(),
-    // YYYY-MM-DD in Asia/Ho_Chi_Minh
-    day: text().notNull(),
-    messages: integer().notNull().default(0),
-    input_tokens: integer().notNull().default(0),
-    output_tokens: integer().notNull().default(0),
-    cost_usd: real().notNull().default(0),
-  },
-  (t) => [primaryKey({ columns: [t.user_id, t.day] })],
-)
-
 export const plans = sqliteTable("plans", {
   id: text({ enum: Tier }).primaryKey(),
   name_vi: text().notNull(),
@@ -130,10 +84,7 @@ export const plans = sqliteTable("plans", {
   price_vnd: integer().notNull(),
   price_usd: real().notNull(),
   credits: integer().notNull(),
-  chat_daily_messages: integer(),
-  chat_monthly_messages: integer(),
-  chat_monthly_tokens: integer(),
-  chat_context_tokens: integer().notNull(),
+  // The chat_* columns of the retired chat stay in D1 and are left out here.
   parallel_limit: integer().notNull(),
   active: integer().notNull().default(1),
 })

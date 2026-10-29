@@ -1,7 +1,7 @@
 import { useNavigate } from "@solidjs/router"
 import { createResource, createSignal, For, Show, type JSX } from "solid-js"
 import { api } from "@/api"
-import { vnd, type PlanInfo, type Topup } from "@/billing"
+import { vnd, type PlanInfo, type Topup, type Trial } from "@/billing"
 import { IconCheck, IconChevronDown, IconSparkles } from "@/components/icons"
 import { Page } from "@/components/page"
 import { useAuth } from "@/context/auth"
@@ -24,7 +24,7 @@ export default function Pricing() {
   const { t, locale } = useLanguage()
   const auth = useAuth()
   const navigate = useNavigate()
-  const [data] = createResource(() => api<{ plans: PlanInfo[]; topups: Topup[] }>("/billing/plans"))
+  const [data] = createResource(() => api<{ plans: PlanInfo[]; topups: Topup[]; trial: Trial }>("/billing/plans"))
   const [busy, setBusy] = createSignal<string>()
 
   const order = async (kind: "plan" | "topup", id: string) => {
@@ -98,20 +98,18 @@ export default function Pricing() {
                   </Show>
                 </div>
                 <ul class="flex flex-col gap-2 text-subhead text-label">
-                  <Feature>
-                    {plan.chatDailyMessages !== null
-                      ? t("pricing.chatDaily", { n: plan.chatDailyMessages.toLocaleString("vi-VN") })
-                      : t("pricing.chatMonthly", { n: (plan.chatMonthlyMessages ?? 0).toLocaleString("vi-VN") })}
-                  </Feature>
-                  <Feature>{t("pricing.context", { k: Math.round(plan.chatContextTokens / 1000) })}</Feature>
-                  <Show when={plan.id !== "free"}>
-                    <Feature>{t("pricing.files")}</Feature>
+                  <Show
+                    when={plan.id === "free"}
+                    fallback={
+                      <Feature>{t("pricing.credits", { credits: plan.credits.toLocaleString("vi-VN") })}</Feature>
+                    }
+                  >
+                    <Feature muted={!data()?.trial.credits}>
+                      {data()?.trial.credits
+                        ? t("pricing.trial", { credits: data()?.trial.credits ?? 0, days: data()?.trial.days ?? 0 })
+                        : t("pricing.noImages")}
+                    </Feature>
                   </Show>
-                  <Feature muted={plan.credits === 0}>
-                    {plan.credits > 0
-                      ? t("pricing.credits", { credits: plan.credits.toLocaleString("vi-VN") })
-                      : t("pricing.noImages")}
-                  </Feature>
                   <Show when={plan.credits > 0}>
                     <Feature>{t("pricing.imageModels")}</Feature>
                     <Feature>{t("pricing.parallel", { n: plan.parallelLimit })}</Feature>

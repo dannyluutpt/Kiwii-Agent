@@ -2,16 +2,15 @@ import { A } from "@solidjs/router"
 import { For, type JSX } from "solid-js"
 import { useLanguage } from "@/context/language"
 import type { I18nKey } from "@/i18n/vi"
-import { IconChat, IconImage, IconLibrary, IconPerson } from "./icons"
+import { IconImage, IconLibrary, IconPerson } from "./icons"
 
 const TABS: Array<{ href: string; end?: boolean; label: I18nKey; icon: () => JSX.Element }> = [
-  { href: "/chat", label: "tab.chat", icon: () => <IconChat class="size-6" weight={1.6} /> },
   { href: "/images", end: true, label: "tab.images", icon: () => <IconImage class="size-6" weight={1.6} /> },
   { href: "/images/assets", label: "tab.library", icon: () => <IconLibrary class="size-6" weight={1.6} /> },
   { href: "/account", label: "tab.account", icon: () => <IconPerson class="size-6" weight={1.6} /> },
 ]
 
-// Phone navigation: four destinations a thumb can always reach. It floats over the content (which
+// Phone navigation: three destinations a thumb can always reach. It floats over the content (which
 // pads itself by --tabbar-space) and hides while the keyboard is up.
 export function TabBar() {
   const { t } = useLanguage()

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { nextVietnamMidnight, vietnamDay } from "../src/chat/quota"
+import { nextVietnamMidnight, vietnamDay } from "../src/util/day"
 
 describe("vietnam day", () => {
   test("rolls over at 17:00 UTC", () => {

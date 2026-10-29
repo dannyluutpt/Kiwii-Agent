@@ -10,11 +10,8 @@ export type Me = {
     id: string
     name: string
     credits: number
-    chatDailyMessages: number | null
-    chatMonthlyMessages: number | null
   }
   credits: number
-  chatToday: number
 }
 
 // A signed-out visitor gets null (the session endpoint answers 200 rather than 401, so nothing is
@@ -39,7 +36,7 @@ export const { use: useAuth, provider: AuthProvider } = createSimpleContext({
       // Reading an errored resource throws; guards check `failed` first and never get here then.
       // `latest` keeps the last answer during a refresh without suspending the screen that reads it.
       me: () => (me.error ? undefined : me.latest),
-      // Ready once the first answer is in. A refresh (after each chat answer or image run) must not
+      // Ready once the first answer is in. A refresh (after each image run) must not
       // count as loading, or the route guards would swap the whole app for the splash and remount it.
       ready: () => me.state === "ready" || me.state === "refreshing" || me.state === "errored",
       failed: () => !!me.error,

@@ -13,17 +13,17 @@ const key = (key: string, mods: Partial<Record<"metaKey" | "ctrlKey" | "shiftKey
 })
 
 describe("matchShortcut", () => {
-  const newChat = { key: "o", mod: true, shift: true }
+  const shortcut = { key: "o", mod: true, shift: true }
 
   test("Command or Control both count as Mod", () => {
-    expect(matchShortcut(key("O", { metaKey: true, shiftKey: true }), newChat)).toBe(true)
-    expect(matchShortcut(key("o", { ctrlKey: true, shiftKey: true }), newChat)).toBe(true)
+    expect(matchShortcut(key("O", { metaKey: true, shiftKey: true }), shortcut)).toBe(true)
+    expect(matchShortcut(key("o", { ctrlKey: true, shiftKey: true }), shortcut)).toBe(true)
   })
 
   test("modifiers must match exactly", () => {
-    expect(matchShortcut(key("o", { metaKey: true }), newChat)).toBe(false)
-    expect(matchShortcut(key("o", { shiftKey: true }), newChat)).toBe(false)
-    expect(matchShortcut(key("o", { metaKey: true, shiftKey: true, altKey: true }), newChat)).toBe(false)
+    expect(matchShortcut(key("o", { metaKey: true }), shortcut)).toBe(false)
+    expect(matchShortcut(key("o", { shiftKey: true }), shortcut)).toBe(false)
+    expect(matchShortcut(key("o", { metaKey: true, shiftKey: true, altKey: true }), shortcut)).toBe(false)
   })
 
   test("ignores keys typed while an input method is composing", () => {

@@ -1,5 +1,5 @@
 // Thin OpenAI-compatible streaming client for OpenRouter. Event names mirror @kiwii/llm so the
-// consumer can swap to that package later without touching the chat route.
+// consumer can swap to that package later without touching its callers.
 
 export type ChatMessage =
   | { role: "system"; content: string }
