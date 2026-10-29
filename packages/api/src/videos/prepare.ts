@@ -49,7 +49,12 @@ export async function prepareVideo(input: {
   if (!model.aspectRatios.includes(body.aspectRatio)) {
     throw new ApiError(400, "INVALID_ASPECT", "Tỷ lệ khung không hợp lệ")
   }
-  const cost = videoCreditCost(models, { model: body.model, option: body.option, duration: body.duration })
+  const cost = videoCreditCost(models, {
+    model: body.model,
+    option: body.option,
+    duration: body.duration,
+    firstFrame: body.referenceFileIDs.length > 0,
+  })
   if (cost === undefined) throw new ApiError(400, "INVALID_OPTION", "Tuỳ chọn video không hợp lệ")
 
   await reapStaleGenerations(db)

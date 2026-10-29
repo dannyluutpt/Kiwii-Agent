@@ -2,6 +2,7 @@ import { afterEach, describe, expect, mock, spyOn, test } from "bun:test"
 import { eq } from "drizzle-orm"
 import { balance, grant } from "../src/credits/ledger"
 import { app_config, credit_ledger, files, generation_images, generations, users } from "../src/db/schema"
+import { enhancePrompt } from "../src/images/enhance"
 import { reapStaleGenerations } from "../src/images/generate"
 import { byteSpan } from "../src/images/r2"
 import { loadVideoModels, videoCreditCost, VIDEO_MODELS } from "../src/videos/models"
@@ -86,9 +87,13 @@ describe("video prices", () => {
   test("a clip costs credits by model, resolution and length, and app_config can change one", async () => {
     expect(videoCreditCost(VIDEO_MODELS, { model: "wan-3.0", option: "720p", duration: 5 })).toBe(27)
     expect(videoCreditCost(VIDEO_MODELS, { model: "wan-3.0", option: "1080p", duration: 10 })).toBe(105)
-    expect(videoCreditCost(VIDEO_MODELS, { model: "hailuo-3-max", option: "768p", duration: 5 })).toBe(21)
+    expect(videoCreditCost(VIDEO_MODELS, { model: "minimax-h3", option: "2K", duration: 5 })).toBe(34)
+    expect(videoCreditCost(VIDEO_MODELS, { model: "seedance-2.5", option: "720p", duration: 10 })).toBe(122)
     expect(videoCreditCost(VIDEO_MODELS, { model: "wan-3.0", option: "720p", duration: 7 })).toBeUndefined()
-    expect(videoCreditCost(VIDEO_MODELS, { model: "hailuo-3-max", option: "1080p", duration: 5 })).toBeUndefined()
+    expect(videoCreditCost(VIDEO_MODELS, { model: "minimax-h3", option: "1080p", duration: 5 })).toBeUndefined()
+    // MiniMax bills the picture a clip starts from; the others do not.
+    expect(videoCreditCost(VIDEO_MODELS, { model: "minimax-h3", option: "2K", duration: 5, firstFrame: true })).toBe(37)
+    expect(videoCreditCost(VIDEO_MODELS, { model: "wan-3.0", option: "720p", duration: 5, firstFrame: true })).toBe(27)
 
     const db = await testDatabase()
     await db.insert(app_config).values({ key: "video_models", value: '{"wan-3.0":{"720p":{"5":30}}}', updated_at: 0 })
@@ -129,7 +134,7 @@ describe("prepareVideo", () => {
     expect(await balance(db, "u1")).toBe(73)
   })
 
-  test("a picture becomes the first frame, and a length the model does not make is refused", async () => {
+  test("a picture becomes the first frame at its surcharge, and a length the model does not make is refused", async () => {
     const { db, user, bucket } = await setup()
     await bucket.put("u/u1/p.jpg", new TextEncoder().encode("p").buffer, {
       httpMetadata: { contentType: "image/jpeg" },
@@ -149,19 +154,33 @@ describe("prepareVideo", () => {
       bucket,
       apiKey: "k",
       user,
-      request: request({ model: "hailuo-3-max", option: "768p", referenceFileIDs: ["p"] }),
+      request: request({ model: "minimax-h3", option: "2K", referenceFileIDs: ["p"] }),
     })
     expect(firstFrame).toBe(`data:image/jpeg;base64,${btoa("p")}`)
-    expect(generation.reference_file_ids).toBe(JSON.stringify(["p"]))
-    const system = JSON.stringify(asked[0]!.body)
-    expect(system).toContain("The clip starts from the picture they attached")
-    expect(system).not.toContain("The clip has sound")
+    expect(generation).toMatchObject({ reference_file_ids: JSON.stringify(["p"]), credits_reserved: 37 })
+    expect(JSON.stringify(asked[0]!.body)).toContain("The clip starts from the picture they attached")
 
     const error = await prepareVideo({ db, bucket, apiKey: "k", user, request: request({ duration: 7 }) }).catch(
       (e: unknown) => e,
     )
     expect(error).toMatchObject({ status: 400, code: "INVALID_OPTION" })
   })
+})
+
+test("a clip from a silent model names no sounds", async () => {
+  const asked = openRouter()
+  await enhancePrompt({
+    apiKey: "k",
+    model: "wan-3.0",
+    clip: { seconds: 10, sound: false },
+    prompt: "Thuyền giấy trôi trên mặt hồ",
+    rewrite: true,
+    aspectRatio: "9:16",
+    references: 0,
+  })
+  const system = JSON.stringify(asked[0]!.body)
+  expect(system).toContain("a 10-second video clip")
+  expect(system).not.toContain("The clip has sound")
 })
 
 describe("a video run", () => {
@@ -200,6 +219,7 @@ describe("a video run", () => {
       duration: 5,
       resolution: "720p",
       aspect_ratio: "16:9",
+      generate_audio: true,
     })
     expect(created).toEqual([{ id: generation.id, params: { generationID: generation.id } }])
     expect((await db.select().from(generations).get())!.job_id).toBe("job1")

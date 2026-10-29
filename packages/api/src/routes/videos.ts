@@ -31,6 +31,7 @@ videos.get("/models", async (c) => {
       sound: model.sound,
       maxReferences: model.maxReferences,
       maxReferenceEdge: model.maxReferenceEdge,
+      firstFrameCredits: model.firstFrameCredits,
     })),
   })
 })

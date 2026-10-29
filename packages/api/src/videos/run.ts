@@ -38,6 +38,7 @@ export async function startVideo(
     duration: g.duration ?? 0,
     resolution: g.option,
     aspectRatio: g.aspect_ratio,
+    sound: input.model.sound,
     firstFrame: input.firstFrame,
   }).catch((error: unknown) => (error instanceof Error ? error : new Error(String(error))))
   if (jobID instanceof Error) {

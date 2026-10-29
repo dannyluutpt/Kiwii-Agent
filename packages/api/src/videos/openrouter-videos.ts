@@ -48,6 +48,8 @@ export async function submitVideo(
     duration: number
     resolution: string
     aspectRatio: string
+    // Whether the model makes the clip's sound.
+    sound: boolean
     // A picture the clip starts from, as a data URL.
     firstFrame?: string
   },
@@ -61,6 +63,7 @@ export async function submitVideo(
       duration: input.duration,
       resolution: input.resolution,
       aspect_ratio: input.aspectRatio,
+      generate_audio: input.sound,
       frame_images: input.firstFrame
         ? [{ type: "image_url", image_url: { url: input.firstFrame }, frame_type: "first_frame" }]
         : undefined,
