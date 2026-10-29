@@ -1,8 +1,14 @@
+import type { VideoParams } from "./videos/run"
+
 export type Env = {
   DB: D1Database
   BUCKET: R2Bucket
   // Cloudflare Images, for small copies of pictures; absent where it is not bound (tests).
   IMAGES?: ImagesBinding
+  // Waits on video jobs; see src/videos/workflow.ts.
+  VIDEO_WORKFLOW?: Workflow<VideoParams>
+  // Seconds between looks at a video job; 15 unless set (the local mock answers in a few).
+  VIDEO_POLL_SECONDS?: string
   ASSETS: Fetcher
   EMAIL?: SendEmail
   RL_IP: RateLimit

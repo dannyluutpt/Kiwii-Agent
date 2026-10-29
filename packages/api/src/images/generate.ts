@@ -1,4 +1,4 @@
-import { and, eq, lt } from "drizzle-orm"
+import { and, eq, lt, or } from "drizzle-orm"
 import { ulid } from "ulid"
 import { BRAND_SLUG } from "../brand"
 import { refund, settle } from "../credits/ledger"
@@ -25,6 +25,8 @@ export type Generation = typeof generations.$inferSelect
 // A generation older than this and still "running" lost its Worker (client went away for longer
 // than waitUntil allows); OpenRouter never bills an unfinished image so the credits go back.
 export const STALE_AFTER_MS = 10 * 60 * 1000
+// A video's workflow gives up after half an hour; the reaper only catches one that died.
+export const STALE_VIDEO_AFTER_MS = 60 * 60 * 1000
 
 type RunInput = {
   db: Database
@@ -170,15 +172,16 @@ function describe(error: unknown) {
 }
 
 // What the customer reads about a failure; the raw provider error stays in the database.
-export function friendly(error: string | undefined) {
-  if (!error) return "Không tạo được ảnh, credit đã được hoàn"
+export function friendly(error: string | undefined, what: "ảnh" | "video" = "ảnh") {
+  if (!error) return `Không tạo được ${what}, credit đã được hoàn`
   if (error.startsWith("429")) return "Model đang quá tải, thử lại sau ít phút. Credit đã được hoàn"
   if (/megapixel|dimensions exceed/i.test(error))
     return "Ảnh tham chiếu quá lớn, hãy dùng ảnh nhỏ hơn. Credit đã được hoàn"
   if (/data policy|ZDR|privacy/i.test(error))
     return "Model này tạm thời chưa dùng được, hãy chọn model khác. Credit đã được hoàn"
   if (/moderation|safety|policy|content/i.test(error)) return "Nội dung bị model từ chối. Credit đã được hoàn"
-  return "Không tạo được ảnh, credit đã được hoàn"
+  if (error === "timeout") return `Tạo ${what} quá lâu nên đã dừng. Credit đã được hoàn`
+  return `Không tạo được ${what}, credit đã được hoàn`
 }
 
 // Fails and refunds generations stuck in "running". Called from the daily cron and before listing.
@@ -186,7 +189,15 @@ export async function reapStaleGenerations(db: Database, now = Date.now()) {
   const rows = await db
     .select({ id: generations.id, user_id: generations.user_id })
     .from(generations)
-    .where(and(eq(generations.status, "running"), lt(generations.created_at, now - STALE_AFTER_MS)))
+    .where(
+      and(
+        eq(generations.status, "running"),
+        or(
+          and(eq(generations.kind, "image"), lt(generations.created_at, now - STALE_AFTER_MS)),
+          lt(generations.created_at, now - STALE_VIDEO_AFTER_MS),
+        ),
+      ),
+    )
   for (const row of rows) {
     const claimed = await db
       .update(generations)

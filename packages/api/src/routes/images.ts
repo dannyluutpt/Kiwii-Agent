@@ -12,7 +12,7 @@ import { reapStaleGenerations, runGeneration, type GenerationEvent } from "../im
 import { loadImageModels, MAX_IMAGES_PER_RUN, MAX_REFERENCES } from "../images/models"
 import { CreateGeneration, imageAccess, prepareGeneration } from "../images/prepare"
 import { fileURL, presentGeneration } from "../images/present"
-import { IMAGE_MIMES, MAX_UPLOAD_BYTES, objectKey, putObject } from "../images/r2"
+import { byteSpan, IMAGE_MIMES, MAX_UPLOAD_BYTES, objectKey, putObject } from "../images/r2"
 import { requireAuth } from "../middleware/auth"
 
 const ListQuery = z.object({
@@ -89,17 +89,24 @@ images.post("/references", async (c) => {
   return c.json({ id, url: fileURL(id), name: file.name, size: file.size })
 })
 
+// Serves a file whole, or the byte range asked for: Safari plays a video only from a server that
+// answers range requests with 206 Partial Content.
 images.get("/files/:id", async (c) => {
   const row = await ownFile(c, c.req.param("id"))
-  const object = await c.env.BUCKET.get(row.r2_key)
+  const object = await c.env.BUCKET.get(row.r2_key, { range: c.req.raw.headers })
   if (!object) throw new ApiError(404, "FILE_NOT_FOUND", "Không tìm thấy tệp")
   const headers = new Headers()
   object.writeHttpMetadata(headers)
   headers.set("content-type", row.mime)
   headers.set("etag", object.httpEtag)
+  headers.set("accept-ranges", "bytes")
   headers.set("cache-control", "private, max-age=31536000, immutable")
   if (c.req.query("download") !== undefined) headers.set("content-disposition", `attachment; filename="${row.name}"`)
-  return new Response(object.body, { headers })
+  const span = byteSpan(object.range, object.size)
+  if (!span) return new Response(object.body, { headers })
+  headers.set("content-range", `bytes ${span.start}-${span.end}/${object.size}`)
+  headers.set("content-length", String(span.end - span.start + 1))
+  return new Response(object.body, { status: 206, headers })
 })
 
 images.post("/generations", async (c) => {

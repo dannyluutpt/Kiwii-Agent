@@ -12,6 +12,7 @@ export function presentGeneration(
 ) {
   return {
     id: g.id,
+    kind: g.kind,
     status: g.status,
     model: g.model,
     option: g.option,
@@ -23,7 +24,9 @@ export function presentGeneration(
     characterIDs: JSON.parse(g.character_ids) as string[],
     creditsReserved: g.credits_reserved,
     creditsFinal: g.credits_final,
-    error: g.error === null ? null : friendly(g.error),
+    // Seconds, for a video.
+    duration: g.duration,
+    error: g.error === null ? null : friendly(g.error, g.kind === "video" ? "video" : "ảnh"),
     projectID: g.project_id,
     createdAt: g.created_at,
     finishedAt: g.finished_at,

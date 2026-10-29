@@ -5,6 +5,8 @@ import { app_config } from "../db/schema"
 export const ImageModelID = ["flux-3-klein", "nano-banana-2.1", "gpt-image-2.5"] as const
 export type ImageModelID = (typeof ImageModelID)[number]
 
+export const isImageModel = (id: string): id is ImageModelID => (ImageModelID as readonly string[]).includes(id)
+
 export type ImageOption = {
   id: string
   label_vi: string
