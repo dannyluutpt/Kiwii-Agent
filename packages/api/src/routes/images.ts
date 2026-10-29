@@ -8,7 +8,7 @@ import { loadPlan } from "../plans"
 import { balance } from "../credits/ledger"
 import { files, generation_images, generations } from "../db/schema"
 import { reapStaleGenerations, runGeneration, type GenerationEvent } from "../images/generate"
-import { loadImageModels, MAX_IMAGES_PER_RUN, MAX_REFERENCES, REFERENCE_SURCHARGE } from "../images/models"
+import { loadImageModels, MAX_IMAGES_PER_RUN, MAX_REFERENCES } from "../images/models"
 import { CreateGeneration, imageAccess, prepareGeneration } from "../images/prepare"
 import { fileURL, presentGeneration } from "../images/present"
 import { IMAGE_MIMES, MAX_UPLOAD_BYTES, objectKey, putObject } from "../images/r2"
@@ -41,7 +41,6 @@ images.get("/models", async (c) => {
     parallelLimit: access.parallelLimit,
     maxImages: MAX_IMAGES_PER_RUN,
     maxReferences: MAX_REFERENCES,
-    referenceSurcharge: REFERENCE_SURCHARGE,
     credits,
     models: models.map((model) => ({
       id: model.id,
@@ -58,6 +57,7 @@ images.get("/models", async (c) => {
       aspectRatios: model.aspectRatios,
       maxReferences: Math.min(model.maxReferences, MAX_REFERENCES),
       maxReferenceEdge: model.maxReferenceEdge,
+      referenceSurcharge: model.referenceSurcharge,
     })),
   })
 })

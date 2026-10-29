@@ -312,6 +312,18 @@ test("switching models changes the price", async ({ page, isMobile }) => {
   await expect(generateButton(page, isMobile, 1)).toBeEnabled()
 })
 
+// OpenRouter bills the pictures GPT Image and Gemini read, but not FLUX 3 Klein's, and so do we.
+test("a reference picture adds a credit, except on FLUX", async ({ page, isMobile }) => {
+  await page.goto("/")
+  await prompt(page).fill("Đổi nền ảnh này sang bãi biển")
+  await page.locator('input[type="file"]').setInputFiles(await photo(page, 1200, 800))
+  // The upload is slower while the whole suite runs at once.
+  await expect(page.getByRole("list", { name: "Ảnh tham chiếu" }).getByRole("img")).toBeVisible({ timeout: 15_000 })
+  await expect(generateButton(page, isMobile, 4)).toBeEnabled()
+  await pickModel(page, isMobile, "FLUX 3 Klein")
+  await expect(generateButton(page, isMobile, 1)).toBeEnabled()
+})
+
 // Yellow means ready: with nothing to make, the button greys out rather than fading to olive.
 test("the generate button turns yellow once there is a prompt", async ({ page, isMobile }) => {
   await page.goto("/")

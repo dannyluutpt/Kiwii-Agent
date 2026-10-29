@@ -130,6 +130,7 @@ export const dict = {
   "images.countShort": "{{n}} ảnh",
   "images.modelPick": "Model: {{name}}",
   "images.references.addHint": "Thêm ảnh tham chiếu (tối đa {{n}}, +{{extra}} credit)",
+  "images.references.addHintFree": "Thêm ảnh tham chiếu (tối đa {{n}})",
   "images.options": "Tuỳ chọn",
   "images.generateFor": "Tạo ảnh, {{n}} credit",
   "images.generateCost": "Tạo ảnh · {{n}} credit",

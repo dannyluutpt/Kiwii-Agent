@@ -28,6 +28,9 @@ export type ImageModel = {
   // uploading. FLUX refuses anything over 20 megapixels, Gemini tiles inputs at 768px so more
   // detail is wasted, GPT Image takes large files but gains nothing past this.
   maxReferenceEdge: number
+  // Credits added once to a run that has reference pictures, where the provider bills the pictures
+  // it reads (OpenRouter does for Gemini and GPT Image, not for FLUX 3 Klein).
+  referenceSurcharge: number
   // Providers that only take n=1 get one request per image.
   multiImage: boolean
   streaming: boolean
@@ -51,6 +54,7 @@ export const IMAGE_MODELS: ImageModel[] = [
     aspectRatios: ["1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3", "21:9"],
     maxReferences: 4,
     maxReferenceEdge: 4096,
+    referenceSurcharge: 0,
     multiImage: false,
     streaming: false,
   },
@@ -69,6 +73,7 @@ export const IMAGE_MODELS: ImageModel[] = [
     aspectRatios: ["1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3", "21:9"],
     maxReferences: 4,
     maxReferenceEdge: 3072,
+    referenceSurcharge: 1,
     multiImage: false,
     streaming: false,
   },
@@ -89,12 +94,12 @@ export const IMAGE_MODELS: ImageModel[] = [
     aspectRatios: ["1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3", "21:9"],
     maxReferences: 4,
     maxReferenceEdge: 4096,
+    referenceSurcharge: 1,
     multiImage: true,
     streaming: true,
   },
 ]
 
-export const REFERENCE_SURCHARGE = 1
 export const MAX_IMAGES_PER_RUN = 4
 // Reference pictures one run may carry, whatever a model would take.
 export const MAX_REFERENCES = 4
@@ -137,5 +142,5 @@ export function imageCreditCost(
   const option = model?.options.find((o) => o.id === input.option)
   if (!model || !option || option.credits === null) return undefined
   if (input.n < 1 || input.n > MAX_IMAGES_PER_RUN) return undefined
-  return option.credits * input.n + (input.references > 0 ? REFERENCE_SURCHARGE : 0)
+  return option.credits * input.n + (input.references > 0 ? model.referenceSurcharge : 0)
 }

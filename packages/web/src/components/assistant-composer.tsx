@@ -103,7 +103,10 @@ export function AssistantComposer(props: {
           onChange={(event) => event.currentTarget.files && void uploads.upload(event.currentTarget.files)}
         />
         <IconButton
-          label={t("images.references.addHint", { n: maxReferences(), extra: props.config.referenceSurcharge })}
+          label={t(model()?.referenceSurcharge ? "images.references.addHint" : "images.references.addHintFree", {
+            n: maxReferences(),
+            extra: model()?.referenceSurcharge ?? 0,
+          })}
           size="md"
           icon={<IconImage class="size-5" />}
           disabled={props.locked || uploads.uploading() || studio.references().length >= maxReferences()}
