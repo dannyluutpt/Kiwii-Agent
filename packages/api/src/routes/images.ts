@@ -49,7 +49,7 @@ images.get("/models", async (c) => {
       tagline: user.locale === "en" ? model.tagline_en : model.tagline_vi,
       param: model.param,
       options: model.options
-        .filter((option) => option.credits !== null)
+        .filter((option) => option.credits !== null && (access.options?.includes(option.id) ?? true))
         .map((option) => ({
           id: option.id,
           label: user.locale === "en" ? option.label_en : option.label_vi,

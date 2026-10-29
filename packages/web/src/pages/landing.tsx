@@ -138,10 +138,10 @@ export default function Landing() {
               {t("landing.ctaPricing")}
             </A>
           </div>
-          <Show when={prices()?.trial.credits}>
+          <Show when={prices()?.trial.available}>
             <p class="flex items-center gap-2 text-footnote text-label-2">
               <IconCheck class="size-4 text-accent" weight={2.25} />
-              {t("landing.trial", { credits: prices()?.trial.credits ?? 0, days: prices()?.trial.days ?? 0 })}
+              {t("landing.trial")}
             </p>
           </Show>
         </div>
@@ -376,7 +376,7 @@ export default function Landing() {
                 </span>
                 <span class="text-subhead text-label-2">
                   {plan.id === "free"
-                    ? t("pricing.trial", { credits: prices()?.trial.credits ?? 0, days: prices()?.trial.days ?? 0 })
+                    ? t(prices()?.trial.available ? "pricing.trial" : "pricing.noImages")
                     : t("pricing.credits", { credits: plan.credits.toLocaleString("vi-VN") })}
                 </span>
               </div>

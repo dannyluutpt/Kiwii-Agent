@@ -7,7 +7,7 @@ import type { Database } from "../db/client"
 import { generation_images, generations, project_messages } from "../db/schema"
 import { runGeneration, type GenerationEvent } from "../images/generate"
 import { imageCreditCost, ImageModelID, loadImageModels, MAX_IMAGES_PER_RUN, MAX_REFERENCES } from "../images/models"
-import { CreateGeneration, imageAccess, prepareGeneration } from "../images/prepare"
+import { accessAllows, CreateGeneration, imageAccess, prepareGeneration } from "../images/prepare"
 import { presentGeneration } from "../images/present"
 import { ASSISTANT_MODEL } from "../llm/models"
 import { streamChat, type ChatMessage, type ToolCall } from "../llm/openrouter"
@@ -71,8 +71,8 @@ export async function checkAssistant(db: Database, user: User, request: z.infer<
   if (access.parallelLimit === 0) {
     throw new ApiError(403, "IMAGE_REQUIRES_PAID", "Tạo ảnh dành cho gói trả phí. Hãy nâng cấp gói.")
   }
-  if (access.models && !access.models.includes(request.settings.model)) {
-    throw new ApiError(403, "IMAGE_REQUIRES_PAID", "Credit dùng thử chỉ dùng được với FLUX 3 Klein. Hãy nâng cấp gói.")
+  if (!accessAllows(access, request.settings.model, request.settings.option)) {
+    throw new ApiError(403, "IMAGE_REQUIRES_PAID", "Dùng thử chỉ tạo được ảnh FLUX 3 Klein 1K. Hãy nâng cấp gói.")
   }
   const cost = imageCreditCost(await loadImageModels(db), {
     model: request.settings.model,

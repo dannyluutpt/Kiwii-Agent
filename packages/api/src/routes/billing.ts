@@ -6,7 +6,7 @@ import { activateOrder } from "../billing/activate"
 import { openOrder } from "../billing/orders"
 import { findMemo, generateMemo, isPaidTier, ORDER_TTL_MS, TOPUP_PACKS, vietQRUrl } from "../billing/plans"
 import { balance } from "../credits/ledger"
-import { TRIAL_TTL_MS, trialCredits } from "../credits/trial"
+import { trialCredits } from "../credits/trial"
 import { bank_events, credit_ledger, plan_orders, plans, subscriptions, users } from "../db/schema"
 import { requireAuth } from "../middleware/auth"
 import { timingSafeEqual } from "../util/crypto"
@@ -32,8 +32,8 @@ export const billing = createApp()
 billing.get("/plans", async (c) => {
   const rows = await c.get("db").select().from(plans).where(eq(plans.active, 1))
   return c.json({
-    // What a new account gets to try the cheapest model, shown on the Free card.
-    trial: { credits: await trialCredits(c.get("db")), days: TRIAL_TTL_MS / (24 * 60 * 60 * 1000) },
+    // Whether a new account gets to try the cheapest model. The amount is not advertised.
+    trial: { available: (await trialCredits(c.get("db"))) > 0 },
     plans: rows.map((p) => ({
       id: p.id,
       name: p.name_vi,

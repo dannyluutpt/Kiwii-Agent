@@ -126,10 +126,8 @@ export function PricingPlans() {
                     <Feature>{t("pricing.credits", { credits: plan.credits.toLocaleString("vi-VN") })}</Feature>
                   }
                 >
-                  <Feature muted={!data()?.trial.credits}>
-                    {data()?.trial.credits
-                      ? t("pricing.trial", { credits: data()?.trial.credits ?? 0, days: data()?.trial.days ?? 0 })
-                      : t("pricing.noImages")}
+                  <Feature muted={!data()?.trial.available}>
+                    {t(data()?.trial.available ? "pricing.trial" : "pricing.noImages")}
                   </Feature>
                 </Show>
                 <Show when={plan.credits > 0}>
