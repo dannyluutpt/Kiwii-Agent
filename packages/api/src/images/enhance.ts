@@ -71,7 +71,7 @@ export function castLegend(cast: CastMember[], references: number) {
 // The rewrite translates and clarifies; it must not stage the picture. Embellished prompts ("a
 // subtle smile", "50mm lens", "shallow depth of field", a change of clothes) made people pose and
 // look at the camera, which reads as a stock photo, and drifted edits away from the reference.
-function rewriteRules(model: ImageModelID, references: number, cast: CastMember[]) {
+function rewriteRules(model: ImageModelID, aspectRatio: string, references: number, cast: CastMember[]) {
   const names = cast.map((member) => `"${member.name}"`).join(" and ")
   return [
     `When allowed, rewrite the prompt in English for ${model} as a faithful, clear translation:`,
@@ -79,21 +79,35 @@ function rewriteRules(model: ImageModelID, references: number, cast: CastMember[
     "- Add nothing they did not ask for: no new people, objects, clothes, expressions or gestures, and no camera, lens, depth-of-field or quality words (8k, masterpiece, ultra-detailed, cinematic).",
     "- Photographs should look natural and believable. Unless they ask for a posed shot such as a portrait or a selfie, a photo shows an ordinary, candid moment: people carry on with what they are doing and do not look at the camera, in the light the place really has.",
     cast.length
-      ? `- The picture features ${names}, saved characters whose photos the image model gets with a note saying which is which. Call each one by that name, and do not describe their face, hair, body or clothes unless the person asks to change them: the photos show them. Say what each one is doing, where they are in the frame and what they are looking at, which is not the camera unless the person asks for a posed shot.`
+      ? `- The picture features ${names}, ${cast.length === 1 ? "a saved character" : "saved characters"} whose photos the image model gets with a note saying which is which. Call each one by that name, and do not describe their face, hair, body or clothes unless the person asks to change them: the photos show them. Say what each one is doing, where they are in the frame and what they are looking at, which is not the camera unless the person asks for a posed shot.`
       : "",
-    references > 0 && cast.length
-      ? `- They also attached ${references} picture(s) to work from, which you cannot see, so this is an edit. Say the change they asked for, then that everything else stays exactly as in the picture(s) to work from: the objects, the room, the framing, the camera angle, the light and the style. Call them "the picture to work from", without describing what is in them.`
-      : "",
-    references > 0 && !cast.length
-      ? `- They attached ${references} reference image(s), which you cannot see, so this is an edit. Say the change they asked for, then that everything else stays exactly as in the reference image(s): people's faces, hair and clothes, the objects, the room, the framing, the camera angle, the light and the style. Refer to each one the way they do (for example "the photo of the scanner") or as "the reference image", without describing what is in it.`
-      : "",
-    references === 0
-      ? "- Fill in only what the picture needs and they left open (setting, light, framing), briefly and plainly."
-      : "",
+    references > 0
+      ? pictureRules(references, cast.length > 0)
+      : "- Fill in only what the picture needs and they left open (setting, light, framing), briefly and plainly.",
+    `- The picture is ${aspectRatio}, ${orientation(aspectRatio)}: compose for that frame, without writing the ratio.`,
     `- At most 100 words, no preamble. ${STYLE_HINTS[model]}`,
   ]
     .filter(Boolean)
     .join("\n")
+}
+
+// What the person's own pictures are for. Read as edits to keep "exactly as they are", a portrait
+// attached to put someone in a new scene passed on its framing, head angle and gaze: the man cooked
+// while staring into the camera.
+function pictureRules(references: number, afterCast: boolean) {
+  return [
+    afterCast
+      ? `- They also attached ${references} picture(s) to work from, numbered after the characters' photos, which you cannot see. From their words, decide what each one is for:`
+      : `- They attached ${references} reference image(s), which you cannot see. From their words, decide what each one is for:`,
+    "  - The picture to change (a new background, light, color or season, something added or removed, or someone put into it): say the change, then that everything else in that picture stays exactly as it is: the people's faces, hair and clothes, the objects, the room, the framing, the camera angle, the light and the style.",
+    "  - Someone or something to show in a new scene: keep only who or what it is (a person's face, facial features, skin tone, hairstyle and build, and their clothes unless they ask for others; an object's shape, colors and markings), and say not to copy that photo's pose, head angle, gaze, expression, framing, background or light. Say what each person is doing and what they are looking at, which is not the camera unless they ask for a posed shot.",
+    `  Refer to each one the way they do (for example "the photo of the scanner") or as ${afterCast ? '"the picture to work from"' : '"the reference image"'}, without describing what is in it.`,
+  ].join("\n")
+}
+
+const orientation = (ratio: string) => {
+  const [w = 1, h = 1] = ratio.split(":").map(Number)
+  return w > h ? "landscape" : w < h ? "portrait" : "square"
 }
 
 type Previous = Pick<
@@ -124,6 +138,7 @@ export async function enhancePrompt(input: {
   model: ImageModelID
   prompt: string
   rewrite: boolean
+  aspectRatio: string
   // The pictures the run works from, besides the photos of its characters.
   references: number
   cast?: CastMember[]
@@ -138,7 +153,7 @@ export async function enhancePrompt(input: {
     'Reply with JSON only: {"allowed": boolean, "reason": string, "prompt": string}.',
     "Set allowed=false (and explain briefly in Vietnamese in reason) for: sexual content involving minors, sexual deepfakes or nudity of real identifiable people, gore or graphic violence, hate symbols or propaganda, instructions for weapons or drugs. Everything else is allowed, including artistic nudity-free portraits of public figures in neutral contexts.",
     input.rewrite
-      ? rewriteRules(input.model, input.references, input.cast ?? [])
+      ? rewriteRules(input.model, input.aspectRatio, input.references, input.cast ?? [])
       : "When allowed, return the user's prompt unchanged in prompt (translate to English only if it is not already English; keep quoted text exactly).",
   ]
     .filter(Boolean)

@@ -144,6 +144,7 @@ export async function prepareGeneration(input: {
         model: body.model,
         prompt: body.prompt,
         rewrite: body.enhance,
+        aspectRatio: body.aspectRatio,
         references: referenceIDs.length,
         cast: members,
         languageModel: (await languageModels(db, input.user.id)).rewrite,

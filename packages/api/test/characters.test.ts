@@ -213,7 +213,7 @@ describe("prepareGeneration with characters", () => {
       credits_reserved: 3,
     })
     expect(systems[0]).toContain('The picture features "Lan" and "Minh", saved characters')
-    expect(systems[0]).toContain("They also attached 1 picture(s) to work from")
+    expect(systems[0]).toContain("They also attached 1 picture(s) to work from, numbered after the characters' photos")
   })
 
   test("the pictures the run works from give way to the characters' photos past the model's limit", async () => {
