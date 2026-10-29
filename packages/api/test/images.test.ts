@@ -28,11 +28,11 @@ describe("imageCreditCost", () => {
 
 describe("enhancePrompt", () => {
   // The screening and rewrite is a paid call too; its cost starts the generation's cost_usd.
-  async function enhanceWith(reply: Response) {
+  async function enhanceWith(reply: Response, references = 0) {
     const original = globalThis.fetch
-    let sent: Record<string, unknown> | undefined
+    let sent: { messages: Array<{ content: string }> } & Record<string, unknown> = { messages: [] }
     globalThis.fetch = (async (_url: unknown, init?: RequestInit) => {
-      sent = JSON.parse(String(init?.body)) as Record<string, unknown>
+      sent = JSON.parse(String(init?.body)) as typeof sent
       return reply
     }) as typeof fetch
     try {
@@ -41,15 +41,16 @@ describe("enhancePrompt", () => {
         model: "gpt-image-2.5",
         prompt: "con cáo đỏ trên tuyết",
         rewrite: true,
-        references: 0,
+        references,
       })
-      return { result, sent }
+      return { result, sent, system: sent.messages[0]?.content ?? "" }
     } finally {
       globalThis.fetch = original
     }
   }
-  const answer = (content: Record<string, unknown>, cost: number) =>
-    Response.json({ choices: [{ message: { content: JSON.stringify(content) } }], usage: { cost } })
+  const reply = (content: string, cost: number) =>
+    Response.json({ choices: [{ message: { content } }], usage: { cost } })
+  const answer = (content: Record<string, unknown>, cost: number) => reply(JSON.stringify(content), cost)
 
   test("asks OpenRouter for the cost and reports it with the rewrite", async () => {
     const { result, sent } = await enhanceWith(
@@ -61,7 +62,27 @@ describe("enhancePrompt", () => {
       rewritten: true,
       costUsd: 0.00011,
     })
-    expect(sent?.usage).toEqual({ include: true })
+    expect(sent.usage).toEqual({ include: true })
+  })
+
+  // Embellished rewrites ("a subtle smile", "50mm lens", medical clothes) staged the picture and
+  // drifted edits away from the attached photos.
+  test("rewrites faithfully, and as an edit that keeps the rest when pictures are attached", async () => {
+    const fresh = await enhanceWith(answer({ allowed: true, reason: "", prompt: "A red fox in fresh snow" }, 0))
+    expect(fresh.system).toContain("Add nothing they did not ask for")
+    expect(fresh.system).toContain("do not look at the camera")
+    expect(fresh.system).not.toContain("this is an edit")
+    const edit = await enhanceWith(answer({ allowed: true, reason: "", prompt: "Put the fox in snow" }, 0), 2)
+    expect(edit.system).toContain("They attached 2 reference image(s), which you cannot see, so this is an edit")
+    expect(edit.system).toContain("everything else stays exactly as in the reference image(s)")
+  })
+
+  // A thinking model spent the whole token budget thinking and answered with nothing.
+  test("asks for an answer without thinking, and takes one wrapped in a code fence", async () => {
+    const fenced = 'Here it is:\n```json\n{"allowed": true, "reason": "", "prompt": "A red fox in fresh snow"}\n```'
+    const { result, sent } = await enhanceWith(reply(fenced, 0.0001))
+    expect(sent.reasoning).toEqual({ effort: "none" })
+    expect(result).toEqual({ allowed: true, prompt: "A red fox in fresh snow", rewritten: true, costUsd: 0.0001 })
   })
 
   test("a blocked prompt still reports what the check cost", async () => {
