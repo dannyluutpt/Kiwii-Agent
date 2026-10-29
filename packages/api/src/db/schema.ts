@@ -74,7 +74,7 @@ export const files = sqliteTable(
     generation_id: text(),
     ...Timestamps,
   },
-  (t) => [index("files_user").on(t.user_id, t.created_at)],
+  (t) => [index("files_user").on(t.user_id, t.created_at), index("files_r2_key").on(t.r2_key)],
 )
 
 export const plans = sqliteTable("plans", {
