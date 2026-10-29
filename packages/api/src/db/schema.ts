@@ -223,12 +223,30 @@ export const generations = sqliteTable(
     cost_usd: real(),
     error: text(),
     finished_at: integer(),
+    // The project the run belongs to; null for runs made outside one, which show only under "all".
+    project_id: text(),
     ...Timestamps,
   },
   (t) => [
     index("generations_user").on(t.user_id, t.created_at),
     index("generations_status").on(t.status, t.created_at),
+    index("generations_project").on(t.user_id, t.project_id, t.id),
   ],
+)
+
+// A workspace folder of runs. Deleting one moves its runs back to "all"; no picture is lost.
+export const projects = sqliteTable(
+  "projects",
+  {
+    id: text().primaryKey(),
+    user_id: text().notNull(),
+    // Empty until the person names it or its first run names it after the prompt.
+    name: text().notNull().default(""),
+    // Bumped by every run in the project, so the busiest projects list first.
+    updated_at: integer().notNull(),
+    ...Timestamps,
+  },
+  (t) => [index("projects_user").on(t.user_id, t.updated_at)],
 )
 
 export const generation_images = sqliteTable(

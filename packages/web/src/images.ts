@@ -35,6 +35,8 @@ export type Generation = {
   creditsReserved: number
   creditsFinal: number | null
   error: string | null
+  // The project the run belongs to; null for runs made outside one.
+  projectID: string | null
   createdAt: number
   finishedAt: number | null
   images: GenerationImage[]

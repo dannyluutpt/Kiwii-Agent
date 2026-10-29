@@ -9,7 +9,8 @@ import { createReferenceUploads, ReferenceStrip } from "./references"
 import { StudioOptions } from "./studio-options"
 
 // The studio's control panel on wide screens: references and the prompt at the top, every option in
-// view below, and the generate button pinned at the bottom. The gallery sits beside it.
+// view below, and the generate button pinned at the bottom. It fills the panel to the right of the
+// gallery.
 export function StudioPanel(props: {
   config: ModelsResponse
   settings: StudioSettings
@@ -49,7 +50,7 @@ export function StudioPanel(props: {
 
   return (
     <form
-      class="flex h-full w-[340px] shrink-0 flex-col border-r border-separator bg-surface lg:w-[380px]"
+      class="flex min-h-0 flex-1 flex-col"
       aria-label={t("images.options")}
       onSubmit={(event) => {
         event.preventDefault()

@@ -6,6 +6,8 @@ import { AuthProvider, useAuth } from "@/context/auth"
 import { safeNext } from "@/lib/next"
 import { LanguageProvider } from "@/context/language"
 import { LayoutProvider } from "@/context/layout"
+import { ProjectsProvider } from "@/context/projects"
+import { StudioProvider } from "@/context/studio"
 // The sign-in screens are small and are the first thing a signed-out visitor sees, so they ship in
 // the main bundle: the card renders whole instead of growing (and shifting) when a chunk lands.
 import Forgot from "@/pages/auth/forgot"
@@ -17,7 +19,7 @@ import Verify from "@/pages/auth/verify"
 import { ConfirmHost } from "@/ui/confirm"
 import { ToastRegion } from "@/ui/toast"
 
-const Images = lazy(() => import("@/pages/images"))
+const Studio = lazy(() => import("@/pages/studio"))
 const Assets = lazy(() => import("@/pages/assets"))
 const Pricing = lazy(() => import("@/pages/pricing"))
 const Checkout = lazy(() => import("@/pages/checkout"))
@@ -41,7 +43,7 @@ function preloadScreens() {
   const connection = (navigator as Navigator & { connection?: { saveData?: boolean } }).connection
   if (connection?.saveData) return
   const run = () => {
-    for (const screen of [Images, Assets, Pricing, Account, Checkout]) void screen.preload()
+    for (const screen of [Studio, Assets, Pricing, Account, Checkout]) void screen.preload()
   }
   // Safari has no requestIdleCallback; a short delay keeps the fetches clear of the first paint.
   const later =
@@ -62,7 +64,11 @@ function Private(props: ParentProps) {
         fallback={<Navigate href={`/login?next=${encodeURIComponent(location.pathname + location.search)}`} />}
       >
         <LayoutProvider>
-          <AppShell>{props.children}</AppShell>
+          <ProjectsProvider>
+            <StudioProvider>
+              <AppShell>{props.children}</AppShell>
+            </StudioProvider>
+          </ProjectsProvider>
         </LayoutProvider>
       </Show>
     </Show>
@@ -84,7 +90,6 @@ function Public(props: ParentProps) {
 export function App() {
   return (
     <Router root={Providers}>
-      <Route path="/" component={() => <Navigate href="/images" />} />
       <Route component={Public}>
         <Route path="/login" component={Login} />
         <Route path="/signup" component={Signup} />
@@ -93,14 +98,18 @@ export function App() {
         <Route path="/reset" component={Reset} />
       </Route>
       <Route component={Private}>
-        <Route path="/images" component={Images} />
-        <Route path="/images/assets" component={Assets} />
+        <Route path="/" component={Studio} />
+        <Route path="/p/:projectId" component={Studio} />
+        <Route path="/library" component={Assets} />
         <Route path="/pricing" component={Pricing} />
         <Route path="/pricing/checkout/:orderId" component={Checkout} />
         <Route path="/account" component={Account} />
       </Route>
+      {/* Where the studio and the library used to live. */}
+      <Route path="/images" component={() => <Navigate href="/" />} />
+      <Route path="/images/assets" component={() => <Navigate href="/library" />} />
       {/* Also catches the retired /chat links, Home Screen icons that start there included. */}
-      <Route path="*" component={() => <Navigate href="/images" />} />
+      <Route path="*" component={() => <Navigate href="/" />} />
     </Router>
   )
 }

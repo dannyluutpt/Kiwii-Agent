@@ -129,7 +129,7 @@ export default function Checkout() {
                   }
                   lead={t("checkout.paid.lead")}
                 >
-                  <A href="/images" class={buttonClass("primary", "lg", "w-full")}>
+                  <A href="/" class={buttonClass("primary", "lg", "w-full")}>
                     {t("checkout.startImages")}
                   </A>
                   <A href="/account" class={buttonClass("secondary", "lg", "w-full")}>

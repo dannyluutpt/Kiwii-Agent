@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test"
 import { balance } from "../src/credits/ledger"
 import { grantTrial, trialCredits } from "../src/credits/trial"
 import { app_config } from "../src/db/schema"
-import { imageAccess } from "../src/routes/images"
+import { imageAccess } from "../src/images/prepare"
 import { testDatabase } from "./db"
 
 describe("trial credits", () => {

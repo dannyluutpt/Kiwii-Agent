@@ -58,6 +58,20 @@ Measured on 2026-10-27 through production (1:1 is the most expensive ratio): low
 High = 10 and sets XHigh = 15, Max = 28 in `app_config.image_models`; the formula alone would
 give 1 / 1 / 3 / 5 / 10, so every GPT tier carries a wide margin.
 
+## Projects
+
+`/api/projects` lists, creates, renames and deletes a person's projects (`src/projects/store.ts`).
+A run joins one through `projectID` on `POST /api/images/generations`, and
+`GET /api/images/generations?project=<id>` lists only its runs. A project starts without a name and
+takes the opening words of its first prompt; "new project" again while an unnamed one is still empty
+returns that one. Deleting a project moves its runs back to "all" (`project_id` null); no picture is
+lost.
+
+Everything a run needs before it starts (access, price, project, references, screening and rewrite,
+the credit hold, the row) is `prepareGeneration` in `src/images/prepare.ts`, and what the browser
+sees of a run is `presentGeneration` in `src/images/present.ts`, so every route that makes pictures
+shares them.
+
 ## Retired chat
 
 The general chat (conversations, file tools, web search) was removed in favour of image
