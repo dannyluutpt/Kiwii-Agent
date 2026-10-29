@@ -19,7 +19,7 @@ test.describe("paid account", () => {
     await page.getByRole("button", { name: "Mua 200 credit" }).click()
     await expect(page).toHaveURL(/\/pricing\/checkout\/\w+$/)
     await expect(page.getByText("200 credit · dùng trong 90 ngày")).toBeVisible()
-    await expect(page.getByText("229.000 ₫").first()).toBeVisible()
+    await expect(page.getByText("379.000 ₫").first()).toBeVisible()
     await expect(page.getByRole("status").filter({ hasText: "Đang chờ chuyển khoản" })).toContainText(/còn \d+ giờ/)
 
     await page.getByRole("button", { name: "Sao chép nội dung chuyển khoản" }).click()
@@ -32,7 +32,7 @@ test.describe("paid account", () => {
       data: {
         id: Date.now() + info.workerIndex,
         transferType: "in",
-        transferAmount: 229_000,
+        transferAmount: 379_000,
         content: `${memo} E2E`,
       },
     })
