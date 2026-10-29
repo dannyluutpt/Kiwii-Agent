@@ -9,6 +9,13 @@ export function clientIP(headers: Headers) {
   return headers.get("cf-connecting-ip") ?? headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown"
 }
 
+// Pictures load one request each, dozens at once when a gallery opens, and the browser keeps them for
+// good after that. Counted against the per-IP budget, one library page would spend it and lock the app
+// out of its own session for a minute. They still need the signed-in owner.
+export function skipsIPLimit(method: string, path: string) {
+  return method === "GET" && path.startsWith("/api/images/files/")
+}
+
 // Cloudflare's rate limit binding is absent in some local setups; fail open there.
 export const rateLimitBy = (pick: (env: AppEnv["Bindings"]) => RateLimit | undefined, scope: string) =>
   createMiddleware<AppEnv>(async (c, next) => {
