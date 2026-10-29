@@ -64,10 +64,10 @@ export function Lightbox(props: {
   return (
     <KDialog open={props.index !== undefined} onOpenChange={(open) => !open && props.onClose()}>
       <KDialog.Portal>
-        <KDialog.Overlay class="k-overlay fixed inset-0 z-(--z-lightbox) bg-black" />
+        <KDialog.Overlay class="k-overlay fixed inset-0 z-(--z-lightbox) bg-canvas" />
         <KDialog.Content
           ref={content}
-          class="k-lightbox fixed inset-0 z-(--z-lightbox) flex flex-col pt-safe pb-safe text-white outline-none"
+          class="k-lightbox fixed inset-0 z-(--z-lightbox) flex flex-col pt-safe pb-safe text-label outline-none"
           // Focus the viewer itself: screen readers announce the picture, arrow keys work at once, and
           // no button tooltip pops up over the photo. With no trigger for Kobalte to return to, focus
           // goes back by hand to whatever opened the viewer, unless an action already moved it on
@@ -89,7 +89,7 @@ export function Lightbox(props: {
         >
           <KDialog.Title class="sr-only">{item()?.alt}</KDialog.Title>
           <div class="flex items-center gap-2 p-3">
-            <p class="flex-1 pl-2 text-subhead text-white/70 tabular-nums" aria-live="polite">
+            <p class="flex-1 pl-2 text-subhead text-label-2 tabular-nums" aria-live="polite">
               <Show when={count() > 1}>{t("images.position", { n: position() + 1, total: count() })}</Show>
             </p>
             <Show when={props.onReuse}>
@@ -193,7 +193,7 @@ export function Lightbox(props: {
           </div>
 
           <Show when={item()?.caption}>
-            <p class="mx-auto line-clamp-3 max-w-2xl px-6 pt-2 pb-5 text-center text-footnote text-white/70">
+            <p class="mx-auto line-clamp-3 max-w-2xl px-6 pt-2 pb-5 text-center text-footnote text-label-2">
               {item()?.caption}
             </p>
           </Show>

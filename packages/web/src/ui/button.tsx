@@ -5,7 +5,9 @@ export type ButtonVariant = "primary" | "secondary" | "tinted" | "ghost" | "outl
 export type ButtonSize = "sm" | "md" | "lg"
 
 const VARIANTS: Record<ButtonVariant, string> = {
-  primary: "bg-accent text-on-accent shadow-raised hover:bg-accent-hover",
+  // Faded, the yellow would turn olive on the dark canvas; off, it greys out, so yellow means ready.
+  primary:
+    "bg-accent text-on-accent shadow-raised hover:bg-accent-hover off:bg-fill-2 off:text-label-3 off:shadow-none",
   secondary: "bg-fill-2 text-label hover:bg-fill-3",
   tinted: "bg-accent-soft text-accent hover:bg-[color-mix(in_srgb,var(--k-accent-soft),var(--k-accent)_10%)]",
   ghost: "text-label hover:bg-fill active:bg-fill-2",
@@ -34,9 +36,8 @@ export function buttonClass(
   return [
     "relative inline-flex shrink-0 select-none items-center justify-center whitespace-nowrap font-semibold",
     "transition-[background-color,color,box-shadow,transform,filter,opacity] duration-(--motion-micro) ease-standard",
-    // A loading button is disabled but keeps full opacity so the spinner reads as progress, not as off.
-    "active:scale-[0.98] disabled:pointer-events-none [&:disabled:not([aria-busy=true])]:opacity-45",
-    "aria-disabled:pointer-events-none aria-disabled:opacity-45",
+    "active:scale-[0.98] disabled:pointer-events-none aria-disabled:pointer-events-none",
+    variant === "primary" ? "" : "off:opacity-45",
     VARIANTS[variant],
     SIZES[size],
     pill ? "rounded-full" : RADII[size],

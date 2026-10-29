@@ -222,7 +222,7 @@ html[data-keyboard="open"] [data-keyboard-hide] {
   display: none;
 }
 
-/* "Thinking" label: a soft highlight sweeping across the text while Kiwii prepares an answer. */
+/* "Working" label: a soft highlight sweeping across the text while a run is being prepared. */
 .k-shimmer-text {
   background: linear-gradient(
     90deg,

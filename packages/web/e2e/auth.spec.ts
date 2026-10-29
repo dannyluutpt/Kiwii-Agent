@@ -38,5 +38,5 @@ test("the verification code takes digits only and resending waits", async ({ pag
 test("a protected screen sends visitors to sign in and back", async ({ page }) => {
   await page.goto("/account")
   await expect(page).toHaveURL(/\/login\?next=%2Faccount$/)
-  await expect(page.getByRole("heading", { name: "Đăng nhập Kiwii" })).toBeVisible()
+  await expect(page.getByRole("heading", { name: "Đăng nhập Amberpix" })).toBeVisible()
 })

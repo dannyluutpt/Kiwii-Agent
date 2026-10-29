@@ -1,26 +1,22 @@
 import { A, useNavigate } from "@solidjs/router"
 import { Show, type JSX } from "solid-js"
-import { useTheme } from "@kiwii/ui/theme/context"
 import { useAuth } from "@/context/auth"
 import { useLanguage } from "@/context/language"
 import { useLayout } from "@/context/layout"
 import { shortcutLabel, SIDEBAR_SHORTCUT } from "@/lib/shortcuts"
 import { Avatar } from "@/ui/avatar"
 import { IconButton } from "@/ui/icon-button"
-import { Menu, MenuContent, MenuItem, MenuRadioGroup, MenuSeparator } from "@/ui/menu"
+import { Menu, MenuContent, MenuItem, MenuSeparator } from "@/ui/menu"
 import {
-  IconAuto,
   IconClose,
   IconEllipsis,
   IconImage,
   IconLibrary,
   IconLogout,
-  IconMoon,
   IconPerson,
   IconSidebar,
   IconSparkles,
   IconStar,
-  IconSun,
 } from "./icons"
 
 const ROW =
@@ -34,7 +30,7 @@ export function Sidebar(props: { mode: "docked" | "drawer" }) {
     <nav aria-label={t("nav.primary")} class="flex h-full w-full flex-col bg-sidebar pt-safe">
       <div class="flex h-[52px] shrink-0 items-center gap-1 pr-2 pl-3">
         <A href="/images" class="flex items-center gap-2 rounded-[10px] px-1.5 py-1">
-          <img src="/logo.png" alt="" class="size-7 rounded-[8px]" />
+          <img src="/logo.svg" alt="" class="size-7 rounded-[8px]" />
           <span class="text-headline text-label">{t("app.name")}</span>
         </A>
         <span class="flex-1" />
@@ -78,7 +74,6 @@ function NavLink(props: { href: string; end?: boolean; icon: JSX.Element; label:
 function AccountMenu() {
   const { t } = useLanguage()
   const auth = useAuth()
-  const theme = useTheme()
   const navigate = useNavigate()
   const planLine = () => {
     const me = auth.me()
@@ -114,17 +109,6 @@ function AccountMenu() {
               <MenuItem icon={<IconStar class="size-[18px]" />} onSelect={() => navigate("/pricing")}>
                 {t("nav.pricing")}
               </MenuItem>
-              <MenuSeparator />
-              <MenuRadioGroup
-                label={t("theme.title")}
-                value={theme.colorScheme()}
-                onChange={(scheme) => theme.setColorScheme(scheme)}
-                options={[
-                  { value: "system", label: t("theme.system"), icon: <IconAuto class="size-[18px]" /> },
-                  { value: "light", label: t("theme.light"), icon: <IconSun class="size-[18px]" /> },
-                  { value: "dark", label: t("theme.dark"), icon: <IconMoon class="size-[18px]" /> },
-                ]}
-              />
               <MenuSeparator />
               <MenuItem
                 icon={<IconLogout class="size-[18px]" />}

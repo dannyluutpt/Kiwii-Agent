@@ -1,3 +1,4 @@
+import { BRAND } from "../brand"
 import type { Env } from "../env"
 
 export async function sendEmail(env: Env, message: { to: string; subject: string; text: string; html?: string }) {
@@ -11,11 +12,11 @@ export async function sendEmail(env: Env, message: { to: string; subject: string
 }
 
 export function otpEmail(input: { code: string; purpose: "signup" | "reset" }) {
-  const title = input.purpose === "signup" ? "Xác minh email Kiwii" : "Đặt lại mật khẩu Kiwii"
+  const title = input.purpose === "signup" ? `Xác minh email ${BRAND}` : `Đặt lại mật khẩu ${BRAND}`
   const lead =
     input.purpose === "signup"
-      ? "Nhập mã dưới đây để hoàn tất đăng ký tài khoản Kiwii."
-      : "Nhập mã dưới đây để đặt lại mật khẩu Kiwii của bạn."
+      ? `Nhập mã dưới đây để hoàn tất đăng ký tài khoản ${BRAND}.`
+      : `Nhập mã dưới đây để đặt lại mật khẩu ${BRAND} của bạn.`
   const text = `${title}\n\n${lead}\n\nMã của bạn: ${input.code}\n\nMã có hiệu lực trong 10 phút. Nếu bạn không yêu cầu, hãy bỏ qua email này.`
   const html = `<div style="font-family:system-ui,sans-serif;max-width:480px;margin:auto;padding:24px">
   <h2 style="margin:0 0 12px">${title}</h2>
@@ -24,7 +25,7 @@ export function otpEmail(input: { code: string; purpose: "signup" | "reset" }) {
   <p style="color:#666">Mã có hiệu lực trong 10 phút. Nếu bạn không yêu cầu, hãy bỏ qua email này.</p>
 </div>`
   return {
-    subject: `${input.code} là mã ${input.purpose === "signup" ? "xác minh" : "đặt lại mật khẩu"} Kiwii`,
+    subject: `${input.code} là mã ${input.purpose === "signup" ? "xác minh" : "đặt lại mật khẩu"} ${BRAND}`,
     text,
     html,
   }

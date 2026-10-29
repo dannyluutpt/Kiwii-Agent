@@ -2,6 +2,7 @@ import { A, useNavigate } from "@solidjs/router"
 import { createSignal, For, onMount, Show } from "solid-js"
 import { createStore, produce } from "solid-js/store"
 import { api } from "@/api"
+import { BRAND_SLUG } from "@/brand"
 import { IconImage } from "@/components/icons"
 import { Lightbox } from "@/components/lightbox"
 import { LoadMore } from "@/components/load-more"
@@ -118,7 +119,7 @@ export default function Assets() {
           alt: altFor(asset),
           caption: asset.prompt,
           download: `${asset.url}?download`,
-          name: `kiwii-${asset.id}`,
+          name: `${BRAND_SLUG}-${asset.id}`,
         }))}
         index={viewer()}
         onIndex={setViewer}

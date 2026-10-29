@@ -259,7 +259,7 @@ test("the viewer saves a picture through the share sheet on iPhone and downloads
   await viewer.getByRole("button", { name: "Tải về" }).click()
   await expect(page.locator("body")).toHaveAttribute(
     "data-shared",
-    /^\[\{"name":"kiwii-\w+\.png","type":"image\/png","size":[1-9]\d*\}\]$/,
+    /^\[\{"name":"amberpix-\w+\.png","type":"image\/png","size":[1-9]\d*\}\]$/,
   )
   // Nothing navigated: the viewer is still open over the studio.
   await expect(viewer).toBeVisible()
@@ -273,6 +273,18 @@ test("switching models changes the price", async ({ page, isMobile }) => {
   // FLUX 1K costs 1 credit a picture.
   await pickModel(page, isMobile, "FLUX 3 Klein")
   await expect(page.getByRole("button", { name: "Tạo ảnh, 1 credit" })).toBeEnabled()
+})
+
+// Yellow means ready: with nothing to make, the button greys out rather than fading to olive.
+test("the generate button turns yellow once there is a prompt", async ({ page }) => {
+  await page.goto("/images")
+  const generate = page.getByRole("button", { name: /^Tạo ảnh, \d+ credit$/ })
+  await expect(generate).toBeDisabled()
+  await expect(generate).toHaveCSS("background-color", "rgba(255, 255, 255, 0.1)")
+  await prompt(page).fill("Một ngọn hải đăng lúc bình minh")
+  await expect(generate).toBeEnabled()
+  await expect(generate).toHaveCSS("background-color", "rgb(255, 214, 10)")
+  await expect(generate).toHaveCSS("opacity", "1")
 })
 
 test("the library steps through every picture in the viewer", async ({ page }) => {

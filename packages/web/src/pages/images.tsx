@@ -2,6 +2,7 @@ import { A, useNavigate, useSearchParams } from "@solidjs/router"
 import { createEffect, createMemo, createResource, createSignal, For, on, Show, type JSX } from "solid-js"
 import { createStore, produce } from "solid-js/store"
 import { api, ApiError, apiStream } from "@/api"
+import { BRAND_SLUG } from "@/brand"
 import { GenerationTile } from "@/components/generation-tile"
 import { IconGlobe, IconImage, IconPencil, IconSparkles } from "@/components/icons"
 import { Lightbox, type LightboxItem } from "@/components/lightbox"
@@ -314,7 +315,7 @@ export default function Images() {
         alt: altFor(g),
         caption: g.prompt,
         download: `${img.url}?download`,
-        name: `kiwii-${img.id}`,
+        name: `${BRAND_SLUG}-${img.id}`,
       }))
   }
 

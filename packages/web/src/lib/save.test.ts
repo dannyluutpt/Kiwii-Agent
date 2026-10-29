@@ -23,12 +23,12 @@ describe("isAppleTouch", () => {
 
 describe("withExtension", () => {
   test("adds the extension a picture's type implies", () => {
-    expect(withExtension("kiwii-01ABC", "image/png")).toBe("kiwii-01ABC.png")
-    expect(withExtension("kiwii-01ABC", "image/jpeg")).toBe("kiwii-01ABC.jpg")
+    expect(withExtension("amberpix-01ABC", "image/png")).toBe("amberpix-01ABC.png")
+    expect(withExtension("amberpix-01ABC", "image/jpeg")).toBe("amberpix-01ABC.jpg")
   })
 
   test("keeps a name that has one, and an unknown type alone", () => {
     expect(withExtension("bao-cao.docx", "application/octet-stream")).toBe("bao-cao.docx")
-    expect(withExtension("kiwii-01ABC", "application/octet-stream")).toBe("kiwii-01ABC")
+    expect(withExtension("amberpix-01ABC", "application/octet-stream")).toBe("amberpix-01ABC")
   })
 })

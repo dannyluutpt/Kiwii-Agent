@@ -18,7 +18,7 @@ export function Segmented<T extends string>(props: {
       class={`relative rounded-[11px] bg-fill-2 p-[3px] ${props.block ? "flex w-full" : "inline-flex"} ${props.class ?? ""}`}
     >
       <SegmentedControl.Label class="sr-only">{props.label}</SegmentedControl.Label>
-      <SegmentedControl.Indicator class="k-segmented-indicator absolute top-[3px] left-[3px] rounded-[8px] bg-surface shadow-raised dark:bg-surface-3" />
+      <SegmentedControl.Indicator class="k-segmented-indicator absolute top-[3px] left-[3px] rounded-[8px] bg-surface-3 shadow-raised" />
       <For each={props.options}>
         {(option) => (
           <SegmentedControl.Item

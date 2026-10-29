@@ -1,5 +1,5 @@
 // iPhone and iPad keep pictures in Photos rather than a Downloads folder, and in the Home Screen app
-// a download link opens a file preview with no way back to Kiwii. There a file is saved through the
+// a download link opens a file preview with no way back to the app. There a file is saved through the
 // share sheet ("Lưu hình ảnh", "Lưu vào Tệp"); everywhere else a plain download link does the job.
 
 // iPadOS presents itself as a Mac; only the touch screen tells the two apart.
@@ -13,7 +13,7 @@ export function savesThroughShare() {
 
 const EXTENSIONS: Record<string, string> = { "image/png": "png", "image/jpeg": "jpg", "image/webp": "webp" }
 
-// Gives a picture's name the extension its type implies when it has none ("kiwii-1" → "kiwii-1.png").
+// Gives a picture's name the extension its type implies when it has none ("amberpix-1" → "amberpix-1.png").
 export function withExtension(name: string, type: string) {
   const extension = EXTENSIONS[type]
   return /\.\w+$/.test(name) || !extension ? name : `${name}.${extension}`

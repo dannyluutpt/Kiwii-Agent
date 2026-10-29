@@ -1,5 +1,6 @@
 import { createSignal } from "solid-js"
 import { createSimpleContext } from "@kiwii/ui/context/helper"
+import { BRAND } from "@/brand"
 import { dict as en } from "@/i18n/en"
 import { dict as vi, type I18nKey } from "@/i18n/vi"
 
@@ -28,10 +29,10 @@ export const { use: useLanguage, provider: LanguageProvider } = createSimpleCont
         } catch {}
         document.documentElement.lang = next
       },
+      // {{brand}} is always the product name; other placeholders come from `params`.
       t: (key: I18nKey, params?: Record<string, string | number>) => {
-        const text = dicts[locale()][key]
-        if (!params) return text
-        return text.replace(/{{\s*(\w+)\s*}}/g, (_, name: string) => String(params[name] ?? ""))
+        const values: Record<string, string | number> = { brand: BRAND, ...params }
+        return dicts[locale()][key].replace(/{{\s*(\w+)\s*}}/g, (_, name: string) => String(values[name] ?? ""))
       },
     }
   },

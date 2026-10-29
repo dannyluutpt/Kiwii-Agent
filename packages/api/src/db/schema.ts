@@ -207,7 +207,7 @@ export const generations = sqliteTable(
     id: text().primaryKey(),
     user_id: text().notNull(),
     status: text({ enum: GenerationStatus }).notNull(),
-    // Kiwii model id (see src/images/models.ts), not the OpenRouter slug.
+    // Our model id (see src/images/models.ts), not the OpenRouter slug.
     model: text().notNull(),
     // Resolution tier for FLUX / Nano Banana, quality for GPT.
     option: text().notNull(),
