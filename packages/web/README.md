@@ -59,6 +59,10 @@ app on iOS and Android (`display: standalone`, the whole site in scope, starting
 it iOS 26 keeps the browser bars. A phone reads the manifest only when the icon is added, so a change
 to it shows after the icon is removed and added again.
 
+In that app a download link opens a file preview with no way back, and iPhone keeps pictures in
+Photos anyway, so on iPhone and iPad the viewer's Download and the file cards in chat hand the file
+to the share sheet instead ("Lưu hình ảnh", "Lưu vào Tệp"; `lib/save.ts`). Other devices download.
+
 The icons in `public/icons/` are `assets/logo.png` on an opaque `#141513` square, since iOS paints
 transparent areas black: about 78% of the square, 58% for the maskable one so Android's masks never
 cut it. Made with ImageMagick, from this folder:

@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "./fixtures"
+import { expect, recordShares, test, type Page } from "./fixtures"
 import { PRO_STATE } from "./global-setup"
 
 const composer = (page: Page) => page.getByRole("textbox", { name: "Nhắn cho Kiwii…" })
@@ -39,6 +39,31 @@ test("a question about today sends Kiwii to the web and the answer cites its sou
   await expect(source).toHaveAttribute("rel", "noopener noreferrer")
   await expect(page.getByText("150 triệu đồng")).toBeVisible()
   await context.close()
+})
+
+test.describe("paid plan", () => {
+  test.use({ storageState: PRO_STATE })
+
+  // A file Kiwii makes downloads from its card; on iPhone the card hands it to the share sheet
+  // ("Lưu vào Tệp", Word) instead, since a download there strands the Home Screen app.
+  test("a file Kiwii makes is saved from its card", async ({ page, isMobile }) => {
+    await recordShares(page)
+    await page.goto("/chat")
+    await composer(page).fill("Tạo file Word báo cáo quý")
+    await page.keyboard.press("Enter")
+    const file = page.getByRole(isMobile ? "button" : "link", { name: /^bao-cao\.docx, / })
+    await expect(file).toBeVisible({ timeout: 15_000 })
+    if (!isMobile) {
+      await expect(file).toHaveAttribute("download", "bao-cao.docx")
+      return
+    }
+    await file.click()
+    await expect(page.locator("body")).toHaveAttribute(
+      "data-shared",
+      /^\[\{"name":"bao-cao\.docx","type":"application\/vnd\.openxmlformats-officedocument\.wordprocessingml\.document","size":[1-9]\d*\}\]$/,
+    )
+    await expect(page).toHaveURL(/\/chat\/[0-9A-Z]+$/)
+  })
 })
 
 test("finishing an answer refreshes the quota without reloading the screen", async ({ page }) => {

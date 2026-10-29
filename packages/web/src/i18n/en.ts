@@ -9,6 +9,8 @@ export const dict: Record<I18nKey, string> = {
   "common.close": "Close",
   "common.retry": "Try again",
   "common.done": "Done",
+  "save.again": "Ready. Tap again to save",
+  "save.failed": "Couldn't save the file. Try again",
   "nav.chat": "Kiwii Chat",
   "nav.images": "Kiwii Image",
   "nav.assets": "Assets",

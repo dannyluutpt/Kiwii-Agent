@@ -312,6 +312,7 @@ export default function Images() {
         alt: altFor(g),
         caption: g.prompt,
         download: `${img.url}?download`,
+        name: `kiwii-${img.id}`,
       }))
   }
 
