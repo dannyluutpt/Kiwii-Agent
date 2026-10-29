@@ -4,7 +4,7 @@ import { ApiError, createApp } from "./app"
 import { runDaily } from "./cron"
 import { createDatabase } from "./db/client"
 import type { Env } from "./env"
-import { rateLimitBy } from "./middleware/ratelimit"
+import { rateLimitBy, skipsIPLimit } from "./middleware/ratelimit"
 import { account } from "./routes/account"
 import { auth } from "./routes/auth"
 import { billing } from "./routes/billing"
@@ -28,10 +28,8 @@ app.use("/api/*", async (c, next) => {
   c.header("cache-control", "no-store")
   await next()
 })
-app.use(
-  "/api/*",
-  rateLimitBy((env) => env.RL_IP, "ip"),
-)
+const ipLimit = rateLimitBy((env) => env.RL_IP, "ip")
+app.use("/api/*", (c, next) => (skipsIPLimit(c.req.method, c.req.path) ? next() : ipLimit(c, next)))
 
 app.route("/api/auth", auth)
 app.route("/api/billing", billing)
