@@ -41,7 +41,7 @@ export function GenerationTile(props: {
 
   return (
     <article
-      class="mb-2 flex break-inside-avoid flex-col overflow-hidden rounded-[14px] bg-surface shadow-raised animate-fade-in md:mb-3"
+      class="rim relative mb-2 flex break-inside-avoid flex-col overflow-hidden rounded-[14px] bg-surface bg-sheen shadow-raised transition-[box-shadow,translate,scale] duration-(--motion-standard) ease-standard animate-fade-in hover:-translate-y-0.5 hover:shadow-lift md:mb-3"
       aria-busy={busy()}
       aria-label={g().prompt.slice(0, 80)}
     >

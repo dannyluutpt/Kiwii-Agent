@@ -21,7 +21,7 @@ export function ListSection(props: { title?: string; footer?: JSX.Element; child
 export function ListGroup(props: { children: JSX.Element; class?: string }) {
   return (
     <div
-      class={`overflow-hidden rounded-card bg-surface shadow-raised [&>*+*]:border-t [&>*+*]:border-separator ${props.class ?? ""}`}
+      class={`overflow-hidden rounded-card bg-surface bg-sheen shadow-raised [&>*+*]:border-t [&>*+*]:border-separator ${props.class ?? ""}`}
     >
       {props.children}
     </div>

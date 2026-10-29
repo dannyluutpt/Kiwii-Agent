@@ -243,7 +243,7 @@ function Outcome(props: {
   children: JSX.Element
 }) {
   return (
-    <div class="flex flex-col items-center gap-4 rounded-panel bg-surface px-6 py-8 text-center shadow-raised animate-rise-in">
+    <div class="flex flex-col items-center gap-4 rounded-panel bg-surface bg-sheen px-6 py-8 text-center shadow-raised animate-rise-in">
       <Show when={props.icon}>
         <span class={`flex size-14 items-center justify-center rounded-full ${OUTCOME_TONES[props.tone]}`}>
           {props.icon}

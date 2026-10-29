@@ -12,7 +12,7 @@ export function PopoverContent(props: { label: string; children: JSX.Element; cl
       <KPopover.Content
         ref={content}
         tabIndex={-1}
-        class={`k-popover z-(--z-popover) max-h-[70dvh] w-[min(360px,calc(100vw-24px))] overflow-y-auto rounded-[18px] bg-elevated p-4 shadow-floating outline-none ${props.class ?? ""}`}
+        class={`k-popover z-(--z-popover) max-h-[70dvh] w-[min(360px,calc(100vw-24px))] overflow-y-auto rounded-[18px] bg-elevated bg-sheen p-4 shadow-floating outline-none ${props.class ?? ""}`}
         // Focus the panel, not its first control: the first radio is rarely the selected one, and a
         // ring on it would point at the wrong choice. Tab moves into the controls from here.
         onOpenAutoFocus={(event: Event) => {

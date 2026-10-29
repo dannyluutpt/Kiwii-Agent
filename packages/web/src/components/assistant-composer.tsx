@@ -12,7 +12,7 @@ import { createReferenceUploads, ReferenceStrip } from "./references"
 import { AspectOptions, CountOptions, ModelOptions, QualityOptions } from "./studio-options"
 
 const CHIP =
-  "flex h-8 min-w-0 max-w-40 items-center gap-1 rounded-full bg-fill px-2.5 text-footnote font-medium text-label transition-[background-color] duration-(--motion-micro) hover:bg-fill-2 disabled:opacity-50 data-[expanded]:bg-fill-2"
+  "flex h-8 min-w-0 max-w-40 items-center gap-1 rounded-full bg-fill bg-gloss px-2.5 text-footnote font-medium text-label shadow-gloss transition-[background-color,box-shadow,color] duration-(--motion-micro) hover:bg-gloss-hover disabled:opacity-50 data-[expanded]:text-accent data-[expanded]:shadow-selected"
 
 // Where the person talks to the assistant: the words, the pictures to work from, and the settings
 // every run of the reply uses, each in its own popover. The send button shows the cheapest a reply
@@ -56,7 +56,7 @@ export function AssistantComposer(props: {
 
   return (
     <form
-      class="mx-3 mb-3 flex shrink-0 flex-col rounded-[20px] bg-surface-2 shadow-raised transition-shadow duration-(--motion-micro) focus-within:shadow-[var(--k-shadow-raised),0_0_0_1.5px_var(--k-focus)]"
+      class="mx-3 mb-3 flex shrink-0 flex-col rounded-[20px] bg-surface-2 bg-sheen shadow-raised transition-shadow duration-(--motion-standard) focus-within:shadow-[var(--k-shadow-raised),var(--k-shadow-focus)]"
       aria-label={t("assistant.composer")}
       onSubmit={(event) => {
         event.preventDefault()

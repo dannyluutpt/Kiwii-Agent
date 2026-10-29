@@ -65,7 +65,7 @@ export default function Assets() {
     <Page title={t("assets.title")} width="wide">
       <Show when={!list.loading && list.items.length === 0}>
         <div class="flex flex-col items-center gap-3 py-16 text-center">
-          <span class="flex size-14 items-center justify-center rounded-[16px] bg-accent-soft text-accent shadow-raised">
+          <span class="flex size-14 items-center justify-center rounded-[16px] bg-amber-gloss text-on-accent shadow-amber">
             <IconImage class="size-7" />
           </span>
           <h2 class="text-title-2 text-label">{t("assets.emptyTitle")}</h2>
@@ -82,7 +82,7 @@ export default function Assets() {
             return (
               <button
                 type="button"
-                class="group/asset mb-2 block w-full break-inside-avoid overflow-hidden rounded-[14px] bg-fill transition-transform duration-(--motion-micro) ease-standard active:scale-[0.98] md:mb-3"
+                class="group/asset rim relative mb-2 block w-full break-inside-avoid overflow-hidden rounded-[14px] bg-fill shadow-raised transition-[box-shadow,translate,scale] duration-(--motion-standard) ease-standard hover:-translate-y-0.5 hover:shadow-lift active:scale-[0.98] md:mb-3"
                 style={aspectStyle(asset.aspectRatio)}
                 aria-label={altFor(asset)}
                 onClick={() => setViewer(index())}

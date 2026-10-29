@@ -27,7 +27,7 @@ import {
 } from "./icons"
 
 const ROW =
-  "flex h-9 items-center gap-3 rounded-[10px] px-2.5 text-callout transition-[color,background-color] duration-(--motion-micro) hover:bg-fill pointer-coarse:h-11"
+  "flex h-9 items-center gap-3 rounded-[10px] px-2.5 text-callout transition-[color,background-color,box-shadow] duration-(--motion-micro) hover:bg-fill pointer-coarse:h-11"
 
 // The workspace's left column: a new project, every project newest activity first, and the account.
 // The same list renders docked on wide screens and inside the drawer elsewhere.
@@ -36,10 +36,17 @@ export function ProjectSidebar(props: { mode: "docked" | "drawer" }) {
   const layout = useLayout()
   const projects = useProjects()
   return (
-    <nav aria-label={t("nav.primary")} class="flex h-full w-full flex-col bg-sidebar pt-safe">
+    <nav
+      aria-label={t("nav.primary")}
+      class="flex h-full w-full flex-col"
+      classList={{
+        "glass-panel overflow-hidden rounded-panel": props.mode === "docked",
+        "bg-sidebar pt-safe": props.mode === "drawer",
+      }}
+    >
       <div class="flex h-[52px] shrink-0 items-center gap-1 pr-2 pl-3">
         <A href="/" class="flex items-center gap-2 rounded-[10px] px-1.5 py-1">
-          <img src="/logo.svg" alt="" class="size-7 rounded-[8px]" />
+          <img src="/logo.svg" alt="" class="size-7 rounded-[8px] shadow-[0_0_16px_-2px_rgb(255_214_10/0.55)]" />
           <span class="text-headline text-label">{t("app.name")}</span>
         </A>
         <span class="flex-1" />
@@ -65,7 +72,7 @@ export function ProjectSidebar(props: { mode: "docked" | "drawer" }) {
           href="/"
           end
           class={ROW}
-          activeClass="bg-fill-2 font-semibold text-label [&_svg]:text-accent"
+          activeClass="bg-fill bg-gloss font-semibold text-label shadow-gloss [&_svg]:text-accent [&_svg]:drop-shadow-[0_0_6px_rgb(255_214_10/0.6)]"
           inactiveClass="text-label [&_svg]:text-label-2"
         >
           <IconLibrary class="size-5" />
@@ -96,7 +103,7 @@ function ProjectList() {
   return (
     <section class="mt-3 flex min-h-0 flex-1 flex-col" aria-label={t("projects.list")}>
       <div class="shrink-0 px-2 pb-2">
-        <label class="flex h-9 items-center gap-2 rounded-[10px] bg-fill px-2.5 text-label-2 focus-within:bg-surface focus-within:shadow-[0_0_0_1.5px_var(--k-focus)] pointer-coarse:h-10">
+        <label class="flex h-9 items-center gap-2 rounded-[10px] bg-well px-2.5 text-label-2 shadow-well transition-shadow duration-(--motion-micro) focus-within:shadow-[var(--k-shadow-well),var(--k-shadow-focus)] pointer-coarse:h-10">
           <IconSearch class="size-4 shrink-0" />
           <input
             ref={search}
@@ -173,8 +180,8 @@ function ProjectRow(props: { project: Project }) {
     <li class="group/row relative">
       <A
         href={projectPath(props.project.id)}
-        class="flex h-9 items-center rounded-[10px] pr-10 pl-2.5 text-callout transition-[color,background-color] duration-(--motion-micro) hover:bg-fill pointer-coarse:h-11"
-        activeClass="bg-fill-2 text-label"
+        class="relative flex h-9 items-center rounded-[10px] pr-10 pl-2.5 text-callout transition-[color,background-color,box-shadow] duration-(--motion-micro) hover:bg-fill pointer-coarse:h-11"
+        activeClass="bg-fill bg-gloss text-label shadow-gloss before:absolute before:inset-y-2 before:left-0 before:w-[3px] before:rounded-full before:bg-accent before:shadow-[0_0_10px_rgb(255_214_10/0.8)]"
         inactiveClass="text-label-2 hover:text-label"
         aria-keyshortcuts="F2 Delete"
         onKeyDown={(event) => {
@@ -235,7 +242,7 @@ function AccountMenu() {
           <Show when={me().tier === "free"}>
             <A
               href="/pricing"
-              class="mb-1 flex items-center gap-3 rounded-[12px] bg-accent-soft px-3 py-2.5 text-subhead font-semibold text-accent transition-[filter] hover:brightness-105"
+              class="mb-1 flex items-center gap-3 rounded-[12px] bg-accent-soft bg-amber-soft-gloss px-3 py-2.5 text-subhead font-semibold text-accent shadow-tinted transition-[filter] hover:brightness-110"
             >
               <IconSparkles class="size-5" />
               {t("nav.upgradePlan")}

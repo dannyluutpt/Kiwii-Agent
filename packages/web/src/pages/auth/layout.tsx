@@ -13,7 +13,9 @@ export function AuthLayout(props: ParentProps) {
             <img src="/logo.svg" alt="" class="size-10 rounded-[11px] shadow-glow" />
             <span class="text-title-2 text-label">{t("app.name")}</span>
           </div>
-          <div class="rounded-panel bg-surface p-6 shadow-floating sm:p-8">{props.children}</div>
+          <div class="rounded-panel bg-surface bg-sheen p-6 shadow-[var(--k-shadow-floating),0_-12px_60px_-30px_rgb(255_214_10/0.35)] sm:p-8">
+            {props.children}
+          </div>
         </div>
       </main>
     </div>

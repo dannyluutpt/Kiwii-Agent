@@ -62,7 +62,7 @@ export function AssistantPanel(props: {
         </h2>
         <Show when={auth.me()}>
           {(me) => (
-            <span class="rounded-full bg-accent-soft px-2.5 py-1 text-caption font-semibold text-accent tabular-nums">
+            <span class="rounded-full bg-accent-soft bg-amber-soft-gloss px-2.5 py-1 text-caption font-semibold text-accent tabular-nums shadow-tinted">
               {t("plan.credits", { credits: me().credits.toLocaleString("vi-VN") })}
             </span>
           )}
@@ -76,7 +76,7 @@ export function AssistantPanel(props: {
       >
         <Show when={messages().length === 0 && !thread()?.loading}>
           <div class="my-auto flex flex-col items-center gap-3 px-2 text-center">
-            <span class="flex size-12 items-center justify-center rounded-[14px] bg-accent-soft text-accent shadow-glow">
+            <span class="flex size-12 items-center justify-center rounded-[14px] bg-amber-gloss text-on-accent shadow-amber">
               <IconSparkles class="size-6" />
             </span>
             <h3 class="text-title-3 text-label">{t("assistant.greeting")}</h3>
@@ -87,7 +87,7 @@ export function AssistantPanel(props: {
                   <li>
                     <button
                       type="button"
-                      class="w-full rounded-[14px] bg-fill px-3.5 py-2.5 text-left text-subhead text-label transition-[background-color] duration-(--motion-micro) hover:bg-fill-2"
+                      class="w-full rounded-[14px] bg-fill bg-gloss px-3.5 py-2.5 text-left text-subhead text-label shadow-gloss transition-[background-color,box-shadow] duration-(--motion-micro) hover:bg-gloss-hover hover:shadow-lift"
                       onClick={() => {
                         studio.setPrompt(t(key))
                         document.querySelector<HTMLTextAreaElement>("[data-studio-prompt]")?.focus()

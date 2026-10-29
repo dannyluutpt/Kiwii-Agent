@@ -57,7 +57,7 @@ export default function Pricing() {
           <Show when={data.loading}>
             <For each={[0, 1, 2, 3]}>
               {() => (
-                <div class="flex flex-col gap-4 rounded-card bg-surface p-5 shadow-raised" aria-hidden="true">
+                <div class="flex flex-col gap-4 rounded-card bg-surface bg-sheen p-5 shadow-raised" aria-hidden="true">
                   <Skeleton class="h-4 w-1/3" />
                   <Skeleton class="h-7 w-2/3" />
                   <Skeleton class="h-3 w-full" />
@@ -71,8 +71,12 @@ export default function Pricing() {
           <For each={data()?.plans}>
             {(plan) => (
               <article
-                class="flex flex-col gap-4 rounded-card bg-surface p-5 shadow-raised"
-                classList={{ "shadow-[var(--k-shadow-raised),0_0_0_1.5px_var(--k-accent)]": plan.id === "plus" }}
+                // The popular plan glows. One shadow class either way: two would fight over the order.
+                class={`rim relative flex flex-col gap-4 rounded-card bg-surface bg-sheen p-5 ${
+                  plan.id === "plus"
+                    ? "shadow-[var(--k-shadow-raised),0_0_0_1.5px_var(--k-accent),0_18px_48px_-14px_rgb(255_200_0/0.45)]"
+                    : "shadow-raised"
+                }`}
                 aria-label={plan.name}
               >
                 <div class="flex flex-col gap-1">
@@ -139,7 +143,10 @@ export default function Pricing() {
           </For>
         </div>
 
-        <section class="flex flex-col gap-4 rounded-card bg-surface p-5 shadow-raised" aria-labelledby="topups">
+        <section
+          class="flex flex-col gap-4 rounded-card bg-surface bg-sheen p-5 shadow-raised"
+          aria-labelledby="topups"
+        >
           <div class="flex flex-col gap-1">
             <h2 id="topups" class="text-title-3 text-label">
               {t("pricing.topups.title")}
@@ -149,8 +156,8 @@ export default function Pricing() {
           <div class="grid gap-3 sm:grid-cols-2">
             <For each={data()?.topups}>
               {(pack) => (
-                <div class="flex items-center gap-3 rounded-[16px] bg-fill px-4 py-3">
-                  <span class="flex size-10 shrink-0 items-center justify-center rounded-[12px] bg-accent-soft text-accent">
+                <div class="flex items-center gap-3 rounded-[16px] bg-fill bg-gloss px-4 py-3 shadow-gloss">
+                  <span class="flex size-10 shrink-0 items-center justify-center rounded-[12px] bg-accent-soft bg-amber-soft-gloss text-accent shadow-tinted">
                     <IconSparkles class="size-5" />
                   </span>
                   <span class="flex min-w-0 flex-1 flex-col">
@@ -181,7 +188,7 @@ export default function Pricing() {
           <h2 id="faq" class="px-1 text-title-3 text-label">
             {t("pricing.faq.title")}
           </h2>
-          <div class="overflow-hidden rounded-card bg-surface shadow-raised [&>*+*]:border-t [&>*+*]:border-separator">
+          <div class="overflow-hidden rounded-card bg-surface bg-sheen shadow-raised [&>*+*]:border-t [&>*+*]:border-separator">
             <For each={FAQ}>
               {(item) => (
                 <details class="group">

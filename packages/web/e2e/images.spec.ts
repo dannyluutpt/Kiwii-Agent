@@ -299,9 +299,12 @@ test("the generate button turns yellow once there is a prompt", async ({ page, i
   const generate = generateButton(page, isMobile)
   await expect(generate).toBeDisabled()
   await expect(generate).toHaveCSS("background-color", "rgba(255, 255, 255, 0.1)")
+  await expect(generate).toHaveCSS("background-image", "none")
   await prompt(page).fill("Một ngọn hải đăng lúc bình minh")
   await expect(generate).toBeEnabled()
   await expect(generate).toHaveCSS("background-color", "rgb(255, 214, 10)")
+  // Glossy amber, lit from above.
+  await expect(generate).toHaveCSS("background-image", /^linear-gradient/)
   await expect(generate).toHaveCSS("opacity", "1")
 })
 

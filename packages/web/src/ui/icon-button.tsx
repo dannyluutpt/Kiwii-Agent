@@ -8,10 +8,12 @@ export type IconButtonSize = "xs" | "sm" | "md" | "lg" | "xl"
 const VARIANTS: Record<IconButtonVariant, string> = {
   ghost:
     "text-label-2 hover:bg-fill hover:text-label active:bg-fill-2 data-[expanded]:bg-fill-2 data-[expanded]:text-label",
-  filled: "bg-fill-2 text-label hover:bg-fill-3",
-  tinted: "bg-accent-soft text-accent hover:brightness-105",
-  primary: "bg-accent text-on-accent shadow-raised hover:bg-accent-hover",
-  overlay: "bg-black/50 text-white shadow-[inset_0_0_0_1px_rgb(255_255_255/0.1)] backdrop-blur-md hover:bg-black/65",
+  filled: "bg-fill bg-gloss text-label shadow-gloss hover:bg-gloss-hover",
+  tinted: "bg-accent-soft bg-amber-soft-gloss text-accent shadow-tinted hover:brightness-110",
+  primary:
+    "bg-amber-gloss text-on-accent shadow-amber hover:bg-amber-gloss-hover hover:shadow-amber-hover active:shadow-pressed",
+  overlay:
+    "bg-black/50 text-white shadow-[inset_0_1px_0_rgb(255_255_255/0.16),inset_0_0_0_1px_rgb(255_255_255/0.1)] backdrop-blur-md hover:bg-black/65",
 }
 
 // Visual sizes stay compact (28 to 44px); on touch screens a transparent ::before widens the hit
@@ -41,7 +43,7 @@ export function iconButtonClass(
 ) {
   return [
     "relative inline-flex shrink-0 select-none items-center justify-center",
-    "transition-[background-color,color,transform,filter] duration-(--motion-micro) ease-standard active:scale-[0.94]",
+    "transition-[background-color,color,box-shadow,scale,filter] duration-(--motion-micro) ease-standard active:scale-[0.94]",
     "before:absolute before:content-[''] pointer-fine:before:hidden",
     "disabled:pointer-events-none disabled:opacity-40",
     VARIANTS[variant],

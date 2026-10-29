@@ -10,7 +10,7 @@ import { createReferenceUploads, ReferenceStrip } from "./references"
 import { StudioOptions } from "./studio-options"
 
 const CHIP =
-  "flex h-9 min-w-0 items-center gap-1.5 rounded-full bg-fill px-3 text-subhead font-medium text-label transition-[background-color] duration-(--motion-micro) hover:bg-fill-2 disabled:opacity-50 pointer-coarse:h-10"
+  "flex h-9 min-w-0 items-center gap-1.5 rounded-full bg-fill bg-gloss px-3 text-subhead font-medium text-label shadow-gloss transition-[background-color] duration-(--motion-micro) hover:bg-gloss-hover disabled:opacity-50 pointer-coarse:h-10"
 
 // The phone composer, docked under the gallery: references, the prompt, then one chip that opens
 // every option in a bottom sheet, and the generate button showing what the run will cost.
@@ -59,7 +59,7 @@ export function StudioPromptBar(props: {
 
   return (
     <form
-      class="mx-auto flex w-full max-w-3xl flex-col rounded-panel bg-surface shadow-floating transition-shadow duration-(--motion-micro) focus-within:shadow-[var(--k-shadow-floating),0_0_0_1.5px_var(--k-focus)]"
+      class="mx-auto flex w-full max-w-3xl flex-col rounded-panel bg-surface bg-sheen shadow-floating transition-shadow duration-(--motion-standard) focus-within:shadow-[var(--k-shadow-floating),var(--k-shadow-focus)]"
       onSubmit={(event) => {
         event.preventDefault()
         if (canGenerate()) props.onGenerate()

@@ -56,7 +56,7 @@ export function Gallery(props: {
   return (
     <div class="flex min-h-full w-full flex-col gap-4 px-3 py-3 md:px-5 md:py-5">
       <Show when={props.config?.trial}>
-        <div class="flex flex-wrap items-center gap-3 rounded-card bg-accent-soft px-4 py-3">
+        <div class="flex flex-wrap items-center gap-3 rounded-card bg-accent-soft bg-amber-soft-gloss px-4 py-3 shadow-tinted">
           <p class="min-w-0 flex-1 text-subhead text-label">{t("images.trial", { n: props.config?.credits ?? 0 })}</p>
           <A href="/pricing" class={buttonClass("primary", "sm")}>
             {t("images.locked.cta")}
@@ -64,8 +64,8 @@ export function Gallery(props: {
         </div>
       </Show>
       <Show when={props.locked}>
-        <div class="flex flex-col items-start gap-2 rounded-card bg-surface p-5 shadow-raised">
-          <span class="flex size-10 items-center justify-center rounded-[12px] bg-accent-soft text-accent">
+        <div class="flex flex-col items-start gap-2 rounded-card bg-surface bg-sheen p-5 shadow-raised">
+          <span class="flex size-10 items-center justify-center rounded-[12px] bg-accent-soft bg-amber-soft-gloss text-accent shadow-tinted">
             <IconSparkles class="size-5" />
           </span>
           <h2 class="text-title-3 text-label">{t("images.locked.title")}</h2>
@@ -78,7 +78,7 @@ export function Gallery(props: {
       <Show when={empty() && !props.locked}>
         <div class="mx-auto flex w-full max-w-2xl flex-1 flex-col justify-center gap-8 py-6">
           <div class="flex flex-col items-center gap-2 text-center">
-            <span class="mb-1 flex size-14 items-center justify-center rounded-[16px] bg-accent-soft text-accent shadow-raised">
+            <span class="mb-1 flex size-14 items-center justify-center rounded-[16px] bg-amber-gloss text-on-accent shadow-amber">
               <IconImage class="size-7" />
             </span>
             <h2 class="text-title-1 text-label">{t("images.empty.title")}</h2>
@@ -90,10 +90,10 @@ export function Gallery(props: {
                 <li>
                   <button
                     type="button"
-                    class="flex h-full w-full items-start gap-3 rounded-card bg-surface p-3.5 text-left shadow-raised transition-[background-color,transform] duration-(--motion-micro) ease-standard hover:bg-surface-2 active:scale-[0.99]"
+                    class="flex h-full w-full items-start gap-3 rounded-card bg-surface bg-sheen p-3.5 text-left shadow-raised transition-[background-color,box-shadow,translate,scale] duration-(--motion-standard) ease-standard hover:-translate-y-0.5 hover:bg-surface-2 hover:shadow-lift active:scale-[0.99]"
                     onClick={() => props.onSuggest(t(item.prompt))}
                   >
-                    <span class="flex size-9 shrink-0 items-center justify-center rounded-[10px] bg-accent-soft text-accent">
+                    <span class="flex size-9 shrink-0 items-center justify-center rounded-[10px] bg-accent-soft bg-amber-soft-gloss text-accent shadow-tinted">
                       {item.icon()}
                     </span>
                     <span class="flex min-w-0 flex-col gap-0.5">

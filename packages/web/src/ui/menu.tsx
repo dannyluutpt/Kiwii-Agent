@@ -18,7 +18,7 @@ export function MenuContent(props: { children: JSX.Element; class?: string }) {
   return (
     <DropdownMenu.Portal>
       <DropdownMenu.Content
-        class={`k-menu z-(--z-popover) min-w-[220px] max-w-[min(360px,calc(100vw-24px))] rounded-[14px] bg-elevated p-1.5 shadow-floating outline-none ${props.class ?? ""}`}
+        class={`k-menu z-(--z-popover) min-w-[220px] max-w-[min(360px,calc(100vw-24px))] rounded-[14px] bg-elevated bg-sheen p-1.5 shadow-floating outline-none ${props.class ?? ""}`}
       >
         {props.children}
       </DropdownMenu.Content>
