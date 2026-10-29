@@ -9,6 +9,8 @@ export type EnhanceResult = {
   prompt: string
   // True when the enhancer produced the prompt (false on timeout / parse failure / rewrite off).
   rewritten: boolean
+  // What the screening and rewrite call cost; it starts the generation's cost_usd.
+  costUsd: number
 }
 
 // Cheap first pass before spending an LLM call. Keep it narrow: the enhancer does the real check.
@@ -43,7 +45,7 @@ export async function enhancePrompt(input: {
   references: number
 }): Promise<EnhanceResult> {
   if (blockedByDenylist(input.prompt)) {
-    return { allowed: false, reason: "Nội dung không được phép", prompt: input.prompt, rewritten: false }
+    return { allowed: false, reason: "Nội dung không được phép", prompt: input.prompt, rewritten: false, costUsd: 0 }
   }
   const system = [
     "You prepare prompts for an AI image generator and screen them for policy.",
@@ -58,7 +60,7 @@ export async function enhancePrompt(input: {
   ]
     .filter(Boolean)
     .join("\n")
-  const result = await completeJSON<{ allowed?: unknown; reason?: unknown; prompt?: unknown }>({
+  const reply = await completeJSON({
     apiKey: input.apiKey,
     baseURL: input.baseURL,
     model: ENHANCE_MODEL,
@@ -69,15 +71,18 @@ export async function enhancePrompt(input: {
     maxTokens: 350,
     temperature: 0.4,
     timeoutMs: 8000,
-  }).catch(() => undefined)
+  }).catch(() => ({ value: undefined, costUsd: 0 }))
+  const { value: result, costUsd } = reply
   if (!result || typeof result.allowed !== "boolean") {
-    return { allowed: true, prompt: input.prompt, rewritten: false }
+    return { allowed: true, prompt: input.prompt, rewritten: false, costUsd }
   }
   if (!result.allowed) {
     const reason = typeof result.reason === "string" && result.reason ? result.reason : "Nội dung không được phép"
-    return { allowed: false, reason, prompt: input.prompt, rewritten: false }
+    return { allowed: false, reason, prompt: input.prompt, rewritten: false, costUsd }
   }
   const prompt = typeof result.prompt === "string" ? result.prompt.trim() : ""
-  if (!prompt || prompt === input.prompt.trim()) return { allowed: true, prompt: input.prompt, rewritten: false }
-  return { allowed: true, prompt, rewritten: true }
+  if (!prompt || prompt === input.prompt.trim()) {
+    return { allowed: true, prompt: input.prompt, rewritten: false, costUsd }
+  }
+  return { allowed: true, prompt, rewritten: true, costUsd }
 }

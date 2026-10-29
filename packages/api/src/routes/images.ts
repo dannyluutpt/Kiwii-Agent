@@ -203,6 +203,8 @@ images.post("/generations", async (c) => {
     prompt_raw: body.prompt,
     prompt_enhanced: enhanced.rewritten ? enhanced.prompt : null,
     enhance: body.enhance ? 1 : 0,
+    // The prompt screening and rewrite was paid for already; the image cost is added on top.
+    cost_usd: enhanced.costUsd,
     reference_file_ids: JSON.stringify(referenceIDs),
     credits_reserved: cost,
     created_at: now,

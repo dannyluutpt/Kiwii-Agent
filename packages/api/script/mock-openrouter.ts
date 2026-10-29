@@ -66,7 +66,7 @@ async function chat(body: Record<string, unknown>) {
       reason: blocked ? "Nội dung không được phép (mock)" : "",
       prompt: `Enhanced: ${text}, cinematic lighting, 35mm`,
     })
-    return Response.json({ choices: [{ message: { content } }] })
+    return Response.json({ choices: [{ message: { content } }], usage: { cost: 0.00012 } })
   }
   if (text.includes("RATELIMIT")) return Response.json({ error: { message: "rate limited" } }, { status: 429 })
   const model = body.model

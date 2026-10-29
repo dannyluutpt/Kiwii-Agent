@@ -54,7 +54,8 @@ export async function runGeneration(input: RunInput) {
   }
   let stored = 0
   let next = 0
-  let cost = 0
+  // Starts from the prompt screening and rewrite, recorded when the generation was created.
+  let cost = generation.cost_usd ?? 0
   let lastError: string | undefined
 
   const store = async (image: GeneratedImage) => {
