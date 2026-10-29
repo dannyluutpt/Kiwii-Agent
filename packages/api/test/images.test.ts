@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test"
 import { eq } from "drizzle-orm"
 import { balance, grant, reserve } from "../src/credits/ledger"
 import { credit_ledger, generation_images, generations } from "../src/db/schema"
-import { blockedByDenylist, enhancePrompt } from "../src/images/enhance"
+import { blockedByDenylist, enhancePrompt, reusableRewrite } from "../src/images/enhance"
 import { friendly, reapStaleGenerations, runGeneration, STALE_AFTER_MS } from "../src/images/generate"
 import { IMAGE_MODELS, imageCreditCost } from "../src/images/models"
 import { testDatabase } from "./db"
@@ -72,6 +72,32 @@ describe("enhancePrompt", () => {
   test("a failed call costs nothing and keeps the customer's prompt", async () => {
     const { result } = await enhanceWith(new Response("upstream error", { status: 502 }))
     expect(result).toEqual({ allowed: true, prompt: "con cáo đỏ trên tuyết", rewritten: false, costUsd: 0 })
+  })
+})
+
+describe("reusableRewrite", () => {
+  const failed = {
+    status: "failed",
+    prompt_raw: "con cáo đỏ trên tuyết",
+    prompt_enhanced: "A red fox in fresh snow, golden hour",
+    model: "gpt-image-2.5",
+    reference_file_ids: JSON.stringify(["ref-1"]),
+    enhance: 1,
+  }
+  const retry = { prompt: "con cáo đỏ trên tuyết", model: "gpt-image-2.5", referenceIDs: ["ref-1"], enhance: true }
+
+  test("a retry of a failed run reuses the prompt that run was screened and rewritten for", () => {
+    expect(reusableRewrite(failed, retry)).toBe("A red fox in fresh snow, golden hour")
+  })
+
+  test("anything that would change the rewrite is screened and rewritten afresh", () => {
+    expect(reusableRewrite(undefined, retry)).toBeUndefined()
+    expect(reusableRewrite({ ...failed, status: "done" }, retry)).toBeUndefined()
+    expect(reusableRewrite({ ...failed, prompt_enhanced: null }, retry)).toBeUndefined()
+    expect(reusableRewrite(failed, { ...retry, prompt: "con cáo trắng trên tuyết" })).toBeUndefined()
+    expect(reusableRewrite(failed, { ...retry, model: "flux-3-klein" })).toBeUndefined()
+    expect(reusableRewrite(failed, { ...retry, referenceIDs: [] })).toBeUndefined()
+    expect(reusableRewrite(failed, { ...retry, enhance: false })).toBeUndefined()
   })
 })
 

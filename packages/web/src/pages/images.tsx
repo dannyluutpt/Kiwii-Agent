@@ -177,6 +177,8 @@ export default function Images() {
           n: from.n,
           prompt: from.prompt,
           referenceFileIDs: from.referenceFileIDs,
+          // The server reuses the prompt it already screened and rewrote for this run.
+          retryOf: from.id,
         }
       : {
           model: settings.model,

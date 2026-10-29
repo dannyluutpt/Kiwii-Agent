@@ -1,3 +1,4 @@
+import type { generations } from "../db/schema"
 import { completeJSON } from "../llm/openrouter"
 import { PAID_CHAT_MODEL } from "../plans"
 import type { ImageModelID } from "./models"
@@ -35,6 +36,27 @@ const STYLE_HINTS: Record<ImageModelID, string> = {
 }
 
 export const ENHANCE_MODEL = PAID_CHAT_MODEL
+
+type Previous = Pick<
+  typeof generations.$inferSelect,
+  "status" | "prompt_raw" | "prompt_enhanced" | "model" | "reference_file_ids" | "enhance"
+>
+
+// Retrying a failed run sends the image model the prompt that run was given: it passed the
+// screening and was rewritten for the same words, model and references, so a second call would only
+// add a wait and its cost. Anything else gets screened and rewritten afresh.
+export function reusableRewrite(
+  previous: Previous | undefined,
+  request: { prompt: string; model: string; referenceIDs: string[]; enhance: boolean },
+) {
+  if (previous?.status !== "failed" || !previous.prompt_enhanced) return undefined
+  const same =
+    previous.prompt_raw === request.prompt &&
+    previous.model === request.model &&
+    previous.reference_file_ids === JSON.stringify(request.referenceIDs) &&
+    previous.enhance === (request.enhance ? 1 : 0)
+  return same ? previous.prompt_enhanced : undefined
+}
 
 export async function enhancePrompt(input: {
   apiKey: string

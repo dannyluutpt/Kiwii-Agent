@@ -8,7 +8,7 @@ import { loadPlan } from "../chat/quota"
 import { balance, reserve } from "../credits/ledger"
 import { TRIAL_MODELS } from "../credits/trial"
 import { files, generation_images, generations } from "../db/schema"
-import { enhancePrompt } from "../images/enhance"
+import { enhancePrompt, reusableRewrite } from "../images/enhance"
 import { friendly, reapStaleGenerations, runGeneration, type GenerationEvent } from "../images/generate"
 import {
   imageCreditCost,
@@ -31,6 +31,8 @@ const CreateGeneration = z.object({
   prompt: z.string().trim().min(1).max(4000),
   enhance: z.boolean().default(true),
   referenceFileIDs: z.array(z.string().min(1).max(40)).max(MAX_REFERENCES).default([]),
+  // The failed run this one retries; its rewritten prompt is reused when it still applies.
+  retryOf: z.string().min(1).max(40).optional(),
 })
 
 const ListQuery = z.object({
@@ -173,15 +175,31 @@ images.post("/generations", async (c) => {
     }
   }
 
-  // Moderation runs before any credit moves so a blocked prompt costs nothing.
-  const enhanced = await enhancePrompt({
-    apiKey,
-    baseURL: c.env.OPENROUTER_BASE_URL,
-    model: body.model,
+  // Moderation runs before any credit moves so a blocked prompt costs nothing. A retry of a failed
+  // run skips it and reuses that run's screened, rewritten prompt.
+  const previous = body.retryOf
+    ? await db
+        .select()
+        .from(generations)
+        .where(and(eq(generations.id, body.retryOf), eq(generations.user_id, user.id)))
+        .get()
+    : undefined
+  const reused = reusableRewrite(previous, {
     prompt: body.prompt,
-    rewrite: body.enhance,
-    references: references.length,
+    model: body.model,
+    referenceIDs,
+    enhance: body.enhance,
   })
+  const enhanced = reused
+    ? { allowed: true, prompt: reused, rewritten: true, costUsd: 0 }
+    : await enhancePrompt({
+        apiKey,
+        baseURL: c.env.OPENROUTER_BASE_URL,
+        model: body.model,
+        prompt: body.prompt,
+        rewrite: body.enhance,
+        references: references.length,
+      })
   if (!enhanced.allowed) throw new ApiError(422, "PROMPT_BLOCKED", enhanced.reason ?? "Nội dung không được phép")
 
   const id = ulid()
