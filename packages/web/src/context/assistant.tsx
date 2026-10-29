@@ -2,6 +2,7 @@ import { useNavigate } from "@solidjs/router"
 import { createStore, produce } from "solid-js/store"
 import { createSimpleContext } from "@kiwii/ui/context/helper"
 import { api, ApiError, apiStream } from "@/api"
+import { useCharacters } from "@/context/characters"
 import { useLanguage } from "@/context/language"
 import { useProjects } from "@/context/projects"
 import { ALL, useStudio } from "@/context/studio"
@@ -20,6 +21,7 @@ export const { use: useAssistant, provider: AssistantProvider } = createSimpleCo
     const navigate = useNavigate()
     const projects = useProjects()
     const studio = useStudio()
+    const characters = useCharacters()
     const [state, setState] = createStore<{ threads: Record<string, Thread> }>({ threads: {} })
 
     const thread = (projectID: string | undefined) => (projectID ? state.threads[projectID] : undefined)
@@ -56,6 +58,11 @@ export const { use: useAssistant, provider: AssistantProvider } = createSimpleCo
       const target = projectID ?? (await projects.create())?.id
       if (!target) return
       const references = studio.references()
+      // Picked characters stay picked for the next message.
+      const cast = characters.picked().flatMap((id) => {
+        const character = characters.find(id)
+        return character ? [{ id, name: character.name }] : []
+      })
       const asked = `pending-${Date.now()}`
       let reply = `${asked}-reply`
       let started = false
@@ -68,6 +75,7 @@ export const { use: useAssistant, provider: AssistantProvider } = createSimpleCo
             parts: [
               { type: "text", text },
               ...references.map((ref): MessagePart => ({ type: "image", fileID: ref.id })),
+              ...cast.map((character): MessagePart => ({ type: "character", ...character })),
             ],
             createdAt: Date.now(),
           },
@@ -86,6 +94,7 @@ export const { use: useAssistant, provider: AssistantProvider } = createSimpleCo
           text,
           settings: { ...studio.settings },
           referenceFileIDs: references.map((ref) => ref.id),
+          characterIDs: cast.map((character) => character.id),
         })) {
           if (event.event === "start") {
             const ids = event.data as { messageID: string; userMessageID: string }

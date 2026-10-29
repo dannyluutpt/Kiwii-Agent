@@ -2,16 +2,19 @@ import { useNavigate, useParams, useSearchParams } from "@solidjs/router"
 import { createEffect, createSignal, on, onMount, Show } from "solid-js"
 import { BRAND_SLUG } from "@/brand"
 import { AssistantPanel } from "@/components/assistant-panel"
+import { CharacterDialog } from "@/components/character-dialog"
+import { CharacterGallery } from "@/components/characters"
 import { FilterChips, type Filter } from "@/components/filter-chips"
 import { Gallery } from "@/components/gallery"
 import { Lightbox, type LightboxItem } from "@/components/lightbox"
 import { StudioPromptBar } from "@/components/studio-prompt-bar"
 import { TopBar } from "@/components/top-bar"
+import { useCharacters } from "@/context/characters"
 import { useLanguage } from "@/context/language"
 import { useLayout } from "@/context/layout"
 import { useProjects } from "@/context/projects"
 import { ALL, useStudio } from "@/context/studio"
-import { altFor, type Generation, type ModelsResponse } from "@/images"
+import { altFor, type Generation, type GenerationImage, type ModelsResponse } from "@/images"
 import { Skeleton } from "@/ui/skeleton"
 
 // The workspace. On wide screens: the gallery of one project (or of everything) in the middle and
@@ -24,6 +27,7 @@ export default function Studio() {
   const navigate = useNavigate()
   const projects = useProjects()
   const studio = useStudio()
+  const characters = useCharacters()
   const params = useParams<{ projectId?: string }>()
   const [search, setSearch] = useSearchParams<{ prompt?: string; model?: string }>()
   const [viewer, setViewer] = createSignal<{ id: string; index: number }>()
@@ -75,6 +79,16 @@ export default function Studio() {
     requestAnimationFrame(() => document.querySelector<HTMLTextAreaElement>("[data-studio-prompt]")?.focus())
   }
 
+  // A character is saved from pictures the account made; the dialog shows them, to keep or take off.
+  const maxCharacters = () => studio.config.latest?.maxCharacters ?? 2
+  const sorted = (g: Generation) => g.images.slice().sort((a, b) => a.position - b.position)
+  const photo = (image: GenerationImage) => ({
+    id: image.fileID,
+    url: image.url,
+    name: `${BRAND_SLUG}-${image.id}`,
+    edge: 0,
+  })
+
   // A picture opens from the gallery or from the conversation, where older runs may not be listed.
   const opened = () => {
     const id = viewer()?.id
@@ -83,16 +97,13 @@ export default function Studio() {
   const viewerItems = (): LightboxItem[] => {
     const g = opened()
     if (!g) return []
-    return g.images
-      .slice()
-      .sort((a, b) => a.position - b.position)
-      .map((img) => ({
-        src: img.url,
-        alt: altFor(g),
-        caption: g.prompt,
-        download: `${img.url}?download`,
-        name: `${BRAND_SLUG}-${img.id}`,
-      }))
+    return sorted(g).map((img) => ({
+      src: img.url,
+      alt: altFor(g),
+      caption: g.prompt,
+      download: `${img.url}?download`,
+      name: `${BRAND_SLUG}-${img.id}`,
+    }))
   }
 
   const controls = (cfg: ModelsResponse) => ({
@@ -111,22 +122,30 @@ export default function Studio() {
 
   const gallery = (
     <div ref={feed} data-scroller class="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-      <Gallery
-        items={filter() === "all" || filter() === "images" ? items() : []}
-        loading={studio.gallery(key())?.loading ?? true}
-        more={!!studio.gallery(key())?.cursor}
-        config={studio.config.latest}
-        locked={studio.locked()}
-        onLoadMore={() => void studio.load(key(), true)}
-        onSuggest={(text) => {
-          studio.setPrompt(text)
-          document.querySelector<HTMLTextAreaElement>("[data-studio-prompt]")?.focus()
-        }}
-        onOpen={(g, index) => setViewer({ id: g.id, index })}
-        onReuse={reuse}
-        onRetry={(g) => void studio.generate(g.projectID ?? undefined, g)}
-        onDelete={(g) => void studio.remove(g)}
-      />
+      <Show
+        when={filter() === "characters"}
+        fallback={
+          <Gallery
+            items={items()}
+            loading={studio.gallery(key())?.loading ?? true}
+            more={!!studio.gallery(key())?.cursor}
+            config={studio.config.latest}
+            locked={studio.locked()}
+            onLoadMore={() => void studio.load(key(), true)}
+            onSuggest={(text) => {
+              studio.setPrompt(text)
+              document.querySelector<HTMLTextAreaElement>("[data-studio-prompt]")?.focus()
+            }}
+            onOpen={(g, index) => setViewer({ id: g.id, index })}
+            onReuse={reuse}
+            onRetry={(g) => void studio.generate(g.projectID ?? undefined, g)}
+            onDelete={(g) => void studio.remove(g)}
+            onCharacter={(g) => characters.compose(sorted(g).map(photo))}
+          />
+        }
+      >
+        <CharacterGallery max={maxCharacters()} />
+      </Show>
     </div>
   )
 
@@ -137,6 +156,7 @@ export default function Studio() {
         fallback={
           <>
             <TopBar heading title={title()} />
+            <FilterChips value={filter()} onChange={setFilter} />
             {gallery}
             <div class="px-3 pt-1 pb-3">
               <Show
@@ -169,7 +189,14 @@ export default function Studio() {
           const g = opened()
           if (g) reuse(g)
         }}
+        onCharacter={(index) => {
+          const image = opened() && sorted(opened()!)[index]
+          if (!image) return
+          setViewer(undefined)
+          characters.compose([photo(image)])
+        }}
       />
+      <CharacterDialog max={maxCharacters()} />
     </div>
   )
 }

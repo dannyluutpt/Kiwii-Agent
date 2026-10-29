@@ -3,7 +3,7 @@ import { createEffect, createSignal, Show } from "solid-js"
 import { useLanguage } from "@/context/language"
 import { prepareFile, savesThroughShare } from "@/lib/save"
 import { IconButton, iconButtonClass } from "@/ui/icon-button"
-import { IconChevronLeft, IconChevronRight, IconClose, IconDownload, IconRefresh } from "./icons"
+import { IconChevronLeft, IconChevronRight, IconClose, IconDownload, IconPersonAdd, IconRefresh } from "./icons"
 import { useShareFile } from "./save"
 
 // `download` is the picture's download link; `name` is what it is saved as through the share sheet.
@@ -19,6 +19,8 @@ export function Lightbox(props: {
   onIndex: (index: number) => void
   onClose: () => void
   onReuse?: (index: number) => void
+  // Saves the open picture as a character.
+  onCharacter?: (index: number) => void
 }) {
   const { t } = useLanguage()
   // Keep showing the last picture while the viewer animates out after `index` is cleared.
@@ -92,6 +94,16 @@ export function Lightbox(props: {
             <p class="flex-1 pl-2 text-subhead text-label-2 tabular-nums" aria-live="polite">
               <Show when={count() > 1}>{t("images.position", { n: position() + 1, total: count() })}</Show>
             </p>
+            <Show when={props.onCharacter}>
+              <IconButton
+                label={t("characters.saveAs")}
+                variant="overlay"
+                size="xl"
+                circle
+                icon={<IconPersonAdd class="size-5" />}
+                onClick={() => props.onCharacter?.(position())}
+              />
+            </Show>
             <Show when={props.onReuse}>
               <IconButton
                 label={t("images.reuse")}

@@ -2,13 +2,14 @@ import { and, eq, inArray, sql } from "drizzle-orm"
 import { ulid } from "ulid"
 import { z } from "zod"
 import { ApiError, type User } from "../app"
+import { castPhotos, MAX_CHARACTERS_PER_RUN, ownCharacters } from "../characters/store"
 import { balance, reserve } from "../credits/ledger"
 import { TRIAL_MODELS, TRIAL_OPTIONS } from "../credits/trial"
 import type { Database } from "../db/client"
 import { files, generations } from "../db/schema"
 import { loadPlan } from "../plans"
 import { ownProject, touchProject } from "../projects/store"
-import { enhancePrompt, reusableRewrite } from "./enhance"
+import { castLegend, enhancePrompt, reusableRewrite } from "./enhance"
 import { reapStaleGenerations } from "./generate"
 import { imageCreditCost, ImageModelID, loadImageModels, MAX_IMAGES_PER_RUN, MAX_REFERENCES } from "./models"
 import type { ImageReference } from "./openrouter-images"
@@ -22,6 +23,8 @@ export const CreateGeneration = z.object({
   prompt: z.string().trim().min(1).max(4000),
   enhance: z.boolean().default(true),
   referenceFileIDs: z.array(z.string().min(1).max(40)).max(MAX_REFERENCES).default([]),
+  // Saved characters in the picture; their photos lead the references.
+  characterIDs: z.array(z.string().min(1).max(40)).max(MAX_CHARACTERS_PER_RUN).default([]),
   // The failed run this one retries; its rewritten prompt is reused when it still applies.
   retryOf: z.string().min(1).max(40).optional(),
   // The project the run belongs to; without one it shows only under "all".
@@ -72,12 +75,19 @@ export async function prepareGeneration(input: {
   if (!option || option.credits === null) throw new ApiError(400, "INVALID_OPTION", "Tuỳ chọn chất lượng không hợp lệ")
   if (!model.aspectRatios.includes(body.aspectRatio))
     throw new ApiError(400, "INVALID_ASPECT", "Tỷ lệ khung không hợp lệ")
-  const referenceIDs = [...new Set(body.referenceFileIDs)].slice(0, Math.min(model.maxReferences, MAX_REFERENCES))
+  // The model reads the characters' photos first, then the pictures the run works from, within its
+  // limit: each character keeps one photo at least, and takes more while there is room.
+  const room = Math.min(model.maxReferences, MAX_REFERENCES)
+  const cast = await ownCharacters(db, input.user.id, [...new Set(body.characterIDs)])
+  const own = [...new Set(body.referenceFileIDs)]
+  const photos = castPhotos(cast, room - own.length)
+  const referenceIDs = own.slice(0, Math.max(0, room - photos.flat().length))
+  const sent = [...photos.flat(), ...referenceIDs]
   const cost = imageCreditCost(models, {
     model: body.model,
     option: body.option,
     n: body.n,
-    references: referenceIDs.length,
+    references: sent.length,
   })
   if (cost === undefined) throw new ApiError(400, "INVALID_INPUT", "Yêu cầu không hợp lệ")
 
@@ -93,19 +103,21 @@ export async function prepareGeneration(input: {
     })
   }
 
+  // In the order the legend numbers them.
+  const rows = sent.length
+    ? await db
+        .select({ id: files.id, r2_key: files.r2_key })
+        .from(files)
+        .where(and(eq(files.user_id, input.user.id), inArray(files.id, sent)))
+    : []
   const references: ImageReference[] = []
-  if (referenceIDs.length > 0) {
-    const rows = await db
-      .select({ id: files.id, r2_key: files.r2_key })
-      .from(files)
-      .where(and(eq(files.user_id, input.user.id), inArray(files.id, referenceIDs)))
-    if (rows.length !== referenceIDs.length) throw new ApiError(404, "FILE_NOT_FOUND", "Ảnh tham chiếu không tồn tại")
-    for (const row of rows) {
-      const url = await toDataURL(input.bucket, row.r2_key)
-      if (!url) throw new ApiError(404, "FILE_NOT_FOUND", "Ảnh tham chiếu không tồn tại")
-      references.push({ type: "image_url", image_url: { url } })
-    }
+  for (const fileID of sent) {
+    const row = rows.find((item) => item.id === fileID)
+    const url = row && (await toDataURL(input.bucket, row.r2_key))
+    if (!url) throw new ApiError(404, "FILE_NOT_FOUND", "Ảnh tham chiếu không tồn tại")
+    references.push({ type: "image_url", image_url: { url } })
   }
+  const members = cast.map((character, index) => ({ name: character.name, images: photos[index]?.length ?? 0 }))
 
   // Moderation runs before any credit moves so a blocked prompt costs nothing. A retry of a failed
   // run skips it and reuses that run's screened, rewritten prompt.
@@ -120,6 +132,7 @@ export async function prepareGeneration(input: {
     prompt: body.prompt,
     model: body.model,
     referenceIDs,
+    characterIDs: cast.map((character) => character.id),
     enhance: body.enhance,
   })
   const enhanced = reused
@@ -130,7 +143,8 @@ export async function prepareGeneration(input: {
         model: body.model,
         prompt: body.prompt,
         rewrite: body.enhance,
-        references: references.length,
+        references: referenceIDs.length,
+        cast: members,
       })
   if (!enhanced.allowed) throw new ApiError(422, "PROMPT_BLOCKED", enhanced.reason ?? "Nội dung không được phép")
 
@@ -156,11 +170,18 @@ export async function prepareGeneration(input: {
     // The prompt screening and rewrite was paid for already; the image cost is added on top.
     cost_usd: enhanced.costUsd,
     reference_file_ids: JSON.stringify(referenceIDs),
+    character_ids: JSON.stringify(cast.map((character) => character.id)),
     credits_reserved: cost,
     project_id: project?.id ?? null,
     created_at: now,
   })
   if (project) await touchProject(db, project, body.prompt, now)
   const generation = (await db.select().from(generations).where(eq(generations.id, id)).get())!
-  return { generation, model, perImageCredits: option.credits, references }
+  return {
+    generation,
+    model,
+    perImageCredits: option.credits,
+    references,
+    legend: castLegend(members, referenceIDs.length),
+  }
 }

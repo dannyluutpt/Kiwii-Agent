@@ -4,6 +4,7 @@ import { AppShell } from "@/components/app-shell"
 import { Splash } from "@/components/splash"
 import { AssistantProvider } from "@/context/assistant"
 import { AuthProvider, useAuth } from "@/context/auth"
+import { CharactersProvider } from "@/context/characters"
 import { safeNext } from "@/lib/next"
 import { LanguageProvider } from "@/context/language"
 import { LayoutProvider } from "@/context/layout"
@@ -70,11 +71,13 @@ function Private(props: ParentProps) {
       <Show when={auth.me()} fallback={<Guest />}>
         <LayoutProvider>
           <ProjectsProvider>
-            <StudioProvider>
-              <AssistantProvider>
-                <AppShell>{props.children}</AppShell>
-              </AssistantProvider>
-            </StudioProvider>
+            <CharactersProvider>
+              <StudioProvider>
+                <AssistantProvider>
+                  <AppShell>{props.children}</AppShell>
+                </AssistantProvider>
+              </StudioProvider>
+            </CharactersProvider>
           </ProjectsProvider>
         </LayoutProvider>
       </Show>

@@ -1,5 +1,6 @@
 import { A } from "@solidjs/router"
 import { createSignal, Show, type JSX } from "solid-js"
+import { useCharacters } from "@/context/characters"
 import { useLanguage } from "@/context/language"
 import { useStudio } from "@/context/studio"
 import type { ImageModel, ModelsResponse } from "@/images"
@@ -7,7 +8,8 @@ import { Button, buttonClass } from "@/ui/button"
 import { IconButton } from "@/ui/icon-button"
 import { Popover, PopoverContent } from "@/ui/popover"
 import { AspectIcon } from "./aspect-icon"
-import { IconArrowUp, IconChevronDown, IconImage } from "./icons"
+import { CastStrip, CharacterOptions } from "./characters"
+import { IconArrowUp, IconChevronDown, IconImage, IconPerson } from "./icons"
 import { createReferenceUploads, ReferenceStrip } from "./references"
 import { AspectOptions, CountOptions, ModelOptions, QualityOptions } from "./studio-options"
 
@@ -25,6 +27,8 @@ export function AssistantComposer(props: {
 }) {
   const { t } = useLanguage()
   const studio = useStudio()
+  const characters = useCharacters()
+  const cast = () => characters.picked().flatMap((id) => characters.find(id) ?? [])
   let fileInput: HTMLInputElement | undefined
   const model = () => props.config.models.find((m) => m.id === studio.settings.model)
   const maxReferences = () => model()?.maxReferences ?? props.config.maxReferences
@@ -69,6 +73,7 @@ export function AssistantComposer(props: {
         uploading={uploads.uploading()}
         onRemove={(ref) => studio.setReferences(studio.references().filter((r) => r.id !== ref.id))}
       />
+      <CastStrip class="px-3 pt-3" />
       <textarea
         data-studio-prompt
         class="max-h-48 min-h-16 w-full resize-none bg-transparent px-3.5 pt-3 pb-1 text-callout text-label outline-none placeholder:text-label-3 disabled:cursor-not-allowed [field-sizing:content]"
@@ -112,6 +117,20 @@ export function AssistantComposer(props: {
           disabled={props.locked || uploads.uploading() || studio.references().length >= maxReferences()}
           onClick={() => fileInput?.click()}
         />
+        <Option
+          label={t("characters.picker")}
+          value={
+            cast().length
+              ? cast()
+                  .map((c) => c.name)
+                  .join(", ")
+              : t("characters.picker")
+          }
+          icon={<IconPerson class="size-4 shrink-0" />}
+          disabled={props.locked}
+        >
+          {(close) => <CharacterOptions max={props.config.maxCharacters} onCreate={close} />}
+        </Option>
         <Show when={model()}>
           {(m) => {
             const shared = () => ({

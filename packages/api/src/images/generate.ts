@@ -35,13 +35,15 @@ type RunInput = {
   model: ImageModel
   perImageCredits: number
   references: ImageReference[]
+  // Which reference images show which character (see castLegend); it opens the prompt.
+  legend?: string
   emit: (event: GenerationEvent) => Promise<void> | void
   signal?: AbortSignal
 }
 
 export async function runGeneration(input: RunInput) {
   const { db, generation, model } = input
-  const prompt = generation.prompt_enhanced ?? generation.prompt_raw
+  const prompt = [input.legend, generation.prompt_enhanced ?? generation.prompt_raw].filter(Boolean).join("\n\n")
   const base = {
     apiKey: input.apiKey,
     baseURL: input.baseURL,

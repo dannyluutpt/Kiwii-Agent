@@ -20,6 +20,7 @@ export function presentGeneration(
     prompt: g.prompt_raw,
     enhance: g.enhance === 1,
     referenceFileIDs: JSON.parse(g.reference_file_ids) as string[],
+    characterIDs: JSON.parse(g.character_ids) as string[],
     creditsReserved: g.credits_reserved,
     creditsFinal: g.credits_final,
     error: g.error === null ? null : friendly(g.error),

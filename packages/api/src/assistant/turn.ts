@@ -2,6 +2,7 @@ import { and, desc, eq, inArray } from "drizzle-orm"
 import { ulid } from "ulid"
 import { z } from "zod"
 import { ApiError, type User } from "../app"
+import { listCharacters, MAX_CHARACTERS_PER_RUN, ownCharacters } from "../characters/store"
 import { balance } from "../credits/ledger"
 import type { Database } from "../db/client"
 import { generation_images, generations, project_messages } from "../db/schema"
@@ -15,7 +16,7 @@ import { consumeWindow } from "../middleware/ratelimit"
 import { loadPlan } from "../plans"
 import { touchProject, type Project } from "../projects/store"
 import { vietnamDay } from "../util/day"
-import { generateTool, historyMessages, systemPrompt, type Picture } from "./context"
+import { generateTool, historyMessages, systemPrompt, type Cast, type Picture } from "./context"
 import { presentMessage, type MessagePart } from "./parts"
 
 // Model rounds per message: ask, run the tools, ask again. The last round offers no tool, so the
@@ -27,6 +28,8 @@ export const MAX_PICTURES = 4
 export const DAILY_MESSAGES = { paid: 300, trial: 30 }
 const RECENT_RUNS = 8
 const HISTORY = 10
+// Saved characters the assistant is told about, newest first after the ones the person picked.
+const ROSTER = 20
 
 export const AssistantRequest = z.object({
   text: z.string().trim().min(1).max(4000),
@@ -37,6 +40,8 @@ export const AssistantRequest = z.object({
     n: z.number().int().min(1).max(MAX_IMAGES_PER_RUN),
   }),
   referenceFileIDs: z.array(z.string().min(1).max(40)).max(MAX_REFERENCES).default([]),
+  // Characters picked in the composer: they are in every picture of the reply.
+  characterIDs: z.array(z.string().min(1).max(40)).max(MAX_CHARACTERS_PER_RUN).default([]),
 })
 
 const GenerateArgs = z.object({
@@ -48,6 +53,7 @@ const GenerateArgs = z.object({
   reference_images: z.array(z.string()).max(MAX_REFERENCES).optional(),
   aspect_ratio: z.string().optional(),
   count: z.number().int().min(1).optional(),
+  characters: z.array(z.string()).max(10).optional(),
 })
 
 export type AssistantEvent =
@@ -74,11 +80,12 @@ export async function checkAssistant(db: Database, user: User, request: z.infer<
   if (!accessAllows(access, request.settings.model, request.settings.option)) {
     throw new ApiError(403, "IMAGE_REQUIRES_PAID", "Dùng thử chỉ tạo được ảnh FLUX 3 Klein 1K. Hãy nâng cấp gói.")
   }
+  await ownCharacters(db, user.id, request.characterIDs)
   const cost = imageCreditCost(await loadImageModels(db), {
     model: request.settings.model,
     option: request.settings.option,
     n: request.settings.n,
-    references: request.referenceFileIDs.length,
+    references: request.referenceFileIDs.length + request.characterIDs.length,
   })
   if (cost === undefined) throw new ApiError(400, "INVALID_INPUT", "Cài đặt không hợp lệ")
   if (credits < cost) throw new ApiError(402, "INSUFFICIENT_CREDITS", "Không đủ credit, hãy nâng gói hoặc mua thêm")
@@ -117,9 +124,15 @@ export async function runAssistantTurn(input: {
   const now = Date.now()
   const userMessageID = ulid()
   const messageID = ulid()
+  const saved = await listCharacters(db, input.user.id)
+  const picked = body.characterIDs.flatMap((id) => saved.filter((character) => character.id === id))
+  const roster: Cast[] = [...picked, ...saved.filter((character) => !picked.includes(character))]
+    .slice(0, ROSTER)
+    .map((character, index) => ({ label: `C${index + 1}`, id: character.id, name: character.name }))
   const userParts: MessagePart[] = [
     { type: "text", text: body.text },
     ...body.referenceFileIDs.map((fileID): MessagePart => ({ type: "image", fileID })),
+    ...picked.map((character): MessagePart => ({ type: "character", id: character.id, name: character.name })),
   ]
   await db.insert(project_messages).values({
     id: userMessageID,
@@ -196,11 +209,13 @@ export async function runAssistantTurn(input: {
         maxPictures: MAX_PICTURES,
         pictures,
         attached: attached.map((a) => a.label),
+        characters: roster,
+        picked: roster.slice(0, picked.length).map((c) => c.label),
       }),
     },
     ...historyMessages(history, earlier),
   ]
-  const tool = generateTool(model, MAX_PICTURES)
+  const tool = generateTool(model, MAX_PICTURES, roster)
   // A frame the person named ("bản dọc 9:16") holds even when the model only wrote it into the prompt.
   const named = [...body.text.matchAll(/(\d{1,2})\s*:\s*(\d{1,2})/g)]
     .map((match) => `${match[1]}:${match[2]}`)
@@ -233,6 +248,16 @@ export async function runAssistantTurn(input: {
         `Unknown picture label ${unknown.join(", ")}. Labels you can use: ${[...labels.keys()].join(", ") || "none"}`,
       )
     const references = (args.data.reference_images ?? []).map((label) => labels.get(label.trim().toUpperCase()))
+    // A character by its label, or by its name when the model writes that instead.
+    const cast = (args.data.characters ?? []).map((label) => {
+      const key = label.trim().toUpperCase()
+      return roster.find((c) => c.label === key) ?? roster.find((c) => c.name.toUpperCase() === key)
+    })
+    if (cast.some((c) => !c))
+      return refuse(`Unknown character. Characters you can use: ${roster.map((c) => c.label).join(", ") || "none"}`)
+    const characterIDs = [...new Set([...picked.map((c) => c.id), ...cast.map((c) => c!.id)])]
+    if (characterIDs.length > MAX_CHARACTERS_PER_RUN)
+      return refuse(`At most ${MAX_CHARACTERS_PER_RUN} characters per picture`)
     const aspectRatio =
       [args.data.aspect_ratio, named].find((ratio) => ratio && model.aspectRatios.includes(ratio)) ??
       body.settings.aspectRatio
@@ -249,6 +274,7 @@ export async function runAssistantTurn(input: {
         n: count,
         prompt: args.data.prompt,
         referenceFileIDs: references,
+        characterIDs,
         projectID: input.project.id,
       }),
     }).catch((error: unknown) => {

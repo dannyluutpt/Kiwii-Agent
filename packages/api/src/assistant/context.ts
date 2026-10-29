@@ -6,6 +6,8 @@ import type { MessagePart } from "./parts"
 // A picture the assistant may build on, by its label: "#1" is the newest in the project, "R1" the
 // first one attached to the message.
 export type Picture = { label: string; fileID: string; prompt: string; position: number; n: number }
+// A saved character the assistant may put in pictures, by its label: "C1" and on.
+export type Cast = { label: string; id: string; name: string }
 
 const clip = (text: string, max: number) => (text.length > max ? `${text.slice(0, max)}…` : text)
 
@@ -18,6 +20,9 @@ export function systemPrompt(input: {
   maxPictures: number
   pictures: Picture[]
   attached: string[]
+  characters: Cast[]
+  // Labels of the characters the person picked for this message; they are in every picture of it.
+  picked: string[]
 }) {
   const quality = input.model.param === "quality" ? "quality" : "resolution"
   return [
@@ -28,6 +33,11 @@ export function systemPrompt(input: {
     "- A picture exists only once you call generate_image. Writing a prompt or a picture's description in your reply makes nothing, so never do that instead of calling the tool, and never say a picture is on its way without having called it.",
     "- Write the prompt in the language of the person's message (Vietnamese when they write Vietnamese): it is shown to them under the picture, and the app translates it for the image model.",
     "- To change or continue an earlier picture, pass its label in reference_images (such as #1) and describe the whole result with the change.",
+    ...(input.characters.length
+      ? [
+          "- When a picture shows one of the person's saved characters, pass its label in characters (at most 2 per picture) and call them by name in the prompt, without describing their looks: the image model gets their photos.",
+        ]
+      : []),
     `- For different ideas, call the tool once per idea; for more pictures of one idea, use count. At most ${input.maxPictures} pictures per message in total.`,
     "- Change aspect_ratio or count only when the person asks. Never change the model or the quality: they are the person's choice.",
     "After the tool answers, reply in one or two short sentences in the person's language (Vietnamese unless they write in another one). Do not repeat the prompt. If the tool reports an error, say briefly what went wrong and what to do.",
@@ -39,12 +49,18 @@ export function systemPrompt(input: {
           .join("\n")}`
       : "There are no pictures in this project yet.",
     input.attached.length ? `Pictures attached to this message: ${input.attached.join(", ")}.` : "",
+    ...(input.characters.length
+      ? [`Saved characters: ${input.characters.map((c) => `${c.label} "${c.name}"`).join(", ")}.`]
+      : []),
+    ...(input.picked.length
+      ? [`The person picked ${input.picked.join(" and ")} for this message: they are in every picture of it.`]
+      : []),
   ]
     .filter((line, index, lines) => line !== "" || lines[index - 1] !== "")
     .join("\n")
 }
 
-export function generateTool(model: ImageModel, maxPictures: number): ToolDefinition {
+export function generateTool(model: ImageModel, maxPictures: number, characters: Cast[] = []): ToolDefinition {
   return {
     type: "function",
     function: {
@@ -75,6 +91,16 @@ export function generateTool(model: ImageModel, maxPictures: number): ToolDefini
             maximum: maxPictures,
             description: "How many pictures of this one idea; only when the person asks.",
           },
+          ...(characters.length
+            ? {
+                characters: {
+                  type: "array",
+                  items: { type: "string", enum: characters.map((c) => c.label) },
+                  maxItems: 2,
+                  description: "Labels of the saved characters in the picture, such as C1.",
+                },
+              }
+            : {}),
         },
         required: ["prompt"],
       },
@@ -97,6 +123,7 @@ export function historyMessages(
       .flatMap((part) => {
         if (part.type === "text") return [clip(part.text, 4000)]
         if (part.type === "image" && row.role === "user") return ["[attached a picture]"]
+        if (part.type === "character" && row.role === "user") return [`[picked the character "${part.name}"]`]
         return []
       })
       .join("\n")

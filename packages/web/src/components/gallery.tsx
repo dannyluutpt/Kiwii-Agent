@@ -49,6 +49,7 @@ export function Gallery(props: {
   onReuse: (g: Generation) => void
   onRetry: (g: Generation) => void
   onDelete: (g: Generation) => void
+  onCharacter: (g: Generation) => void
 }) {
   const { t } = useLanguage()
   const empty = () => !props.loading && props.items.length === 0
@@ -118,6 +119,7 @@ export function Gallery(props: {
                 onReuse={() => props.onReuse(g)}
                 onRetry={() => props.onRetry(g)}
                 onDelete={() => props.onDelete(g)}
+                onCharacter={() => props.onCharacter(g)}
               />
             )}
           </For>

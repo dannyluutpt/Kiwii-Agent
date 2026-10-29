@@ -16,7 +16,12 @@ type OptionProps = {
 // Everything about a run except the prompt, in one column: the phone's bottom sheet, which also
 // lists the models (`onPickModel`). The assistant's composer shows each part in its own popover.
 export function StudioOptions(
-  props: OptionProps & { onPickModel?: (model: ImageModel) => void; cost: number | undefined },
+  props: OptionProps & {
+    onPickModel?: (model: ImageModel) => void
+    cost: number | undefined
+    // More choices that change the price, shown above it.
+    extra?: JSX.Element
+  },
 ) {
   const { t, locale } = useLanguage()
   const number = (n: number) => n.toLocaleString(locale() === "vi" ? "vi-VN" : "en-US")
@@ -28,6 +33,7 @@ export function StudioOptions(
       <QualityOptions {...props} />
       <AspectOptions {...props} />
       <CountOptions {...props} />
+      {props.extra}
       <p class="border-t border-separator pt-3 text-footnote text-label-2" aria-live="polite">
         {props.cost === undefined
           ? t("images.costUnknown")

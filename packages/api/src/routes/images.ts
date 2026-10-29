@@ -4,6 +4,7 @@ import { streamSSE } from "hono/streaming"
 import { ulid } from "ulid"
 import { z } from "zod"
 import { ApiError, createApp, type AppEnv } from "../app"
+import { MAX_CHARACTERS_PER_RUN } from "../characters/store"
 import { loadPlan } from "../plans"
 import { balance } from "../credits/ledger"
 import { files, generation_images, generations } from "../db/schema"
@@ -41,6 +42,7 @@ images.get("/models", async (c) => {
     parallelLimit: access.parallelLimit,
     maxImages: MAX_IMAGES_PER_RUN,
     maxReferences: MAX_REFERENCES,
+    maxCharacters: MAX_CHARACTERS_PER_RUN,
     credits,
     models: models.map((model) => ({
       id: model.id,

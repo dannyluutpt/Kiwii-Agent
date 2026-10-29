@@ -5,6 +5,7 @@ import type { ImageModel, ModelsResponse, Reference, StudioSettings } from "@/im
 import { Button, buttonClass } from "@/ui/button"
 import { IconButton } from "@/ui/icon-button"
 import { Sheet } from "@/ui/sheet"
+import { CastStrip, CharacterOptions } from "./characters"
 import { IconImage, IconSliders, IconSparkles } from "./icons"
 import { createReferenceUploads, ReferenceStrip } from "./references"
 import { StudioOptions } from "./studio-options"
@@ -71,6 +72,7 @@ export function StudioPromptBar(props: {
         uploading={uploads.uploading()}
         onRemove={(ref) => props.onReferences(props.references.filter((r) => r.id !== ref.id))}
       />
+      <CastStrip class="px-3 pt-3" />
 
       <textarea
         data-component="studio-textarea"
@@ -156,6 +158,7 @@ export function StudioPromptBar(props: {
                   onSettings={props.onSettings}
                   onPickModel={pick}
                   cost={props.cost}
+                  extra={<CharacterOptions max={props.config.maxCharacters} onCreate={() => setSheet(false)} />}
                 />
               )}
             </Show>
