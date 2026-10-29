@@ -1,5 +1,5 @@
 import { Navigate, Route, Router, useLocation, useSearchParams } from "@solidjs/router"
-import { lazy, onMount, Show, type ParentProps } from "solid-js"
+import { createEffect, lazy, Match, on, Show, Switch, type ParentProps } from "solid-js"
 import { AppShell } from "@/components/app-shell"
 import { Splash } from "@/components/splash"
 import { AssistantProvider } from "@/context/assistant"
@@ -12,6 +12,8 @@ import { StudioProvider } from "@/context/studio"
 // The sign-in screens are small and are the first thing a signed-out visitor sees, so they ship in
 // the main bundle: the card renders whole instead of growing (and shifting) when a chunk lands.
 import Forgot from "@/pages/auth/forgot"
+// The public home page is what a new visitor sees first, so it ships in the main bundle too.
+import Landing from "@/pages/landing"
 import { AuthLayout } from "@/pages/auth/layout"
 import Login from "@/pages/auth/login"
 import Reset from "@/pages/auth/reset"
@@ -25,6 +27,7 @@ const Assets = lazy(() => import("@/pages/assets"))
 const Pricing = lazy(() => import("@/pages/pricing"))
 const Checkout = lazy(() => import("@/pages/checkout"))
 const Account = lazy(() => import("@/pages/account"))
+const SitePricing = lazy(() => import("@/pages/site-pricing"))
 
 function Providers(props: ParentProps) {
   return (
@@ -56,14 +59,15 @@ function preloadScreens() {
 
 function Private(props: ParentProps) {
   const auth = useAuth()
-  const location = useLocation()
-  onMount(preloadScreens)
+  createEffect(
+    on(
+      () => !!auth.me(),
+      (signedIn) => signedIn && preloadScreens(),
+    ),
+  )
   return (
     <Show when={auth.ready() && !auth.failed()} fallback={<Splash failed={auth.failed()} onRetry={auth.refresh} />}>
-      <Show
-        when={auth.me()}
-        fallback={<Navigate href={`/login?next=${encodeURIComponent(location.pathname + location.search)}`} />}
-      >
+      <Show when={auth.me()} fallback={<Guest />}>
         <LayoutProvider>
           <ProjectsProvider>
             <StudioProvider>
@@ -75,6 +79,22 @@ function Private(props: ParentProps) {
         </LayoutProvider>
       </Show>
     </Show>
+  )
+}
+
+// Signed out, the home page and the prices are the public website; any other screen asks to sign in
+// and comes back after.
+function Guest() {
+  const location = useLocation()
+  return (
+    <Switch fallback={<Navigate href={`/login?next=${encodeURIComponent(location.pathname + location.search)}`} />}>
+      <Match when={location.pathname === "/"}>
+        <Landing />
+      </Match>
+      <Match when={location.pathname === "/pricing"}>
+        <SitePricing />
+      </Match>
+    </Switch>
   )
 }
 

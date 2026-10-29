@@ -4,6 +4,7 @@ import { api } from "@/api"
 import { useAuth } from "@/context/auth"
 import { useLanguage } from "@/context/language"
 import { errorMessage } from "@/lib/errors"
+import { safeNext, withNext } from "@/lib/next"
 import { createCooldown } from "@/lib/time"
 import { toast } from "@/ui/toast"
 import { AuthForm, Field } from "./form"
@@ -12,7 +13,7 @@ export default function Verify() {
   const { t } = useLanguage()
   const auth = useAuth()
   const navigate = useNavigate()
-  const [params] = useSearchParams<{ email?: string }>()
+  const [params] = useSearchParams<{ email?: string; next?: string }>()
   const email = () => (typeof params.email === "string" ? params.email : "")
   const [code, setCode] = createSignal("")
   // A code was just sent by the sign-up step; wait a little before offering another.
@@ -34,7 +35,7 @@ export default function Verify() {
       onSubmit={async () => {
         await api("/auth/signup/verify", { body: { email: email(), code: code() } })
         await auth.refresh()
-        navigate("/")
+        navigate(safeNext(params.next))
       }}
       footer={
         <span class="flex flex-col gap-1">
@@ -50,7 +51,7 @@ export default function Verify() {
               {t("auth.verify.resend")}
             </button>
           </Show>
-          <A href="/login" class="text-label-2">
+          <A href={withNext("/login", params.next)} class="text-label-2">
             {t("auth.back")}
           </A>
         </span>
