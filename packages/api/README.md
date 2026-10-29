@@ -24,6 +24,10 @@ Cloudflare Workers Builds deploys the `kiwii-agent` Worker on every push to `mai
 - Build command: `bun run --cwd ../web build && bunx wrangler d1 migrations apply kiwii --remote`
 - Deploy command: `bunx wrangler deploy`
 
+Every push builds and deploys on its own, and builds can finish out of order: two merges a minute
+apart once left the older commit live, deployed last. Merge one change to `main` at a time and let
+its deployment finish before the next.
+
 Runtime configuration lives in the Worker's Settings → Variables and Secrets, never in
 `wrangler.jsonc` (`keep_vars` keeps dashboard values across deploys):
 
