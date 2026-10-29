@@ -3,7 +3,7 @@
   // built SolidJS frontend in ../web/dist. Deployed by Cloudflare Workers Builds on every push to main (root directory `packages/api`).
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "kiwii-agent",
-  "main": "src/index.ts",
+  "main": "src/worker.ts",
   "compatibility_date": "2026-09-22",
   "compatibility_flags": ["nodejs_compat"],
   "assets": {
@@ -23,6 +23,8 @@
   "r2_buckets": [{ "binding": "BUCKET", "bucket_name": "kiwii-files" }],
   // Small copies of the pictures a run works from, for the prompt screening and rewrite to look at.
   "images": { "binding": "IMAGES" },
+  // One instance per video run waits on its OpenRouter job (src/videos/workflow.ts).
+  "workflows": [{ "name": "amberpix-videos", "binding": "VIDEO_WORKFLOW", "class_name": "VideoWorkflow" }],
   "send_email": [{ "name": "EMAIL" }],
   "ratelimits": [
     { "name": "RL_IP", "namespace_id": "1", "simple": { "limit": 60, "period": 60 } },

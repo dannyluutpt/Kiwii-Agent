@@ -8,7 +8,8 @@
 // "đổi", "sửa" or "thêm" works from the newest picture (#1); "9:16" asks for that frame; anything else
 // starts one run with the message as its prompt; after the tools it says it is done, or why not. The
 // Images API returns gradient PNGs; "FAIL" in the prompt returns 400, and "FAILONCE" fails only the
-// first time that exact prompt arrives.
+// first time that exact prompt arrives. A video job is in progress for its first two looks, then
+// done with script/mock-video.mp4; "FAIL" in its prompt makes the job fail.
 import { deflateSync } from "node:zlib"
 
 const port = Number(process.env.MOCK_PORT ?? 8899)
@@ -20,6 +21,7 @@ Bun.serve({
   port,
   async fetch(req) {
     const url = new URL(req.url)
+    if (url.pathname.includes("/videos")) return videos(req, url)
     const body = (await req.json()) as Record<string, unknown>
     calls++
     console.log(`[mock] #${calls} ${url.pathname} model=${String(body.model)} stream=${String(body.stream)}`)
@@ -28,6 +30,30 @@ Bun.serve({
   },
 })
 console.log(`mock openrouter on :${port}`)
+
+// Video jobs by id: how many times each was looked at, and whether it fails.
+const jobs = new Map<string, { looks: number; fails: boolean }>()
+const clip = Bun.file(new URL("./mock-video.mp4", import.meta.url))
+
+async function videos(req: Request, url: URL) {
+  calls++
+  if (req.method === "POST") {
+    const body: { model?: string; prompt?: string; frame_images?: unknown[] } = await req.json()
+    const id = `mockvideo${calls}`
+    jobs.set(id, { looks: 0, fails: String(body.prompt).includes("FAIL") })
+    const frames = body.frame_images?.length ?? 0
+    console.log(`[mock] #${calls} video job ${id} model=${String(body.model)} first frames=${frames}`)
+    return Response.json({ id, polling_url: `${url.origin}/videos/${id}`, status: "pending" }, { status: 202 })
+  }
+  const [, id, content] = /\/videos\/([^/]+)(\/content)?/.exec(url.pathname) ?? []
+  const job = jobs.get(id ?? "")
+  if (!job) return Response.json({ error: { message: "no such job" } }, { status: 404 })
+  if (content) return new Response(clip, { headers: { "content-type": "video/mp4" } })
+  job.looks++
+  if (job.looks < 3) return Response.json({ id, status: "in_progress" })
+  if (job.fails) return Response.json({ id, status: "failed", error: "content moderation (mock)" })
+  return Response.json({ id, status: "completed", usage: { cost: 0.5, is_byok: false } })
+}
 
 // Prompts the Images API has refused once; "FAILONCE" fails only the first time a prompt is seen, so
 // a retry succeeds only when it sends the very same prompt.

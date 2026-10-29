@@ -59,7 +59,7 @@ export const sessions = sqliteTable(
 
 // "attachment" and "generated" are files of the retired chat; their rows and objects remain.
 // "character" files are a character's own copies of its photos.
-export const FileKind = ["attachment", "generated", "reference", "image", "character"] as const
+export const FileKind = ["attachment", "generated", "reference", "image", "character", "video"] as const
 
 export const files = sqliteTable(
   "files",
@@ -201,6 +201,7 @@ export const credit_ledger = sqliteTable(
 )
 
 export const GenerationStatus = ["running", "done", "failed"] as const
+export const GenerationKind = ["image", "video"] as const
 
 export const generations = sqliteTable(
   "generations",
@@ -208,9 +209,11 @@ export const generations = sqliteTable(
     id: text().primaryKey(),
     user_id: text().notNull(),
     status: text({ enum: GenerationStatus }).notNull(),
-    // Our model id (see src/images/models.ts), not the OpenRouter slug.
+    // A video run makes one clip; its file is a video/mp4.
+    kind: text({ enum: GenerationKind }).notNull().default("image"),
+    // Our model id (see src/images/models.ts and src/videos/models.ts), not the OpenRouter slug.
     model: text().notNull(),
-    // Resolution tier for FLUX / Nano Banana, quality for GPT.
+    // Resolution tier for FLUX / Nano Banana and videos, quality for GPT.
     option: text().notNull(),
     aspect_ratio: text().notNull(),
     n: integer().notNull(),
@@ -228,6 +231,9 @@ export const generations = sqliteTable(
     finished_at: integer(),
     // The project the run belongs to; null for runs made outside one, which show only under "all".
     project_id: text(),
+    // Videos only: the clip's length in seconds, and the OpenRouter job the run waits on.
+    duration: integer(),
+    job_id: text(),
     ...Timestamps,
   },
   (t) => [

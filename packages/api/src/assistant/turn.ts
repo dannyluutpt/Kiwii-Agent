@@ -151,10 +151,17 @@ export async function runAssistantTurn(input: {
   await touchProject(db, input.project, body.text, now)
   await input.emit({ type: "start", messageID, userMessageID })
 
+  // The project's pictures the model can work from; its videos are not pictures.
   const runs = await db
     .select()
     .from(generations)
-    .where(and(eq(generations.user_id, input.user.id), eq(generations.project_id, input.project.id)))
+    .where(
+      and(
+        eq(generations.user_id, input.user.id),
+        eq(generations.project_id, input.project.id),
+        eq(generations.kind, "image"),
+      ),
+    )
     .orderBy(desc(generations.id))
     .limit(RECENT_RUNS)
   const images = runs.length

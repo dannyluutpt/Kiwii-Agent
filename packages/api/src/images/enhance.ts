@@ -1,7 +1,8 @@
 import type { generations } from "../db/schema"
 import { completeJSON } from "../llm/openrouter"
 import { ASSISTANT_MODEL } from "../llm/models"
-import type { ImageModelID } from "./models"
+import type { VideoModelID } from "../videos/models"
+import { isImageModel, type ImageModelID } from "./models"
 
 export type EnhanceResult = {
   allowed: boolean
@@ -91,6 +92,34 @@ function rewriteRules(model: ImageModelID, aspectRatio: string, references: numb
     .join("\n")
 }
 
+// A clip is read as it plays: what moves, in what order, and what it sounds like. The same faithful
+// translation as for pictures, so nothing the person did not ask for gets staged.
+function videoRules(
+  model: VideoModelID,
+  aspectRatio: string,
+  clip: { seconds: number; sound: boolean },
+  references: number,
+  seen: boolean,
+) {
+  return [
+    `When allowed, rewrite the prompt in English for ${model} as a faithful, clear description of a ${clip.seconds}-second video clip:`,
+    "- Keep everything the person asked for: subjects, actions, expressions, clothing, counts, named styles and quoted text. Translate the meaning faithfully and no stronger.",
+    `- Say what happens during the clip, in order: who or what moves and how. Keep to what fits in ${clip.seconds} seconds.`,
+    "- Add nothing they did not ask for: no new people or objects, and no quality words (8k, masterpiece, cinematic). Name a camera movement only when they ask for one or the scene plainly needs it, in plain words (a static shot, a slow push-in, a pan to the left).",
+    "- Unless they ask for a posed shot, people carry on with what they are doing and do not look at the camera, in the light the place really has.",
+    clip.sound
+      ? "- The clip has sound: name the sounds that belong to the scene in a few words. Put words someone says in double quotes, exactly as given, and say who says them and in which language."
+      : "",
+    references > 0
+      ? `- The clip starts from the picture they attached${seen ? ", shown after their words" : ", which you cannot see"}. Do not describe it again: say what moves and changes from that first frame, and that the people, things and setting in it stay as they are unless they ask otherwise.`
+      : "- Fill in only what the clip needs and they left open (setting, light), briefly and plainly.",
+    `- The video is ${aspectRatio}, ${orientation(aspectRatio)}: compose for that frame, without writing the ratio.`,
+    "- At most 90 words, no preamble. Write plain sentences.",
+  ]
+    .filter(Boolean)
+    .join("\n")
+}
+
 // What the person's own pictures are for. Read as edits to keep "exactly as they are", a portrait
 // attached to put someone in a new scene passed on its framing, head angle and gaze: the man cooked
 // while staring into the camera.
@@ -154,7 +183,9 @@ export function reusableRewrite(
 export async function enhancePrompt(input: {
   apiKey: string
   baseURL?: string
-  model: ImageModelID
+  model: ImageModelID | VideoModelID
+  // Set for a video run: the clip's length and whether the model makes sound.
+  clip?: { seconds: number; sound: boolean }
   prompt: string
   rewrite: boolean
   aspectRatio: string
@@ -173,13 +204,21 @@ export async function enhancePrompt(input: {
   const pictures = input.pictures ?? []
   const cast = input.cast ?? []
   const system = [
-    "You prepare prompts for an AI image generator and screen them for policy.",
+    `You prepare prompts for an AI ${isImageModel(input.model) ? "image" : "video"} generator and screen them for policy.`,
     'Reply with JSON only: {"allowed": boolean, "reason": string, "prompt": string}.',
     "Set allowed=false (and explain briefly in Vietnamese in reason) for: sexual content involving minors, sexual deepfakes or nudity of real identifiable people, gore or graphic violence, hate symbols or propaganda, instructions for weapons or drugs. Everything else is allowed, including artistic nudity-free portraits of public figures in neutral contexts.",
     pictures.length ? "Judge their words together with the pictures they attached." : "",
-    input.rewrite
-      ? rewriteRules(input.model, input.aspectRatio, input.references, cast, pictures.length > 0)
-      : "When allowed, return the user's prompt unchanged in prompt (translate to English only if it is not already English; keep quoted text exactly).",
+    !input.rewrite
+      ? "When allowed, return the user's prompt unchanged in prompt (translate to English only if it is not already English; keep quoted text exactly)."
+      : isImageModel(input.model)
+        ? rewriteRules(input.model, input.aspectRatio, input.references, cast, pictures.length > 0)
+        : videoRules(
+            input.model,
+            input.aspectRatio,
+            input.clip ?? { seconds: 5, sound: false },
+            input.references,
+            pictures.length > 0,
+          ),
   ]
     .filter(Boolean)
     .join("\n")
