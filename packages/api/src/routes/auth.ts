@@ -14,7 +14,7 @@ import {
   SESSION_COOKIE,
   sessionCookie,
 } from "../auth/session"
-import { todayUsage, loadPlan } from "../chat/quota"
+import { loadPlan } from "../plans"
 import { balance } from "../credits/ledger"
 import { grantTrial } from "../credits/trial"
 import type { Database } from "../db/client"
@@ -42,7 +42,7 @@ const formLimit = rateLimitBy((env) => env.RL_AUTH, "auth")
 
 // The tight limit guards the form posts (sign-in, sign-up, codes) against guessing. Reading the
 // session (GET /me, /session, /config) only counts against the general per-IP limit: the web app
-// refreshes it after every chat answer and image run, and ten a minute would lock an active user out.
+// refreshes it after every image run, and ten a minute would lock an active user out.
 auth.use("*", (c, next) => (c.req.method === "GET" ? next() : formLimit(c, next)))
 
 auth.post("/signup", async (c) => {
@@ -256,11 +256,8 @@ async function describe(db: Database, user: User) {
       id: plan.id,
       name: plan.name_vi,
       credits: plan.credits,
-      chatDailyMessages: plan.chat_daily_messages,
-      chatMonthlyMessages: plan.chat_monthly_messages,
     },
     credits: await balance(db, user.id),
-    chatToday: await todayUsage(db, user.id),
   }
 }
 

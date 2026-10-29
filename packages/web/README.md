@@ -1,6 +1,6 @@
 # @kiwii/web
 
-The Kiwii web app (chat and image studio) at https://kiwiiagent.com: a SolidJS single-page app that
+The Kiwii web app (image studio) at https://kiwiiagent.com: a SolidJS single-page app that
 `@kiwii/api` serves as static assets from the same Worker.
 
 ## Develop
@@ -55,12 +55,12 @@ longest edge (`lib/image.ts`, `components/references.tsx`) before they are uploa
 ## Home Screen app
 
 `public/manifest.webmanifest` makes the site, once added to the Home Screen, open full screen like an
-app on iOS and Android (`display: standalone`, the whole site in scope, starting at `/chat`); without
+app on iOS and Android (`display: standalone`, the whole site in scope, starting at `/`); without
 it iOS 26 keeps the browser bars. A phone reads the manifest only when the icon is added, so a change
 to it shows after the icon is removed and added again.
 
 In that app a download link opens a file preview with no way back, and iPhone keeps pictures in
-Photos anyway, so on iPhone and iPad the viewer's Download and the file cards in chat hand the file
+Photos anyway, so on iPhone and iPad the viewer's Download hands the picture
 to the share sheet instead ("Lưu hình ảnh", "Lưu vào Tệp"; `lib/save.ts`). Other devices download.
 
 The icons in `public/icons/` are `assets/logo.png` on an opaque `#141513` square, since iOS paints

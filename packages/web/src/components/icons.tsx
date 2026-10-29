@@ -21,10 +21,6 @@ function icon(render: () => JSX.Element) {
   )
 }
 
-export const IconChat = icon(() => (
-  <path d="M7 4.5h10A3.5 3.5 0 0 1 20.5 8v6a3.5 3.5 0 0 1-3.5 3.5h-5.2l-4.2 3.1c-.4.3-.9 0-.9-.4v-2.7H7A3.5 3.5 0 0 1 3.5 14V8A3.5 3.5 0 0 1 7 4.5Z" />
-))
-
 export const IconImage = icon(() => (
   <>
     <rect x="3.5" y="4.5" width="17" height="15" rx="3.5" />
@@ -54,13 +50,6 @@ export const IconSidebar = icon(() => (
   <>
     <rect x="3.5" y="4.5" width="17" height="15" rx="3.5" />
     <path d="M9.5 4.5v15" />
-  </>
-))
-
-export const IconCompose = icon(() => (
-  <>
-    <path d="M11 4.5H7.5a4 4 0 0 0-4 4v8a4 4 0 0 0 4 4h8a4 4 0 0 0 4-4V13" />
-    <path d="M17.7 3.8a1.9 1.9 0 0 1 2.7 2.7l-7.7 7.7-3.4.8.8-3.4z" />
   </>
 ))
 
@@ -100,8 +89,6 @@ export const IconPencil = icon(() => (
 
 export const IconArrowUp = icon(() => <path d="M12 19V5M5.5 11.5 12 5l6.5 6.5" />)
 
-export const IconArrowDown = icon(() => <path d="M12 5v14M5.5 12.5 12 19l6.5-6.5" />)
-
 export const IconStop = icon(() => (
   <rect x="7" y="7" width="10" height="10" rx="2.5" fill="currentColor" stroke="none" />
 ))
@@ -123,10 +110,6 @@ export const IconCopy = icon(() => (
 export const IconCheck = icon(() => <path d="m5 12.5 4.5 4.5L19 7.5" />)
 
 export const IconDownload = icon(() => <path d="M12 4v11M7 10.5l5 5 5-5M5 19.5h14" />)
-
-export const IconPaperclip = icon(() => (
-  <path d="m20 11.5-7.8 7.8a5 5 0 0 1-7.1-7.1l8.2-8.2a3.4 3.4 0 0 1 4.8 4.8l-8.1 8.1a1.7 1.7 0 0 1-2.4-2.4l7.4-7.4" />
-))
 
 export const IconSparkles = icon(() => (
   <>
@@ -194,13 +177,6 @@ export const IconEyeSlash = icon(() => (
     <path d="M9.9 5.75A9.6 9.6 0 0 1 12 5.5C17.75 5.5 21.25 12 21.25 12a17 17 0 0 1-2.6 3.4M14.1 14.2a3 3 0 0 1-4.3-4.3" />
     <path d="M6.6 7.1C4.05 8.85 2.75 12 2.75 12S6.25 18.5 12 18.5c1.7 0 3.2-.55 4.45-1.35" />
     <path d="m4 4 16 16" />
-  </>
-))
-
-export const IconDocument = icon(() => (
-  <>
-    <path d="M8 3.5h5.5l5 5V18a2.5 2.5 0 0 1-2.5 2.5H8A2.5 2.5 0 0 1 5.5 18V6A2.5 2.5 0 0 1 8 3.5Z" />
-    <path d="M13.5 3.5v5h5" />
   </>
 ))
 

@@ -34,7 +34,7 @@ export default function Verify() {
       onSubmit={async () => {
         await api("/auth/signup/verify", { body: { email: email(), code: code() } })
         await auth.refresh()
-        navigate("/chat")
+        navigate("/images")
       }}
       footer={
         <span class="flex flex-col gap-1">

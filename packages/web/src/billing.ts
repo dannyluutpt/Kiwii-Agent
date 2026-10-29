@@ -6,11 +6,10 @@ export type PlanInfo = {
   name: string
   priceVnd: number
   credits: number
-  chatDailyMessages: number | null
-  chatMonthlyMessages: number | null
-  chatContextTokens: number
   parallelLimit: number
 }
+// The credits a new account gets to try the cheapest model, and for how long.
+export type Trial = { credits: number; days: number }
 export type Topup = { id: string; credits: number; priceVnd: number }
 
 export type Order = {

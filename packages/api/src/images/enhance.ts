@@ -1,6 +1,6 @@
 import type { generations } from "../db/schema"
 import { completeJSON } from "../llm/openrouter"
-import { PAID_CHAT_MODEL } from "../plans"
+import { ASSISTANT_MODEL } from "../llm/models"
 import type { ImageModelID } from "./models"
 
 export type EnhanceResult = {
@@ -35,7 +35,7 @@ const STYLE_HINTS: Record<ImageModelID, string> = {
     "Use natural language. If the user asks for text in the image, quote the exact text in double quotes and describe its placement and typography.",
 }
 
-export const ENHANCE_MODEL = PAID_CHAT_MODEL
+export const ENHANCE_MODEL = ASSISTANT_MODEL
 
 type Previous = Pick<
   typeof generations.$inferSelect,

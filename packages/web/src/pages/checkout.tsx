@@ -129,8 +129,8 @@ export default function Checkout() {
                   }
                   lead={t("checkout.paid.lead")}
                 >
-                  <A href={o().kind === "plan" ? "/chat" : "/images"} class={buttonClass("primary", "lg", "w-full")}>
-                    {o().kind === "plan" ? t("checkout.startChat") : t("checkout.startImages")}
+                  <A href="/images" class={buttonClass("primary", "lg", "w-full")}>
+                    {t("checkout.startImages")}
                   </A>
                   <A href="/account" class={buttonClass("secondary", "lg", "w-full")}>
                     {t("nav.account")}

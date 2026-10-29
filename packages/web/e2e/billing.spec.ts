@@ -44,13 +44,14 @@ test.describe("paid account", () => {
 })
 
 test.describe("free account", () => {
-  test("plans describe chat by what it does, never by the model behind it", async ({ page }) => {
+  test("plans offer image credits only, the free one a trial of FLUX", async ({ page }) => {
     await page.goto("/pricing")
-    await expect(page.getByRole("article", { name: "Plus" })).toContainText(
-      "Tạo tệp Word, Excel và code ngay trong chat",
+    await expect(page.getByRole("article", { name: "Plus" })).toContainText("750 credit tạo ảnh mỗi tháng")
+    await expect(page.getByRole("article", { name: "Miễn phí" })).toContainText(
+      "10 credit dùng thử FLUX 3 Klein trong 14 ngày",
     )
-    await expect(page.getByRole("article", { name: "Miễn phí" })).not.toContainText("Tạo tệp")
-    await expect(page.getByRole("main")).not.toContainText(/MiMo|model chat/i)
+    // Chat is gone, and the model behind the prompt rewriting never shows.
+    await expect(page.getByRole("main")).not.toContainText(/chat|MiMo/i)
   })
 
   test("a pending order waits in Account and picks up where it left off", async ({ page }) => {
