@@ -2,11 +2,11 @@ import { A } from "@solidjs/router"
 import { For, Show, type JSX } from "solid-js"
 import { useLanguage } from "@/context/language"
 import type { I18nKey } from "@/i18n/vi"
-import { aspectStyle, type Generation, type ModelsResponse } from "@/images"
+import { aspectStyle, type Generation, type ModelsResponse, type VideoModel } from "@/images"
 import { buttonClass } from "@/ui/button"
 import { Skeleton } from "@/ui/skeleton"
 import { GenerationTile } from "./generation-tile"
-import { IconGlobe, IconImage, IconPencil, IconSparkles } from "./icons"
+import { IconGlobe, IconImage, IconPencil, IconSparkles, IconVideo } from "./icons"
 import { LoadMore } from "./load-more"
 
 const PLACEHOLDER_RATIOS = ["1:1", "3:4", "16:9", "1:1", "9:16", "4:3"]
@@ -42,6 +42,9 @@ export function Gallery(props: {
   loading: boolean
   more: boolean
   config: ModelsResponse | undefined
+  videoModels: VideoModel[] | undefined
+  // The gallery shows clips only: an empty one says how to make the first.
+  clipsOnly?: boolean
   locked: boolean
   onLoadMore: () => void
   onSuggest: (prompt: string) => void
@@ -76,7 +79,16 @@ export function Gallery(props: {
           </A>
         </div>
       </Show>
-      <Show when={empty() && !props.locked}>
+      <Show when={empty() && props.clipsOnly}>
+        <div class="mx-auto flex max-w-md flex-1 flex-col items-center justify-center gap-2 py-10 text-center">
+          <span class="mb-1 flex size-14 items-center justify-center rounded-[16px] bg-amber-gloss text-on-accent shadow-amber">
+            <IconVideo class="size-7" />
+          </span>
+          <h2 class="text-title-2 text-label">{t("video.empty.title")}</h2>
+          <p class="text-callout text-label-2">{t("video.empty.lead")}</p>
+        </div>
+      </Show>
+      <Show when={empty() && !props.locked && !props.clipsOnly}>
         <div class="mx-auto flex w-full max-w-2xl flex-1 flex-col justify-center gap-8 py-6">
           <div class="flex flex-col items-center gap-2 text-center">
             <span class="mb-1 flex size-14 items-center justify-center rounded-[16px] bg-amber-gloss text-on-accent shadow-amber">
@@ -114,7 +126,11 @@ export function Gallery(props: {
             {(g) => (
               <GenerationTile
                 generation={g}
-                model={props.config?.models.find((m) => m.id === g.model)}
+                model={
+                  g.kind === "video"
+                    ? props.videoModels?.find((m) => m.id === g.model)
+                    : props.config?.models.find((m) => m.id === g.model)
+                }
                 onOpen={(index) => props.onOpen(g, index)}
                 onReuse={() => props.onReuse(g)}
                 onRetry={() => props.onRetry(g)}

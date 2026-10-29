@@ -29,7 +29,7 @@ export default function Studio() {
   const studio = useStudio()
   const characters = useCharacters()
   const params = useParams<{ projectId?: string }>()
-  const [search, setSearch] = useSearchParams<{ prompt?: string; model?: string }>()
+  const [search, setSearch] = useSearchParams<{ prompt?: string; model?: string; kind?: string }>()
   const [viewer, setViewer] = createSignal<{ id: string; index: number }>()
   const [filter, setFilter] = createSignal<Filter>("all")
   let feed: HTMLDivElement | undefined
@@ -42,20 +42,25 @@ export default function Studio() {
     if (params.projectId) return ""
     return layout.phone() ? t("nav.images") : t("projects.all")
   }
-  const items = () => studio.items(key())
+  // The gallery on screen: the project's, or only its pictures or only its clips.
+  const shelf = () => (filter() === "images" ? `${key()}:image` : filter() === "videos" ? `${key()}:video` : key())
+  const items = () => studio.items(shelf())
 
-  // The library's "use again" arrives with the prompt and model in the address.
+  // The library's "use again" arrives with the prompt, the model and, for a clip, its kind in the address.
   onMount(() => {
     if (search.prompt) studio.setPrompt(search.prompt)
-    if (search.model) studio.patch({ model: search.model })
-    if (search.prompt || search.model) setSearch({ prompt: undefined, model: undefined }, { replace: true })
+    if (search.kind === "video") studio.setMode("video")
+    if (search.model && search.kind === "video") studio.patchVideo({ model: search.model })
+    if (search.model && search.kind !== "video") studio.patch({ model: search.model })
+    if (search.prompt || search.model)
+      setSearch({ prompt: undefined, model: undefined, kind: undefined }, { replace: true })
     // Credits and the trial may have changed since the studio was last on screen.
     if (studio.config.state === "ready") void studio.refreshConfig()
   })
 
+  createEffect(on(key, () => setViewer(undefined)))
   createEffect(
-    on(key, (current) => {
-      setViewer(undefined)
+    on(shelf, (current) => {
       if (!studio.gallery(current)?.loaded) void studio.load(current)
     }),
   )
@@ -72,7 +77,11 @@ export default function Studio() {
 
   const reuse = (g: Generation) => {
     studio.setPrompt(g.prompt)
-    studio.patch({ model: g.model, option: g.option, aspectRatio: g.aspectRatio, n: g.n })
+    studio.setMode(g.kind)
+    if (g.kind === "video") {
+      studio.patchVideo({ model: g.model, option: g.option, aspectRatio: g.aspectRatio, duration: g.duration ?? 5 })
+    }
+    if (g.kind !== "video") studio.patch({ model: g.model, option: g.option, aspectRatio: g.aspectRatio, n: g.n })
     setViewer(undefined)
     // The gallery is the scroller here, not the window; bring the prompt into view and focus it.
     if (layout.phone()) feed?.scrollTo({ top: 0, behavior: "smooth" })
@@ -103,6 +112,7 @@ export default function Studio() {
       caption: g.prompt,
       download: `${img.url}?download`,
       name: `${BRAND_SLUG}-${img.id}`,
+      video: g.kind === "video",
     }))
   }
 
@@ -110,13 +120,18 @@ export default function Studio() {
     config: cfg,
     settings: studio.settings,
     onSettings: studio.patch,
+    mode: studio.mode(),
+    onMode: studio.setMode,
+    videoConfig: studio.videoConfig.latest,
+    video: studio.video,
+    onVideo: studio.patchVideo,
     prompt: studio.prompt(),
     onPrompt: studio.setPrompt,
     references: studio.references(),
     onReferences: studio.setReferences,
     cost: studio.cost(),
     busy: studio.busy(),
-    locked: studio.locked(),
+    locked: studio.mode() === "video" ? studio.videoLocked() : studio.locked(),
     onGenerate: generate,
   })
 
@@ -127,11 +142,13 @@ export default function Studio() {
         fallback={
           <Gallery
             items={items()}
-            loading={studio.gallery(key())?.loading ?? true}
-            more={!!studio.gallery(key())?.cursor}
+            loading={studio.gallery(shelf())?.loading ?? true}
+            more={!!studio.gallery(shelf())?.cursor}
             config={studio.config.latest}
+            videoModels={studio.videoConfig.latest?.models}
+            clipsOnly={filter() === "videos"}
             locked={studio.locked()}
-            onLoadMore={() => void studio.load(key(), true)}
+            onLoadMore={() => void studio.load(shelf(), true)}
             onSuggest={(text) => {
               studio.setPrompt(text)
               document.querySelector<HTMLTextAreaElement>("[data-studio-prompt]")?.focus()
@@ -176,7 +193,11 @@ export default function Studio() {
             {gallery}
           </div>
           <aside class="flex w-[360px] shrink-0 flex-col py-3 pr-3 xl:w-[400px]">
-            <AssistantPanel projectID={params.projectId} onOpen={(g, index) => setViewer({ id: g.id, index })} />
+            <AssistantPanel
+              projectID={params.projectId}
+              onOpen={(g, index) => setViewer({ id: g.id, index })}
+              onMakeVideo={generate}
+            />
           </aside>
         </div>
       </Show>

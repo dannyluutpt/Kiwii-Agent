@@ -3,7 +3,7 @@ import { createSignal, For, onMount, Show } from "solid-js"
 import { createStore, produce } from "solid-js/store"
 import { api } from "@/api"
 import { BRAND_SLUG } from "@/brand"
-import { IconImage } from "@/components/icons"
+import { IconImage, IconPlay } from "@/components/icons"
 import { Lightbox } from "@/components/lightbox"
 import { LoadMore } from "@/components/load-more"
 import { Page } from "@/components/page"
@@ -19,6 +19,9 @@ type Asset = {
   fileID: string
   generationID: string
   createdAt: number
+  kind: "image" | "video"
+  // Seconds, for a clip.
+  duration: number | null
   model: string
   option: string
   aspectRatio: string
@@ -58,7 +61,9 @@ export default function Assets() {
   onMount(() => void load())
 
   const reuse = (asset: Asset) => {
-    navigate(`/?prompt=${encodeURIComponent(asset.prompt)}&model=${encodeURIComponent(asset.model)}`)
+    const query = new URLSearchParams({ prompt: asset.prompt, model: asset.model })
+    if (asset.kind === "video") query.set("kind", "video")
+    navigate(`/?${query}`)
   }
 
   return (
@@ -87,15 +92,37 @@ export default function Assets() {
                 aria-label={altFor(asset)}
                 onClick={() => setViewer(index())}
               >
-                <img
-                  src={asset.url}
-                  alt=""
-                  loading="lazy"
-                  decoding="async"
-                  onLoad={() => setLoaded(true)}
-                  class="size-full object-cover transition-[opacity,transform] duration-(--motion-standard) ease-standard group-hover/asset:scale-[1.02]"
-                  classList={{ "opacity-0": !loaded() }}
-                />
+                <Show
+                  when={asset.kind === "video"}
+                  fallback={
+                    <img
+                      src={asset.url}
+                      alt=""
+                      loading="lazy"
+                      decoding="async"
+                      onLoad={() => setLoaded(true)}
+                      class="size-full object-cover transition-[opacity,transform] duration-(--motion-standard) ease-standard group-hover/asset:scale-[1.02]"
+                      classList={{ "opacity-0": !loaded() }}
+                    />
+                  }
+                >
+                  {/* "#t=0.1" makes iOS draw the clip's first frame instead of leaving it black. */}
+                  <video
+                    src={`${asset.url}#t=0.1`}
+                    muted
+                    playsinline
+                    preload="metadata"
+                    aria-hidden="true"
+                    onLoadedMetadata={() => setLoaded(true)}
+                    onError={() => setLoaded(true)}
+                    class="size-full object-cover transition-[opacity,transform] duration-(--motion-standard) ease-standard group-hover/asset:scale-[1.02]"
+                    classList={{ "opacity-0": !loaded() }}
+                  />
+                  <span class="pointer-events-none absolute right-2 bottom-2 flex items-center gap-1 rounded-full bg-black/55 px-2 py-0.5 text-caption font-medium text-white backdrop-blur-sm">
+                    <IconPlay class="size-3" weight={2.25} />
+                    {asset.duration ? t("video.seconds", { n: asset.duration }) : ""}
+                  </span>
+                </Show>
               </button>
             )
           }}
@@ -120,6 +147,7 @@ export default function Assets() {
           caption: asset.prompt,
           download: `${asset.url}?download`,
           name: `${BRAND_SLUG}-${asset.id}`,
+          video: asset.kind === "video",
         }))}
         index={viewer()}
         onIndex={setViewer}

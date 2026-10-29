@@ -7,15 +7,26 @@ import { useAuth } from "@/context/auth"
 import { useCharacters } from "@/context/characters"
 import { useLanguage } from "@/context/language"
 import { useProjects } from "@/context/projects"
-import type { Generation, ModelsResponse, Reference, StudioSettings } from "@/images"
+import type {
+  Generation,
+  ModelsResponse,
+  Reference,
+  StudioMode,
+  StudioSettings,
+  VideoModelsResponse,
+  VideoSettings,
+} from "@/images"
 import { errorMessage } from "@/lib/errors"
 import { askConfirm } from "@/ui/confirm"
 import { toast } from "@/ui/toast"
 
 const SETTINGS_KEY = "kiwii-studio"
+const VIDEO_KEY = "kiwii-studio-video"
+const MODE_KEY = "kiwii-studio-mode"
 const PAGE = 12
 
-// The gallery of every run, wherever it was made; a project's own gallery is keyed by its id.
+// The gallery of every run, wherever it was made; a project's own gallery is keyed by its id. Either
+// narrowed to pictures or to clips is keyed with ":image" or ":video" after that.
 export const ALL = "all"
 
 type Gallery = { ids: string[]; cursor: string | null; loading: boolean; loaded: boolean }
@@ -35,6 +46,35 @@ function loadSettings(): StudioSettings {
   return { model: "gpt-image-2.5", option: "medium", aspectRatio: "1:1", n: 1 }
 }
 
+function loadVideoSettings(): VideoSettings {
+  try {
+    const stored = JSON.parse(localStorage.getItem(VIDEO_KEY) ?? "null") as Partial<VideoSettings> | null
+    if (stored && typeof stored.model === "string") {
+      return {
+        model: stored.model,
+        option: stored.option ?? "",
+        aspectRatio: stored.aspectRatio ?? "16:9",
+        duration: stored.duration ?? 5,
+      }
+    }
+  } catch {}
+  return { model: "wan-3.0", option: "720p", aspectRatio: "16:9", duration: 5 }
+}
+
+function loadMode(): StudioMode {
+  try {
+    return localStorage.getItem(MODE_KEY) === "video" ? "video" : "image"
+  } catch {
+    return "image"
+  }
+}
+
+const store = (key: string, value: string) => {
+  try {
+    localStorage.setItem(key, value)
+  } catch {}
+}
+
 // The studio's state, above the screens so it outlives them: the options and the draft, and every
 // run seen this session with the galleries that list them. A run keeps streaming into its tile
 // while the person looks at another project, and is there, current, when they come back.
@@ -47,7 +87,12 @@ export const { use: useStudio, provider: StudioProvider } = createSimpleContext(
     const projects = useProjects()
     const navigate = useNavigate()
     const [config, { refetch: refreshConfig }] = createResource(() => api<ModelsResponse>("/images/models"))
+    const [videoConfig, { refetch: refreshVideoConfig }] = createResource(() =>
+      api<VideoModelsResponse>("/videos/models"),
+    )
     const [settings, setSettings] = createStore<StudioSettings>(loadSettings())
+    const [video, setVideo] = createStore<VideoSettings>(loadVideoSettings())
+    const [mode, setModeSignal] = createSignal<StudioMode>(loadMode())
     const [prompt, setPrompt] = createSignal("")
     const [references, setReferences] = createSignal<Reference[]>([])
     const [state, setState] = createStore<{ runs: Record<string, Generation>; galleries: Record<string, Gallery> }>({
@@ -58,9 +103,17 @@ export const { use: useStudio, provider: StudioProvider } = createSimpleContext(
 
     const patch = (next: Partial<StudioSettings>) => {
       setSettings(next)
-      try {
-        localStorage.setItem(SETTINGS_KEY, JSON.stringify({ ...settings, ...next }))
-      } catch {}
+      store(SETTINGS_KEY, JSON.stringify({ ...settings, ...next }))
+    }
+    const patchVideo = (next: Partial<VideoSettings>) => {
+      setVideo(next)
+      store(VIDEO_KEY, JSON.stringify({ ...video, ...next }))
+    }
+    // A clip starts from one picture at most.
+    const setMode = (next: StudioMode) => {
+      setModeSignal(next)
+      store(MODE_KEY, next)
+      if (next === "video" && references().length > 1) setReferences(references().slice(0, 1))
     }
 
     // Keeps the options valid for the live config: a model may be gone, or an option recalibrated away.
@@ -77,7 +130,21 @@ export const { use: useStudio, provider: StudioProvider } = createSimpleContext(
       if (Object.keys(next).length) patch(next)
     })
 
-    const cost = createMemo(() => {
+    // The same for the clip's options, which the video models set for themselves.
+    createEffect(() => {
+      const cfg = videoConfig()
+      if (!cfg) return
+      const model = cfg.models.find((m) => m.id === video.model) ?? cfg.models[0]
+      if (!model) return
+      const next: Partial<VideoSettings> = {}
+      if (model.id !== video.model) next.model = model.id
+      if (!model.options.some((o) => o.id === video.option)) next.option = model.options[0]?.id ?? ""
+      if (!model.aspectRatios.includes(video.aspectRatio)) next.aspectRatio = model.aspectRatios[0] ?? "16:9"
+      if (!model.durations.includes(video.duration)) next.duration = model.durations[0] ?? 5
+      if (Object.keys(next).length) patchVideo(next)
+    })
+
+    const imageCost = createMemo(() => {
       const cfg = config()
       const model = cfg?.models.find((m) => m.id === settings.model)
       const option = model?.options.find((o) => o.id === settings.option)
@@ -86,6 +153,14 @@ export const { use: useStudio, provider: StudioProvider } = createSimpleContext(
       const read = references().length + characters.picked().length
       return option.credits * settings.n + (read > 0 ? model.referenceSurcharge : 0)
     })
+    const videoCost = createMemo(() => {
+      const model = videoConfig()?.models.find((m) => m.id === video.model)
+      const credits = model?.options.find((o) => o.id === video.option)?.credits[String(video.duration)]
+      if (!model || credits === undefined) return undefined
+      return credits + (references().length > 0 ? model.firstFrameCredits : 0)
+    })
+    // What the composer's run costs, in the mode it is in.
+    const cost = () => (mode() === "video" ? videoCost() : imageCost())
 
     const gallery = (key: string) => state.galleries[key]
     const items = (key: string) =>
@@ -99,8 +174,10 @@ export const { use: useStudio, provider: StudioProvider } = createSimpleContext(
         ...(current ?? { ids: [], cursor: null, loaded: false }),
         loading: true,
       }))
+      const [base = ALL, kind] = key.split(":")
       const query = new URLSearchParams({ limit: String(PAGE) })
-      if (key !== ALL) query.set("project", key)
+      if (base !== ALL) query.set("project", base)
+      if (kind) query.set("kind", kind)
       if (cursor) query.set("cursor", cursor)
       await api<{ generations: Generation[]; nextCursor: string | null }>(`/images/generations?${query}`)
         .then((page) =>
@@ -131,8 +208,9 @@ export const { use: useStudio, provider: StudioProvider } = createSimpleContext(
 
     // Puts `next` where `id` was in every gallery (a placeholder, or a failed run being retried, is
     // replaced by the run the server accepted, in the same spot) and adds it on top of the galleries
-    // in `into` that do not list it yet.
-    const place = (id: string, next: Generation, into: string[]) =>
+    // in `into`, and of their pictures-only or clips-only views, that do not list it yet.
+    const place = (id: string, next: Generation, into: string[]) => {
+      const targets = into.flatMap((key) => [key, `${key}:${next.kind}`])
       setState(
         produce((s) => {
           s.runs[next.id] = next
@@ -140,10 +218,11 @@ export const { use: useStudio, provider: StudioProvider } = createSimpleContext(
           for (const [key, target] of Object.entries(s.galleries)) {
             const at = target.ids.indexOf(id)
             if (at >= 0) target.ids[at] = next.id
-            if (at < 0 && into.includes(key) && !target.ids.includes(next.id)) target.ids.unshift(next.id)
+            if (at < 0 && targets.includes(key) && !target.ids.includes(next.id)) target.ids.unshift(next.id)
           }
         }),
       )
+    }
 
     // One event of a run's stream, from the composer or from the assistant. Previews stay until the
     // page is left: each frame keeps its blurred preview under the final picture until it has loaded.
@@ -205,6 +284,8 @@ export const { use: useStudio, provider: StudioProvider } = createSimpleContext(
           g.creditsFinal = known.creditsFinal
           g.error = known.error
           g.finishedAt = known.finishedAt
+          // A clip that failed gave back all it held.
+          if (known.kind === "video" && known.status === "failed") g.refunded = known.creditsReserved
         })
         void auth.refresh()
       }
@@ -233,7 +314,7 @@ export const { use: useStudio, provider: StudioProvider } = createSimpleContext(
     // again when `from`, a failed one, is retried. The gallery shows the run at once; the server takes
     // a few seconds to prepare the prompt and the references before it answers, and that wait must
     // look like work, not like nothing.
-    const generate = async (projectID: string | undefined, from?: Generation) => {
+    const generateImage = async (projectID: string | undefined, from?: Generation) => {
       const cfg = config()
       if (!cfg || (from ? from.preparing : preparing())) return
       const body = from
@@ -268,9 +349,11 @@ export const { use: useStudio, provider: StudioProvider } = createSimpleContext(
           {
             ...body,
             id: pending,
+            kind: "image",
+            duration: null,
             status: "running",
             projectID: body.projectID ?? null,
-            creditsReserved: cost() ?? 0,
+            creditsReserved: imageCost() ?? 0,
             creditsFinal: null,
             error: null,
             createdAt: Date.now(),
@@ -318,6 +401,88 @@ export const { use: useStudio, provider: StudioProvider } = createSimpleContext(
       }
     }
 
+    // A clip from the composer, or the same clip again for a failed one. The server answers once the
+    // job is submitted; the clip takes minutes, and `settle` sees it finish.
+    const generateVideo = async (projectID: string | undefined, from?: Generation) => {
+      if (!videoConfig() || (from ? from.preparing : preparing())) return
+      const body = from
+        ? {
+            model: from.model,
+            option: from.option,
+            aspectRatio: from.aspectRatio,
+            duration: from.duration ?? 5,
+            prompt: from.prompt,
+            referenceFileIDs: from.referenceFileIDs,
+            projectID: from.projectID ?? undefined,
+          }
+        : {
+            model: video.model,
+            option: video.option,
+            aspectRatio: video.aspectRatio,
+            duration: video.duration,
+            prompt: prompt().trim(),
+            referenceFileIDs: references()
+              .slice(0, 1)
+              .map((r) => r.id),
+            projectID,
+          }
+      const into = body.projectID ? [ALL, body.projectID] : [ALL]
+      const pending = from?.id ?? `pending-${Date.now()}`
+      if (from) update(from.id, (g) => (g.preparing = true))
+      if (!from) {
+        place(
+          pending,
+          {
+            ...body,
+            id: pending,
+            kind: "video",
+            status: "running",
+            n: 1,
+            characterIDs: [],
+            projectID: body.projectID ?? null,
+            creditsReserved: videoCost() ?? 0,
+            creditsFinal: null,
+            error: null,
+            createdAt: Date.now(),
+            finishedAt: null,
+            images: [],
+            previews: {},
+            preparing: true,
+          },
+          into,
+        )
+        setPrompt("")
+      }
+      setRunning(running() + 1)
+      await api<Generation>("/videos/generations", { body })
+        .then((g) => {
+          place(pending, { ...g, images: [], previews: {} }, into)
+          if (g.projectID) projects.touched()
+          void auth.refresh()
+        })
+        .catch((error: unknown) => {
+          const insufficient = error instanceof ApiError && error.code === "INSUFFICIENT_CREDITS"
+          if (insufficient) {
+            toast.error(t("images.insufficient"), {
+              action: { label: t("images.topup"), onClick: () => navigate("/pricing") },
+            })
+          }
+          if (!insufficient) toast.error(errorMessage(error, t("error.network")))
+          if (from) update(from.id, (g) => (g.preparing = false))
+          // The server kept nothing it could show: hand the prompt back rather than leave a tile.
+          if (!from) {
+            drop(pending)
+            setPrompt(body.prompt)
+          }
+        })
+      setRunning(running() - 1)
+    }
+
+    const generate = (projectID: string | undefined, from?: Generation) =>
+      (from ? from.kind === "video" : mode() === "video")
+        ? generateVideo(projectID, from)
+        : generateImage(projectID, from)
+
     const remove = async (g: Generation) => {
       const ok = await askConfirm({
         title: t("images.deleteTitle"),
@@ -334,8 +499,14 @@ export const { use: useStudio, provider: StudioProvider } = createSimpleContext(
     return {
       config,
       refreshConfig,
+      videoConfig,
+      refreshVideoConfig,
       settings,
       patch,
+      video,
+      patchVideo,
+      mode,
+      setMode,
       prompt,
       setPrompt,
       references,
@@ -353,6 +524,8 @@ export const { use: useStudio, provider: StudioProvider } = createSimpleContext(
       // A run the server described (in a conversation) but no gallery has listed yet.
       know: (g: Generation) => setState("runs", g.id, (current) => current ?? g),
       locked: () => config()?.canGenerate === false,
+      // Clips are for paid plans only, the trial included.
+      videoLocked: () => videoConfig()?.canGenerate === false,
       busy: () => running() >= (config()?.parallelLimit ?? 1) || preparing(),
     }
   },

@@ -1,7 +1,16 @@
 import { A } from "@solidjs/router"
 import { createSignal, Show } from "solid-js"
 import { useLanguage } from "@/context/language"
-import type { ImageModel, ModelsResponse, Reference, StudioSettings } from "@/images"
+import type {
+  ImageModel,
+  ModelsResponse,
+  Reference,
+  StudioMode,
+  StudioSettings,
+  VideoModel,
+  VideoModelsResponse,
+  VideoSettings,
+} from "@/images"
 import { Button, buttonClass } from "@/ui/button"
 import { IconButton } from "@/ui/icon-button"
 import { Sheet } from "@/ui/sheet"
@@ -9,16 +18,23 @@ import { CastStrip, CharacterOptions } from "./characters"
 import { IconImage, IconSliders, IconSparkles } from "./icons"
 import { createReferenceUploads, ReferenceStrip } from "./references"
 import { StudioOptions } from "./studio-options"
+import { fitVideoModel, ModeSwitch, VideoStudioOptions } from "./video-options"
 
 const CHIP =
   "flex h-9 min-w-0 items-center gap-1.5 rounded-full bg-fill bg-gloss px-3 text-subhead font-medium text-label shadow-gloss transition-[background-color] duration-(--motion-micro) hover:bg-gloss-hover disabled:opacity-50 pointer-coarse:h-10"
 
-// The phone composer, docked under the gallery: references, the prompt, then one chip that opens
-// every option in a bottom sheet, and the generate button showing what the run will cost.
+// The phone composer, docked under the gallery: pictures or a clip, references, the prompt, then one
+// chip that opens every option in a bottom sheet, and the generate button showing what the run will
+// cost. A clip takes at most one picture, its first frame.
 export function StudioPromptBar(props: {
   config: ModelsResponse
   settings: StudioSettings
   onSettings: (patch: Partial<StudioSettings>) => void
+  mode: StudioMode
+  onMode: (mode: StudioMode) => void
+  videoConfig: VideoModelsResponse | undefined
+  video: VideoSettings
+  onVideo: (patch: Partial<VideoSettings>) => void
   prompt: string
   onPrompt: (value: string) => void
   references: Reference[]
@@ -32,18 +48,33 @@ export function StudioPromptBar(props: {
   const [sheet, setSheet] = createSignal(false)
   let fileInput: HTMLInputElement | undefined
 
+  const clip = () => props.mode === "video"
   const model = () => props.config.models.find((m) => m.id === props.settings.model)
-  const maxReferences = () => model()?.maxReferences ?? props.config.maxReferences
+  const clipModel = () => props.videoConfig?.models.find((m) => m.id === props.video.model)
+  const maxReferences = () =>
+    clip() ? (clipModel()?.maxReferences ?? 1) : (model()?.maxReferences ?? props.config.maxReferences)
+  const maxEdge = () => (clip() ? clipModel()?.maxReferenceEdge : model()?.maxReferenceEdge) ?? 2048
   const summary = () =>
-    [props.settings.aspectRatio, props.settings.n > 1 ? t("images.countShort", { n: props.settings.n }) : ""]
-      .filter(Boolean)
-      .join(" · ")
+    clip()
+      ? `${t("video.seconds", { n: props.video.duration })} · ${props.video.aspectRatio}`
+      : [props.settings.aspectRatio, props.settings.n > 1 ? t("images.countShort", { n: props.settings.n }) : ""]
+          .filter(Boolean)
+          .join(" · ")
   const uploads = createReferenceUploads({
     references: () => props.references,
     onReferences: props.onReferences,
     maxCount: maxReferences,
-    maxEdge: () => model()?.maxReferenceEdge ?? 2048,
+    maxEdge,
   })
+  const addLabel = () => {
+    const extra = clip() ? (clipModel()?.firstFrameCredits ?? 0) : (model()?.referenceSurcharge ?? 0)
+    if (clip()) return extra ? t("video.firstFrameExtra", { extra }) : t("video.firstFrame")
+    return t(extra ? "images.references.addHint" : "images.references.addHintFree", { n: maxReferences(), extra })
+  }
+  const pickClip = (next: VideoModel) => {
+    props.onVideo(fitVideoModel(next, props.video))
+    void uploads.refit(next.maxReferenceEdge)
+  }
 
   const pick = (next: ImageModel) => {
     const option = next.options.some((o) => o.id === props.settings.option)
@@ -66,22 +97,32 @@ export function StudioPromptBar(props: {
         if (canGenerate()) props.onGenerate()
       }}
     >
+      <ModeSwitch
+        class="mx-3 mt-3 self-start"
+        value={props.mode}
+        onChange={(mode) => {
+          props.onMode(mode)
+          void uploads.refit(maxEdge())
+        }}
+      />
       <ReferenceStrip
         class="px-3 pt-3"
         references={props.references}
         uploading={uploads.uploading()}
         onRemove={(ref) => props.onReferences(props.references.filter((r) => r.id !== ref.id))}
       />
-      <CastStrip class="px-3 pt-3" />
+      <Show when={!clip()}>
+        <CastStrip class="px-3 pt-3" />
+      </Show>
 
       <textarea
         data-component="studio-textarea"
         data-studio-prompt
         class="min-h-12 w-full resize-none bg-transparent px-4 pt-3 pb-1 text-body text-label outline-none placeholder:text-label-3 disabled:cursor-not-allowed"
-        aria-label={t("images.placeholder")}
+        aria-label={clip() ? t("video.placeholder") : t("images.placeholder")}
         enterkeyhint="go"
         rows={2}
-        placeholder={t("images.placeholder")}
+        placeholder={clip() ? (props.locked ? t("video.locked") : t("video.placeholder")) : t("images.placeholder")}
         value={props.prompt}
         disabled={props.locked}
         onInput={(event) => props.onPrompt(event.currentTarget.value)}
@@ -104,15 +145,12 @@ export function StudioPromptBar(props: {
           ref={fileInput}
           type="file"
           accept="image/jpeg,image/png,image/webp"
-          multiple
+          multiple={!clip()}
           class="hidden"
           onChange={(event) => event.currentTarget.files && void uploads.upload(event.currentTarget.files)}
         />
         <IconButton
-          label={t(model()?.referenceSurcharge ? "images.references.addHint" : "images.references.addHintFree", {
-            n: maxReferences(),
-            extra: model()?.referenceSurcharge ?? 0,
-          })}
+          label={addLabel()}
           size="lg"
           icon={<IconImage class="size-[22px]" />}
           disabled={props.locked || uploads.uploading() || props.references.length >= maxReferences()}
@@ -125,12 +163,12 @@ export function StudioPromptBar(props: {
           class={CHIP}
           disabled={props.locked}
           aria-haspopup="dialog"
-          aria-label={`${t("images.options")}: ${model()?.name ?? ""}, ${summary()}`}
+          aria-label={`${t("images.options")}: ${(clip() ? clipModel()?.name : model()?.name) ?? ""}, ${summary()}`}
           onClick={() => setSheet(true)}
         >
           <IconSliders class="size-4 shrink-0 text-label-2" />
           <span class="truncate">
-            {model()?.name}
+            {clip() ? clipModel()?.name : model()?.name}
             <span class="text-label-2"> · {summary()}</span>
           </span>
         </button>
@@ -149,18 +187,41 @@ export function StudioPromptBar(props: {
             </button>
           </div>
           <div class="overflow-y-auto px-4 pb-4">
-            <Show when={model()}>
-              {(m) => (
-                <StudioOptions
-                  config={props.config}
-                  model={m()}
-                  settings={props.settings}
-                  onSettings={props.onSettings}
-                  onPickModel={pick}
-                  cost={props.cost}
-                  extra={<CharacterOptions max={props.config.maxCharacters} onCreate={() => setSheet(false)} />}
-                />
-              )}
+            <Show
+              when={clip()}
+              fallback={
+                <Show when={model()}>
+                  {(m) => (
+                    <StudioOptions
+                      config={props.config}
+                      model={m()}
+                      settings={props.settings}
+                      onSettings={props.onSettings}
+                      onPickModel={pick}
+                      cost={props.cost}
+                      extra={<CharacterOptions max={props.config.maxCharacters} onCreate={() => setSheet(false)} />}
+                    />
+                  )}
+                </Show>
+              }
+            >
+              <Show when={props.videoConfig}>
+                {(cfg) => (
+                  <Show when={clipModel()}>
+                    {(m) => (
+                      <VideoStudioOptions
+                        config={cfg()}
+                        model={m()}
+                        settings={props.video}
+                        onSettings={props.onVideo}
+                        onPickModel={pickClip}
+                        cost={props.cost}
+                        balance={props.config.credits}
+                      />
+                    )}
+                  </Show>
+                )}
+              </Show>
             </Show>
           </div>
         </Sheet>
@@ -182,9 +243,15 @@ export function StudioPromptBar(props: {
             disabled={!canGenerate()}
             loading={props.busy}
             leading={<IconSparkles class="size-[18px]" />}
-            aria-label={t("images.generateFor", { n: props.cost ?? 0 })}
+            aria-label={
+              clip() ? t("video.generateFor", { n: props.cost ?? 0 }) : t("images.generateFor", { n: props.cost ?? 0 })
+            }
           >
-            <span class="hidden sm:inline">{t("images.generateCost", { n: props.cost ?? "–" })}</span>
+            <span class="hidden sm:inline">
+              {clip()
+                ? t("video.generateCost", { n: props.cost ?? "–" })
+                : t("images.generateCost", { n: props.cost ?? "–" })}
+            </span>
             <span class="sm:hidden">{props.cost ?? "–"}</span>
           </Button>
         </Show>

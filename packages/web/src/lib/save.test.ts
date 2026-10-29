@@ -22,9 +22,10 @@ describe("isAppleTouch", () => {
 })
 
 describe("withExtension", () => {
-  test("adds the extension a picture's type implies", () => {
+  test("adds the extension a picture's or a clip's type implies", () => {
     expect(withExtension("amberpix-01ABC", "image/png")).toBe("amberpix-01ABC.png")
     expect(withExtension("amberpix-01ABC", "image/jpeg")).toBe("amberpix-01ABC.jpg")
+    expect(withExtension("amberpix-01ABC", "video/mp4")).toBe("amberpix-01ABC.mp4")
   })
 
   test("keeps a name that has one, and an unknown type alone", () => {

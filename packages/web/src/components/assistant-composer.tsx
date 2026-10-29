@@ -3,7 +3,7 @@ import { createSignal, Show, type JSX } from "solid-js"
 import { useCharacters } from "@/context/characters"
 import { useLanguage } from "@/context/language"
 import { useStudio } from "@/context/studio"
-import type { ImageModel, ModelsResponse } from "@/images"
+import type { ImageModel, ModelsResponse, VideoModel } from "@/images"
 import { Button, buttonClass } from "@/ui/button"
 import { IconButton } from "@/ui/icon-button"
 import { Popover, PopoverContent } from "@/ui/popover"
@@ -12,32 +12,57 @@ import { CastStrip, CharacterOptions } from "./characters"
 import { IconArrowUp, IconChevronDown, IconImage, IconPerson } from "./icons"
 import { createReferenceUploads, ReferenceStrip } from "./references"
 import { AspectOptions, CountOptions, ModelOptions, QualityOptions } from "./studio-options"
+import {
+  DurationOptions,
+  fitVideoModel,
+  ModeSwitch,
+  VideoAspectOptions,
+  VideoModelOptions,
+  VideoResolutionOptions,
+} from "./video-options"
 
 const CHIP =
   "flex h-8 min-w-0 max-w-40 items-center gap-1 rounded-full bg-fill bg-gloss px-2.5 text-footnote font-medium text-label shadow-gloss transition-[background-color,box-shadow,color] duration-(--motion-micro) hover:bg-gloss-hover disabled:opacity-50 data-[expanded]:text-accent data-[expanded]:shadow-selected"
 
 // Where the person talks to the assistant: the words, the pictures to work from, and the settings
 // every run of the reply uses, each in its own popover. The send button shows the cheapest a reply
-// can cost.
+// can cost. In video mode the same box makes a clip directly: its settings, its price, and at most
+// one picture, the clip's first frame.
 export function AssistantComposer(props: {
   config: ModelsResponse
   busy: boolean
   locked: boolean
   onSend: () => void
+  onMakeVideo: () => void
 }) {
   const { t } = useLanguage()
   const studio = useStudio()
   const characters = useCharacters()
   const cast = () => characters.picked().flatMap((id) => characters.find(id) ?? [])
   let fileInput: HTMLInputElement | undefined
+  const video = () => studio.mode() === "video"
   const model = () => props.config.models.find((m) => m.id === studio.settings.model)
-  const maxReferences = () => model()?.maxReferences ?? props.config.maxReferences
+  const clipModel = () => studio.videoConfig.latest?.models.find((m) => m.id === studio.video.model)
+  const maxReferences = () =>
+    video() ? (clipModel()?.maxReferences ?? 1) : (model()?.maxReferences ?? props.config.maxReferences)
+  const maxEdge = () => (video() ? clipModel()?.maxReferenceEdge : model()?.maxReferenceEdge) ?? 2048
   const uploads = createReferenceUploads({
     references: studio.references,
     onReferences: studio.setReferences,
     maxCount: maxReferences,
-    maxEdge: () => model()?.maxReferenceEdge ?? 2048,
+    maxEdge,
   })
+  const busy = () => (video() ? studio.busy() : props.busy)
+  const locked = () => (video() ? studio.videoLocked() : props.locked)
+  const addLabel = () => {
+    const extra = video() ? (clipModel()?.firstFrameCredits ?? 0) : (model()?.referenceSurcharge ?? 0)
+    if (video()) return extra ? t("video.firstFrameExtra", { extra }) : t("video.firstFrame")
+    return t(extra ? "images.references.addHint" : "images.references.addHintFree", { n: maxReferences(), extra })
+  }
+  const pickClip = (next: VideoModel) => {
+    studio.patchVideo(fitVideoModel(next, studio.video))
+    void uploads.refit(next.maxReferenceEdge)
+  }
 
   const pick = (next: ImageModel) => {
     const option = next.options.some((o) => o.id === studio.settings.option)
@@ -51,12 +76,8 @@ export function AssistantComposer(props: {
   }
 
   const canSend = () =>
-    !props.busy &&
-    !props.locked &&
-    !uploads.uploading() &&
-    studio.prompt().trim().length > 0 &&
-    studio.cost() !== undefined
-  const send = () => canSend() && props.onSend()
+    !busy() && !locked() && !uploads.uploading() && studio.prompt().trim().length > 0 && studio.cost() !== undefined
+  const send = () => canSend() && (video() ? props.onMakeVideo() : props.onSend())
 
   return (
     <form
@@ -67,23 +88,33 @@ export function AssistantComposer(props: {
         send()
       }}
     >
+      <ModeSwitch
+        class="mx-3 mt-3 self-start"
+        value={studio.mode()}
+        onChange={(mode) => {
+          studio.setMode(mode)
+          void uploads.refit(maxEdge())
+        }}
+      />
       <ReferenceStrip
         class="px-3 pt-3"
         references={studio.references()}
         uploading={uploads.uploading()}
         onRemove={(ref) => studio.setReferences(studio.references().filter((r) => r.id !== ref.id))}
       />
-      <CastStrip class="px-3 pt-3" />
+      <Show when={!video()}>
+        <CastStrip class="px-3 pt-3" />
+      </Show>
       <textarea
         data-studio-prompt
         class="max-h-48 min-h-16 w-full resize-none bg-transparent px-3.5 pt-3 pb-1 text-callout text-label outline-none placeholder:text-label-3 disabled:cursor-not-allowed [field-sizing:content]"
-        aria-label={t("images.placeholder")}
+        aria-label={video() ? t("video.placeholder") : t("images.placeholder")}
         aria-description={t("assistant.enterHint")}
         enterkeyhint="send"
         rows={2}
-        placeholder={t("images.placeholder")}
+        placeholder={video() ? (locked() ? t("video.locked") : t("video.placeholder")) : t("images.placeholder")}
         value={studio.prompt()}
-        disabled={props.locked}
+        disabled={locked()}
         onInput={(event) => studio.setPrompt(event.currentTarget.value)}
         onPaste={(event) => {
           const files = Array.from(event.clipboardData?.files ?? []).filter((file) => file.type.startsWith("image/"))
@@ -103,109 +134,111 @@ export function AssistantComposer(props: {
           ref={fileInput}
           type="file"
           accept="image/jpeg,image/png,image/webp"
-          multiple
+          multiple={!video()}
           class="hidden"
           onChange={(event) => event.currentTarget.files && void uploads.upload(event.currentTarget.files)}
         />
         <IconButton
-          label={t(model()?.referenceSurcharge ? "images.references.addHint" : "images.references.addHintFree", {
-            n: maxReferences(),
-            extra: model()?.referenceSurcharge ?? 0,
-          })}
+          label={addLabel()}
           size="md"
           icon={<IconImage class="size-5" />}
-          disabled={props.locked || uploads.uploading() || studio.references().length >= maxReferences()}
+          disabled={locked() || uploads.uploading() || studio.references().length >= maxReferences()}
           onClick={() => fileInput?.click()}
         />
-        <Option
-          label={t("characters.picker")}
-          value={
-            cast().length
-              ? cast()
-                  .map((c) => c.name)
-                  .join(", ")
-              : t("characters.picker")
-          }
-          icon={<IconPerson class="size-4 shrink-0" />}
-          disabled={props.locked}
-        >
-          {(close) => <CharacterOptions max={props.config.maxCharacters} onCreate={close} />}
-        </Option>
-        <Show when={model()}>
-          {(m) => {
-            const shared = () => ({
-              config: props.config,
-              model: m(),
-              settings: studio.settings,
-            })
-            const option = () => m().options.find((o) => o.id === studio.settings.option)?.label ?? ""
-            return (
-              <>
-                <Option label={t("images.model")} value={m().name} disabled={props.locked}>
-                  {(close) => (
-                    <ModelOptions
-                      {...shared()}
-                      onSettings={studio.patch}
-                      onPickModel={(next) => {
-                        pick(next)
-                        close()
-                      }}
-                    />
-                  )}
-                </Option>
-                <Option
-                  label={m().param === "resolution" ? t("images.resolution") : t("images.quality")}
-                  value={option()}
-                  disabled={props.locked}
-                >
-                  {(close) => (
-                    <QualityOptions
-                      {...shared()}
-                      onSettings={(patch) => {
-                        studio.patch(patch)
-                        close()
-                      }}
-                    />
-                  )}
-                </Option>
-                <Option
-                  label={t("images.aspect")}
-                  value={studio.settings.aspectRatio}
-                  icon={<AspectIcon ratio={studio.settings.aspectRatio} class="size-4 shrink-0" />}
-                  disabled={props.locked}
-                >
-                  {(close) => (
-                    <AspectOptions
-                      {...shared()}
-                      onSettings={(patch) => {
-                        studio.patch(patch)
-                        close()
-                      }}
-                    />
-                  )}
-                </Option>
-                <Option
-                  label={t("images.count")}
-                  value={t("images.countShort", { n: studio.settings.n })}
-                  disabled={props.locked}
-                >
-                  {(close) => (
-                    <CountOptions
-                      {...shared()}
-                      onSettings={(patch) => {
-                        studio.patch(patch)
-                        close()
-                      }}
-                    />
-                  )}
-                </Option>
-              </>
-            )
-          }}
+        <Show when={video()}>
+          <VideoChips locked={locked()} onPickModel={pickClip} />
+        </Show>
+        <Show when={!video()}>
+          <Option
+            label={t("characters.picker")}
+            value={
+              cast().length
+                ? cast()
+                    .map((c) => c.name)
+                    .join(", ")
+                : t("characters.picker")
+            }
+            icon={<IconPerson class="size-4 shrink-0" />}
+            disabled={props.locked}
+          >
+            {(close) => <CharacterOptions max={props.config.maxCharacters} onCreate={close} />}
+          </Option>
+          <Show when={model()}>
+            {(m) => {
+              const shared = () => ({
+                config: props.config,
+                model: m(),
+                settings: studio.settings,
+              })
+              const option = () => m().options.find((o) => o.id === studio.settings.option)?.label ?? ""
+              return (
+                <>
+                  <Option label={t("images.model")} value={m().name} disabled={props.locked}>
+                    {(close) => (
+                      <ModelOptions
+                        {...shared()}
+                        onSettings={studio.patch}
+                        onPickModel={(next) => {
+                          pick(next)
+                          close()
+                        }}
+                      />
+                    )}
+                  </Option>
+                  <Option
+                    label={m().param === "resolution" ? t("images.resolution") : t("images.quality")}
+                    value={option()}
+                    disabled={props.locked}
+                  >
+                    {(close) => (
+                      <QualityOptions
+                        {...shared()}
+                        onSettings={(patch) => {
+                          studio.patch(patch)
+                          close()
+                        }}
+                      />
+                    )}
+                  </Option>
+                  <Option
+                    label={t("images.aspect")}
+                    value={studio.settings.aspectRatio}
+                    icon={<AspectIcon ratio={studio.settings.aspectRatio} class="size-4 shrink-0" />}
+                    disabled={props.locked}
+                  >
+                    {(close) => (
+                      <AspectOptions
+                        {...shared()}
+                        onSettings={(patch) => {
+                          studio.patch(patch)
+                          close()
+                        }}
+                      />
+                    )}
+                  </Option>
+                  <Option
+                    label={t("images.count")}
+                    value={t("images.countShort", { n: studio.settings.n })}
+                    disabled={props.locked}
+                  >
+                    {(close) => (
+                      <CountOptions
+                        {...shared()}
+                        onSettings={(patch) => {
+                          studio.patch(patch)
+                          close()
+                        }}
+                      />
+                    )}
+                  </Option>
+                </>
+              )
+            }}
+          </Show>
         </Show>
         <span class="flex-1" />
         <Show
-          when={!props.locked}
+          when={!locked()}
           fallback={
             <A href="/pricing" class={buttonClass("primary", "md")}>
               {t("images.locked.cta")}
@@ -217,15 +250,97 @@ export function AssistantComposer(props: {
             variant="primary"
             pill
             disabled={!canSend()}
-            loading={props.busy}
+            loading={busy()}
             leading={<IconArrowUp class="size-[18px]" weight={2.25} />}
-            aria-label={t("assistant.sendFor", { n: studio.cost() ?? 0 })}
+            aria-label={
+              video()
+                ? t("video.generateFor", { n: studio.cost() ?? 0 })
+                : t("assistant.sendFor", { n: studio.cost() ?? 0 })
+            }
           >
-            {t("assistant.from", { n: studio.cost() ?? "–" })}
+            {video()
+              ? t("video.generateCost", { n: studio.cost() ?? "–" })
+              : t("assistant.from", { n: studio.cost() ?? "–" })}
           </Button>
         </Show>
       </div>
     </form>
+  )
+}
+
+// The clip's settings, each a chip with its popover, like the pictures' ones.
+function VideoChips(props: { locked: boolean; onPickModel: (model: VideoModel) => void }) {
+  const { t } = useLanguage()
+  const studio = useStudio()
+  return (
+    <Show when={studio.videoConfig.latest}>
+      {(cfg) => (
+        <Show when={cfg().models.find((m) => m.id === studio.video.model)}>
+          {(m) => {
+            const shared = () => ({ config: cfg(), model: m(), settings: studio.video })
+            const option = () => m().options.find((o) => o.id === studio.video.option)?.label ?? ""
+            return (
+              <>
+                <Option label={t("images.model")} value={m().name} disabled={props.locked}>
+                  {(close) => (
+                    <VideoModelOptions
+                      {...shared()}
+                      onSettings={studio.patchVideo}
+                      onPickModel={(next) => {
+                        props.onPickModel(next)
+                        close()
+                      }}
+                    />
+                  )}
+                </Option>
+                <Option label={t("images.resolution")} value={option()} disabled={props.locked}>
+                  {(close) => (
+                    <VideoResolutionOptions
+                      {...shared()}
+                      onSettings={(patch) => {
+                        studio.patchVideo(patch)
+                        close()
+                      }}
+                    />
+                  )}
+                </Option>
+                <Option
+                  label={t("video.duration")}
+                  value={t("video.seconds", { n: studio.video.duration })}
+                  disabled={props.locked}
+                >
+                  {(close) => (
+                    <DurationOptions
+                      {...shared()}
+                      onSettings={(patch) => {
+                        studio.patchVideo(patch)
+                        close()
+                      }}
+                    />
+                  )}
+                </Option>
+                <Option
+                  label={t("images.aspect")}
+                  value={studio.video.aspectRatio}
+                  icon={<AspectIcon ratio={studio.video.aspectRatio} class="size-4 shrink-0" />}
+                  disabled={props.locked}
+                >
+                  {(close) => (
+                    <VideoAspectOptions
+                      {...shared()}
+                      onSettings={(patch) => {
+                        studio.patchVideo(patch)
+                        close()
+                      }}
+                    />
+                  )}
+                </Option>
+              </>
+            )
+          }}
+        </Show>
+      )}
+    </Show>
   )
 }
 

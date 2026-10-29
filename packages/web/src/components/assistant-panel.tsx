@@ -13,10 +13,12 @@ import { IconSparkles } from "./icons"
 const SUGGESTIONS: I18nKey[] = ["assistant.suggest.poster", "assistant.suggest.variants", "assistant.suggest.edit"]
 
 // The right column of the workspace: the project's conversation with the image assistant above
-// its composer. In "all", the first message opens a project of its own.
+// its composer. In "all", the first message opens a project of its own. In video mode the composer
+// makes the clip straight from the words (`onMakeVideo`); the assistant makes pictures only.
 export function AssistantPanel(props: {
   projectID: string | undefined
   onOpen: (g: Generation, index: number) => void
+  onMakeVideo: () => void
 }) {
   const { t } = useLanguage()
   const auth = useAuth()
@@ -119,6 +121,7 @@ export function AssistantPanel(props: {
             busy={thread()?.sending === true}
             locked={studio.locked()}
             onSend={() => void assistant.send(props.projectID)}
+            onMakeVideo={props.onMakeVideo}
           />
         )}
       </Show>

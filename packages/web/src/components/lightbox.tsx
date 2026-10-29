@@ -6,8 +6,16 @@ import { IconButton, iconButtonClass } from "@/ui/icon-button"
 import { IconChevronLeft, IconChevronRight, IconClose, IconDownload, IconPersonAdd, IconRefresh } from "./icons"
 import { useShareFile } from "./save"
 
-// `download` is the picture's download link; `name` is what it is saved as through the share sheet.
-export type LightboxItem = { src: string; alt: string; caption: string; download: string; name: string }
+// `download` is the picture's download link; `name` is what it is saved as through the share sheet;
+// `video` marks a clip, which plays with its controls.
+export type LightboxItem = {
+  src: string
+  alt: string
+  caption: string
+  download: string
+  name: string
+  video?: boolean
+}
 
 // Full-screen viewer over a set of pictures: arrow keys, the side buttons or a horizontal swipe step
 // through them; Escape, the close button or a tap on the backdrop leave. Kobalte traps focus, locks
@@ -42,20 +50,22 @@ export function Lightbox(props: {
   }
 
   // On iPhone and iPad, Download hands the picture to the share sheet ("Lưu hình ảnh"); the open
-  // picture is fetched ahead so the sheet opens on the first tap.
+  // picture is fetched ahead so the sheet opens on the first tap. A clip is too large to fetch on
+  // the chance it is saved: it is fetched on the tap, and a second tap opens the sheet if the first
+  // one expired meanwhile.
   const share = savesThroughShare()
   const save = useShareFile()
   createEffect(() => {
     const current = item()
-    if (share && current && props.index !== undefined) void prepareFile(current.src, current.name)
+    if (share && current && !current.video && props.index !== undefined) void prepareFile(current.src, current.name)
   })
 
-  // Preload the neighbours so stepping through feels instant.
+  // Preload the neighbouring pictures so stepping through feels instant.
   createEffect(() => {
     const state = shown()
     if (!state || props.index === undefined) return
     for (const neighbour of [state.items[state.index - 1], state.items[state.index + 1]]) {
-      if (neighbour) new Image().src = neighbour.src
+      if (neighbour && !neighbour.video) new Image().src = neighbour.src
     }
   })
 
@@ -85,6 +95,8 @@ export function Lightbox(props: {
             if (!claimed && opener?.isConnected) opener.focus({ preventScroll: true })
           }}
           onKeyDown={(event: KeyboardEvent) => {
+            // In a playing clip the arrow keys seek.
+            if (event.target instanceof HTMLVideoElement) return
             if (event.key === "ArrowLeft") step(-1)
             if (event.key === "ArrowRight") step(1)
           }}
@@ -94,7 +106,7 @@ export function Lightbox(props: {
             <p class="flex-1 pl-2 text-subhead text-label-2 tabular-nums" aria-live="polite">
               <Show when={count() > 1}>{t("images.position", { n: position() + 1, total: count() })}</Show>
             </p>
-            <Show when={props.onCharacter}>
+            <Show when={props.onCharacter && !item()?.video}>
               <IconButton
                 label={t("characters.saveAs")}
                 variant="overlay"
@@ -168,12 +180,27 @@ export function Lightbox(props: {
           >
             <Show when={item()} keyed>
               {(current) => (
-                <img
-                  src={current.src}
-                  alt={current.alt}
-                  draggable={false}
-                  class="max-h-full max-w-full touch-pinch-zoom select-none rounded-[14px] object-contain shadow-overlay animate-fade-in"
-                />
+                <Show
+                  when={current.video}
+                  fallback={
+                    <img
+                      src={current.src}
+                      alt={current.alt}
+                      draggable={false}
+                      class="max-h-full max-w-full touch-pinch-zoom select-none rounded-[14px] object-contain shadow-overlay animate-fade-in"
+                    />
+                  }
+                >
+                  <video
+                    src={current.src}
+                    aria-label={current.alt}
+                    controls
+                    autoplay
+                    loop
+                    playsinline
+                    class="max-h-full max-w-full rounded-[14px] bg-black object-contain shadow-overlay animate-fade-in"
+                  />
+                </Show>
               )}
             </Show>
             <Show when={count() > 1}>

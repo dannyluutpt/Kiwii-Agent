@@ -7,7 +7,7 @@ import { ApiError, createApp, type AppEnv } from "../app"
 import { MAX_CHARACTERS_PER_RUN } from "../characters/store"
 import { loadPlan } from "../plans"
 import { balance } from "../credits/ledger"
-import { files, generation_images, generations } from "../db/schema"
+import { files, generation_images, GenerationKind, generations } from "../db/schema"
 import { reapStaleGenerations, runGeneration, type GenerationEvent } from "../images/generate"
 import { loadImageModels, MAX_IMAGES_PER_RUN, MAX_REFERENCES } from "../images/models"
 import { CreateGeneration, imageAccess, prepareGeneration } from "../images/prepare"
@@ -20,8 +20,11 @@ const ListQuery = z.object({
   limit: z.coerce.number().int().min(1).max(60).default(24),
 })
 
-// One project's runs, or every run when absent.
-const GenerationsQuery = ListQuery.extend({ project: z.string().min(1).max(40).optional() })
+// One project's runs, or every run when absent; only pictures or only clips when `kind` is set.
+const GenerationsQuery = ListQuery.extend({
+  project: z.string().min(1).max(40).optional(),
+  kind: z.enum(GenerationKind).optional(),
+})
 
 export const images = createApp()
 
@@ -162,6 +165,7 @@ images.get("/generations", async (c) => {
       and(
         eq(generations.user_id, user.id),
         query.project ? eq(generations.project_id, query.project) : undefined,
+        query.kind ? eq(generations.kind, query.kind) : undefined,
         query.cursor ? lt(generations.id, query.cursor) : undefined,
       ),
     )
