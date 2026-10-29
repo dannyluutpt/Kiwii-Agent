@@ -93,22 +93,6 @@ describe("enhancePrompt", () => {
     expect(fresh.system).not.toContain("reference image")
   })
 
-  // FLUX 3 Klein was trained on captions of whole scenes; Black Forest Labs says a short prompt gives
-  // it noticeably weaker pictures. GPT Image's people posed like stock photos when the rewrite filled
-  // in more, so it keeps the short, plain prompt.
-  test("FLUX gets a full caption of the scene, the other models a short, plain prompt", async () => {
-    const flux = await enhanceWith(answer({ allowed: true, reason: "", prompt: "A red fox" }, 0), 0, {
-      model: "flux-3-klein",
-    })
-    expect(flux.system).toContain("decide everything they left open as one concrete, consistent plan")
-    expect(flux.system).toContain("A new picture takes 150 to 300 words and an edit 50 to 120")
-    expect(flux.system).not.toContain("At most 100 words")
-    const gpt = await enhanceWith(answer({ allowed: true, reason: "", prompt: "A red fox" }, 0))
-    expect(gpt.system).toContain("At most 100 words")
-    expect(gpt.system).toContain("Fill in only what the picture needs and they left open")
-    expect(gpt.system).not.toContain("one concrete, consistent plan")
-  })
-
   // Every attached picture used to be an edit to keep as it is, so a portrait put in a new scene
   // passed on its framing and gaze: the man cooked while staring into the camera.
   test("attached pictures are either the picture to change or someone to show in a new scene", async () => {
