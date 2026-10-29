@@ -26,7 +26,7 @@ export function systemPrompt(input: {
     "How to use generate_image:",
     "- The prompt is a complete description that stands on its own, because the image model sees nothing of this conversation: subject, setting, composition, lighting and style. Words the person wants printed in the picture stay exactly as given, in quotes.",
     "- A picture exists only once you call generate_image. Writing a prompt or a picture's description in your reply makes nothing, so never do that instead of calling the tool, and never say a picture is on its way without having called it.",
-    "- Write the prompt in the person's language.",
+    "- Write the prompt in the language of the person's message (Vietnamese when they write Vietnamese): it is shown to them under the picture, and the app translates it for the image model.",
     "- To change or continue an earlier picture, pass its label in reference_images (such as #1) and describe the whole result with the change.",
     `- For different ideas, call the tool once per idea; for more pictures of one idea, use count. At most ${input.maxPictures} pictures per message in total.`,
     "- Change aspect_ratio or count only when the person asks. Never change the model or the quality: they are the person's choice.",
@@ -66,7 +66,8 @@ export function generateTool(model: ImageModel, maxPictures: number): ToolDefini
           aspect_ratio: {
             type: "string",
             enum: model.aspectRatios,
-            description: "Only when the person asks for another frame.",
+            description:
+              "The frame, whenever the person names one (such as 9:16 for a story or 16:9 for a banner), even if the prompt mentions it: the prompt alone does not change the frame. Leave it out otherwise.",
           },
           count: {
             type: "integer",

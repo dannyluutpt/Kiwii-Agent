@@ -40,7 +40,11 @@ export const AssistantRequest = z.object({
 })
 
 const GenerateArgs = z.object({
-  prompt: z.string().trim().min(1).max(4000),
+  // The model sometimes leaves its own tool-call markup around the value: "<parameter=prompt>…</parameter>".
+  prompt: z
+    .string()
+    .transform((text) => text.replace(/<\/?parameter[^>]*>/gi, "").trim())
+    .pipe(z.string().min(1).max(4000)),
   reference_images: z.array(z.string()).max(MAX_REFERENCES).optional(),
   aspect_ratio: z.string().optional(),
   count: z.number().int().min(1).optional(),
@@ -197,6 +201,11 @@ export async function runAssistantTurn(input: {
     ...historyMessages(history, earlier),
   ]
   const tool = generateTool(model, MAX_PICTURES)
+  // A frame the person named ("bản dọc 9:16") holds even when the model only wrote it into the prompt.
+  const named = [...body.text.matchAll(/(\d{1,2})\s*:\s*(\d{1,2})/g)]
+    .map((match) => `${match[1]}:${match[2]}`)
+    .filter((ratio) => model.aspectRatios.includes(ratio))
+    .at(-1)
   const parts: MessagePart[] = []
   const jobs: Promise<void>[] = []
   const usage = { input: 0, output: 0, cost: 0 }
@@ -225,9 +234,8 @@ export async function runAssistantTurn(input: {
       )
     const references = (args.data.reference_images ?? []).map((label) => labels.get(label.trim().toUpperCase()))
     const aspectRatio =
-      args.data.aspect_ratio && model.aspectRatios.includes(args.data.aspect_ratio)
-        ? args.data.aspect_ratio
-        : body.settings.aspectRatio
+      [args.data.aspect_ratio, named].find((ratio) => ratio && model.aspectRatios.includes(ratio)) ??
+      body.settings.aspectRatio
     const prepared = await prepareGeneration({
       db,
       bucket: input.bucket,

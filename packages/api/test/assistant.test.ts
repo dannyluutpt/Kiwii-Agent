@@ -248,6 +248,28 @@ describe("runAssistantTurn", () => {
     expect(await db.select().from(generations)).toHaveLength(2)
   })
 
+  test("markup the model leaves around a prompt is removed", async () => {
+    const { db, turn } = await setup()
+    openrouter([{ calls: [{ prompt: "<parameter=prompt>Chú mèo cam</parameter>" }] }, { text: "Xong." }])
+    await turn("Vẽ chú mèo cam")
+    expect((await db.select().from(generations).get())?.prompt_raw).toBe("Chú mèo cam")
+  })
+
+  test("a frame the person names holds when the model only writes it into the prompt", async () => {
+    const { db, turn } = await setup()
+    openrouter([
+      { calls: [{ prompt: "Logo quán trà, khổ dọc 9:16" }] },
+      { text: "Xong." },
+      { calls: [{ prompt: "Logo quán trà", aspect_ratio: "16:9" }] },
+      { text: "Xong." },
+    ])
+    await turn("Làm bản dọc 9:16 để đăng story")
+    // What the model asks for itself still wins.
+    await turn("Thêm một bản 9:16 nữa")
+    const runs = await db.select().from(generations).orderBy(asc(generations.id))
+    expect(runs.map((run) => run.aspect_ratio)).toEqual(["9:16", "16:9"])
+  })
+
   test("a message left unanswered is not carried out with the next one", async () => {
     const { turn } = await setup()
     // The first turn gets nothing back from the model, so it fails without a reply.
