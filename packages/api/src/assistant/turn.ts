@@ -1,5 +1,5 @@
 import { and, desc, eq, inArray } from "drizzle-orm"
-import { ulid } from "ulid"
+import { monotonicFactory } from "ulid"
 import { z } from "zod"
 import { ApiError, type User } from "../app"
 import { listCharacters, MAX_CHARACTERS_PER_RUN, ownCharacters } from "../characters/store"
@@ -10,7 +10,7 @@ import { runGeneration, type GenerationEvent } from "../images/generate"
 import { imageCreditCost, ImageModelID, loadImageModels, MAX_IMAGES_PER_RUN, MAX_REFERENCES } from "../images/models"
 import { accessAllows, CreateGeneration, imageAccess, prepareGeneration } from "../images/prepare"
 import { presentGeneration } from "../images/present"
-import { ASSISTANT_MODEL } from "../llm/models"
+import { languageModels } from "../llm/models"
 import { streamChat, type ChatMessage, type ToolCall } from "../llm/openrouter"
 import { consumeWindow } from "../middleware/ratelimit"
 import { loadPlan } from "../plans"
@@ -30,6 +30,10 @@ const RECENT_RUNS = 8
 const HISTORY = 10
 // Saved characters the assistant is told about, newest first after the ones the person picked.
 const ROSTER = 20
+
+// The conversation is read back by time, then by id. Plain ULIDs made within one millisecond come out
+// in random order, so a message sent right after another could be read back before it.
+const nextID = monotonicFactory()
 
 export const AssistantRequest = z.object({
   text: z.string().trim().min(1).max(4000),
@@ -122,8 +126,8 @@ export async function runAssistantTurn(input: {
   const db = input.db
   const body = input.request
   const now = Date.now()
-  const userMessageID = ulid()
-  const messageID = ulid()
+  const userMessageID = nextID()
+  const messageID = nextID()
   const saved = await listCharacters(db, input.user.id)
   const picked = body.characterIDs.flatMap((id) => saved.filter((character) => character.id === id))
   const roster: Cast[] = [...picked, ...saved.filter((character) => !picked.includes(character))]
@@ -226,7 +230,8 @@ export async function runAssistantTurn(input: {
   const usage = { input: 0, output: 0, cost: 0 }
   let text = ""
   let requested = 0
-  let replied = ASSISTANT_MODEL
+  const llm = await languageModels(db, input.user.id)
+  let replied = llm.assistant
   let failed = false
   const refusals: string[] = []
   const refuse = (error: string) => {
@@ -310,7 +315,7 @@ export async function runAssistantTurn(input: {
     for await (const event of streamChat({
       apiKey: input.apiKey,
       baseURL: input.baseURL,
-      model: ASSISTANT_MODEL,
+      model: llm.assistant,
       messages: thread,
       tools: round < MAX_ROUNDS - 1 ? [tool] : undefined,
       maxTokens: 1500,
