@@ -42,17 +42,22 @@ export const { use: useProjects, provider: ProjectsProvider } = createSimpleCont
       creating,
       find,
       label,
+      // Opens a new project (or the empty, unnamed one the server hands back) and resolves with it.
       create: async () => {
-        if (creating()) return
+        if (creating()) return undefined
         setCreating(true)
-        await api<Project>("/projects", { body: {} })
+        const project = await api<Project>("/projects", { body: {} })
           .then((project) => {
-            // The server may hand back an empty, unnamed project the list already holds.
             mutate((items) => [project, ...(items ?? []).filter((p) => p.id !== project.id)])
             navigate(projectPath(project.id))
+            return project
           })
-          .catch((error: unknown) => toast.error(errorMessage(error, t("error.network"))))
+          .catch((error: unknown) => {
+            toast.error(errorMessage(error, t("error.network")))
+            return undefined
+          })
         setCreating(false)
+        return project
       },
       rename: async (project: Project) => {
         const name = await askText({

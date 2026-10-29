@@ -1,13 +1,12 @@
 import { useNavigate, useParams, useSearchParams } from "@solidjs/router"
 import { createEffect, createSignal, on, onMount, Show } from "solid-js"
 import { BRAND_SLUG } from "@/brand"
+import { AssistantPanel } from "@/components/assistant-panel"
 import { FilterChips, type Filter } from "@/components/filter-chips"
 import { Gallery } from "@/components/gallery"
 import { Lightbox, type LightboxItem } from "@/components/lightbox"
-import { StudioPanel } from "@/components/studio-panel"
 import { StudioPromptBar } from "@/components/studio-prompt-bar"
 import { TopBar } from "@/components/top-bar"
-import { useAuth } from "@/context/auth"
 import { useLanguage } from "@/context/language"
 import { useLayout } from "@/context/layout"
 import { useProjects } from "@/context/projects"
@@ -16,12 +15,11 @@ import { altFor, type Generation, type ModelsResponse } from "@/images"
 import { Skeleton } from "@/ui/skeleton"
 
 // The workspace. On wide screens: the gallery of one project (or of everything) in the middle and
-// the panel that makes pictures on the right, the projects being in the sidebar. On phones: the
-// gallery over a docked composer. A run shows up in the gallery the moment it is asked for,
+// the image assistant on the right, the projects being in the sidebar. On phones: the gallery over a
+// docked composer that makes pictures directly. A run shows up in the gallery the moment it starts,
 // shimmering while the server prepares and renders it.
 export default function Studio() {
   const { t } = useLanguage()
-  const auth = useAuth()
   const layout = useLayout()
   const navigate = useNavigate()
   const projects = useProjects()
@@ -77,7 +75,11 @@ export default function Studio() {
     requestAnimationFrame(() => document.querySelector<HTMLTextAreaElement>("[data-studio-prompt]")?.focus())
   }
 
-  const opened = () => items().find((g) => g.id === viewer()?.id)
+  // A picture opens from the gallery or from the conversation, where older runs may not be listed.
+  const opened = () => {
+    const id = viewer()?.id
+    return id ? studio.run(id) : undefined
+  }
   const viewerItems = (): LightboxItem[] => {
     const g = opened()
     if (!g) return []
@@ -153,31 +155,8 @@ export default function Studio() {
             <FilterChips value={filter()} onChange={setFilter} />
             {gallery}
           </div>
-          <aside class="flex w-[360px] shrink-0 flex-col py-3 pr-3 xl:w-[400px]" aria-label={t("images.options")}>
-            <div class="glass-panel flex min-h-0 flex-1 flex-col overflow-hidden rounded-panel">
-              <div class="flex h-12 shrink-0 items-center justify-between gap-2 border-b border-separator px-4">
-                <h2 class="text-headline text-label">{t("images.generate")}</h2>
-                <Show when={auth.me()}>
-                  {(me) => (
-                    <span class="rounded-full bg-accent-soft px-2.5 py-1 text-caption font-semibold text-accent tabular-nums">
-                      {t("plan.credits", { credits: me().credits.toLocaleString("vi-VN") })}
-                    </span>
-                  )}
-                </Show>
-              </div>
-              <Show
-                when={studio.config.latest}
-                fallback={
-                  <div class="flex flex-col gap-4 p-4">
-                    <Skeleton class="h-28 w-full rounded-[14px]" />
-                    <Skeleton class="h-40 w-full rounded-[14px]" />
-                    <Skeleton class="h-14 w-full rounded-[12px]" />
-                  </div>
-                }
-              >
-                {(cfg) => <StudioPanel {...controls(cfg())} />}
-              </Show>
-            </div>
+          <aside class="flex w-[360px] shrink-0 flex-col py-3 pr-3 xl:w-[400px]">
+            <AssistantPanel projectID={params.projectId} onOpen={(g, index) => setViewer({ id: g.id, index })} />
           </aside>
         </div>
       </Show>

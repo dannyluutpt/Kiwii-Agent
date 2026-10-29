@@ -76,6 +76,23 @@ the credit hold, the row) is `prepareGeneration` in `src/images/prepare.ts`, and
 sees of a run is `presentGeneration` in `src/images/present.ts`, so every route that makes pictures
 shares them.
 
+## Image assistant
+
+Each project has a conversation with an assistant that makes pictures (`src/assistant/`):
+`POST /api/projects/:id/messages` answers as server-sent events and `GET` returns the latest turns
+with the runs they mention, from `project_messages` (migration 0007).
+
+- `checkAssistant` runs first: the account must be able to make pictures with the chosen settings
+  and hold credit for one run of them, and is limited to 300 messages a day on paid plans and 30 on
+  the trial (counted in `rate_limits`, from Vietnamese midnight). Messages cost no credit.
+- The model (`ASSISTANT_MODEL`) reads the settings, the project's recent pictures labelled `#1`,
+  `#2`… and the attached ones `R1`, `R2`…, plus the last ten turns. Its `generate_image` tool goes
+  through `prepareGeneration`, so every prompt is screened and charged like any other run; the run
+  renders while the model replies. At most three rounds (the last offers no tool), four pictures per
+  message, and only the frame and the count may differ from the person's settings.
+- The reply is stored with the runs it started, the model, its tokens and its cost. The turn finishes
+  under `waitUntil` if the browser leaves.
+
 ## Retired chat
 
 The general chat (conversations, file tools, web search) was removed in favour of image

@@ -2,7 +2,7 @@ import { useNavigate } from "@solidjs/router"
 import { createEffect, createMemo, createResource, createSignal } from "solid-js"
 import { createStore, produce } from "solid-js/store"
 import { createSimpleContext } from "@kiwii/ui/context/helper"
-import { api, ApiError, apiStream } from "@/api"
+import { api, ApiError, apiStream, type SSEEvent } from "@/api"
 import { useAuth } from "@/context/auth"
 import { useLanguage } from "@/context/language"
 import { useProjects } from "@/context/projects"
@@ -140,6 +140,46 @@ export const { use: useStudio, provider: StudioProvider } = createSimpleContext(
         }),
       )
 
+    // One event of a run's stream, from the composer or from the assistant. Previews stay until the
+    // page is left: each frame keeps its blurred preview under the final picture until it has loaded.
+    const follow = (id: string, event: SSEEvent) => {
+      if (event.event === "partial") {
+        const data = event.data as { index: number; b64: string }
+        update(id, (g) => {
+          g.previews = { ...g.previews, [data.index]: `data:image/jpeg;base64,${data.b64}` }
+        })
+      }
+      if (event.event === "image") {
+        const data = event.data as { index: number; id: string; fileID: string }
+        update(id, (g) => {
+          g.images.push({
+            id: data.id,
+            fileID: data.fileID,
+            position: data.index,
+            url: `/api/images/files/${data.fileID}`,
+          })
+        })
+      }
+      if (event.event === "done") {
+        const data = event.data as { creditsFinal: number; refunded: number }
+        update(id, (g) => {
+          g.status = "done"
+          g.creditsFinal = data.creditsFinal
+          g.refunded = data.refunded
+        })
+        void auth.refresh()
+      }
+      if (event.event === "error") {
+        const data = event.data as { message: string; refunded: number }
+        update(id, (g) => {
+          g.status = "failed"
+          g.errorMessage = data.message
+          g.refunded = data.refunded
+        })
+        void auth.refresh()
+      }
+    }
+
     const drop = (id: string) =>
       setState(
         produce((s) => {
@@ -211,44 +251,7 @@ export const { use: useStudio, provider: StudioProvider } = createSimpleContext(
             if (g.projectID) projects.touched()
             continue
           }
-          if (!id) continue
-          if (event.event === "partial") {
-            const data = event.data as { index: number; b64: string }
-            update(id, (g) => {
-              g.previews = { ...g.previews, [data.index]: `data:image/jpeg;base64,${data.b64}` }
-            })
-          }
-          if (event.event === "image") {
-            const data = event.data as { index: number; id: string; fileID: string }
-            update(id, (g) => {
-              g.images.push({
-                id: data.id,
-                fileID: data.fileID,
-                position: data.index,
-                url: `/api/images/files/${data.fileID}`,
-              })
-            })
-          }
-          // Previews stay until the page is left: each frame keeps its blurred preview under the final
-          // picture until that picture has loaded.
-          if (event.event === "done") {
-            const data = event.data as { creditsFinal: number; refunded: number }
-            update(id, (g) => {
-              g.status = "done"
-              g.creditsFinal = data.creditsFinal
-              g.refunded = data.refunded
-            })
-            void auth.refresh()
-          }
-          if (event.event === "error") {
-            const data = event.data as { message: string; refunded: number }
-            update(id, (g) => {
-              g.status = "failed"
-              g.errorMessage = data.message
-              g.refunded = data.refunded
-            })
-            void auth.refresh()
-          }
+          if (id) follow(id, event)
         }
       } catch (error) {
         const insufficient = error instanceof ApiError && error.code === "INSUFFICIENT_CREDITS"
@@ -295,9 +298,15 @@ export const { use: useStudio, provider: StudioProvider } = createSimpleContext(
       cost,
       gallery,
       items,
+      run: (id: string) => state.runs[id],
       load,
       generate,
       remove,
+      // For runs the assistant starts: shown on top of `into`, then kept current by their events.
+      adopt: (g: Generation, into: string[]) => place(g.id, g, into),
+      follow,
+      // A run the server described (in a conversation) but no gallery has listed yet.
+      know: (g: Generation) => setState("runs", g.id, (current) => current ?? g),
       locked: () => config()?.canGenerate === false,
       busy: () => running() >= (config()?.parallelLimit ?? 1) || preparing(),
     }

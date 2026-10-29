@@ -2,6 +2,7 @@ import { Navigate, Route, Router, useLocation, useSearchParams } from "@solidjs/
 import { lazy, onMount, Show, type ParentProps } from "solid-js"
 import { AppShell } from "@/components/app-shell"
 import { Splash } from "@/components/splash"
+import { AssistantProvider } from "@/context/assistant"
 import { AuthProvider, useAuth } from "@/context/auth"
 import { safeNext } from "@/lib/next"
 import { LanguageProvider } from "@/context/language"
@@ -66,7 +67,9 @@ function Private(props: ParentProps) {
         <LayoutProvider>
           <ProjectsProvider>
             <StudioProvider>
-              <AppShell>{props.children}</AppShell>
+              <AssistantProvider>
+                <AppShell>{props.children}</AppShell>
+              </AssistantProvider>
             </StudioProvider>
           </ProjectsProvider>
         </LayoutProvider>

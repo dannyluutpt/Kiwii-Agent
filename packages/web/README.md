@@ -50,13 +50,18 @@ The workspace (`pages/studio.tsx`) lives at `/` (every run) and `/p/:projectId` 
 library is `/library`, and the old `/images` addresses redirect. From 768px it has three columns:
 the project sidebar (`components/project-sidebar.tsx`: new project, search with Ctrl/⌘ + K, projects
 grouped by last activity), the gallery of runs with filter chips (`components/gallery.tsx`,
-`components/generation-tile.tsx`), and the panel that makes pictures (`components/studio-panel.tsx`).
-Phones keep the gallery over a docked composer with a bottom sheet (`components/studio-prompt-bar.tsx`)
-and make pictures into "all".
+`components/generation-tile.tsx`), and the image assistant (`components/assistant-panel.tsx`): the
+project's conversation and a composer whose settings each open a popover
+(`components/assistant-composer.tsx`, built from the parts of `components/studio-options.tsx`). A
+first message from "all" opens a project named after it. Phones keep the gallery over a docked
+composer with a bottom sheet (`components/studio-prompt-bar.tsx`) that makes pictures directly into
+"all".
 
-State sits above the screens: `context/projects.tsx` holds the project list and its flows, and
+State sits above the screens: `context/projects.tsx` holds the project list and its flows,
 `context/studio.tsx` holds the options, the draft and every run seen this session with the galleries
-that list them, so a run keeps streaming into its tile while another project is open. A run appears
+that list them, so a run keeps streaming into its tile while another project is open, and
+`context/assistant.tsx` holds each project's conversation and feeds the runs the assistant starts
+into those galleries. A run appears
 in the gallery the moment it is asked for. Reference photos are scaled in the browser to the chosen
 model's longest edge (`lib/image.ts`, `components/references.tsx`) before they are uploaded.
 

@@ -10,7 +10,7 @@ export const test = base.extend({
 })
 
 export { expect }
-export type { Page } from "@playwright/test"
+export type { Locator, Page } from "@playwright/test"
 
 // Web Share as iPhone has it (Chromium on Linux has none): what a page shares is written to
 // body[data-shared] as JSON, so a test can check the file without a share sheet.
