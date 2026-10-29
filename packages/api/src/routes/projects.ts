@@ -109,6 +109,7 @@ projects.post("/:id/messages", async (c) => {
     const job = runAssistantTurn({
       db,
       bucket: c.env.BUCKET,
+      images: c.env.IMAGES,
       apiKey,
       baseURL: c.env.OPENROUTER_BASE_URL,
       user,

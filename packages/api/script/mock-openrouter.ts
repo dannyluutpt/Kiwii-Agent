@@ -69,11 +69,15 @@ async function images(body: Record<string, unknown>) {
 
 // The prompt screener and rewriter is the only chat-completions caller; it asks for JSON.
 async function chat(body: Record<string, unknown>) {
-  const messages = body.messages as Array<{ role: string; content: unknown }>
+  const messages = body.messages as Array<{ role: string; content: string | Array<{ type: string; text?: string }> }>
   const last = messages.at(-1)
-  const text = typeof last?.content === "string" ? last.content : ""
   if (body.stream) return assistant(body, messages)
   if (!body.response_format) return Response.json({ error: { message: "mock: JSON mode only" } }, { status: 400 })
+  // The person's words, followed by small copies of their pictures when they attached some.
+  const parts = Array.isArray(last?.content) ? last.content : []
+  const text = typeof last?.content === "string" ? last.content : (parts[0]?.text ?? "")
+  const pictures = parts.filter((part) => part.type === "image_url").length
+  if (pictures) console.log(`[mock] the rewrite looked at ${pictures} picture(s)`)
   const blocked = text.includes("BLOCKME")
   const content = JSON.stringify({
     allowed: !blocked,

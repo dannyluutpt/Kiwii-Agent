@@ -29,7 +29,11 @@ function fakeBucket() {
     async get(key: string) {
       const item = store.get(key)
       if (!item) return null
-      return { httpMetadata: { contentType: item.mime }, arrayBuffer: async () => item.bytes.slice().buffer }
+      return {
+        httpMetadata: { contentType: item.mime },
+        arrayBuffer: async () => item.bytes.slice().buffer,
+        body: new Blob([item.bytes]).stream(),
+      }
     },
     async delete(keys: string | string[]) {
       for (const key of [keys].flat()) store.delete(key)
@@ -163,16 +167,40 @@ describe("characters", () => {
 })
 
 describe("prepareGeneration with characters", () => {
-  // The screening allows everything and returns the prompt rewritten; its system prompt is kept.
+  // The screening allows everything and returns the prompt rewritten; what it was asked is kept.
   function screener() {
     const systems: string[] = []
+    const asked: unknown[] = []
     spyOn(globalThis, "fetch").mockImplementation(async (_url, init) => {
-      const body = JSON.parse(String(init?.body)) as { messages: Array<{ content: string }> }
-      systems.push(body.messages[0]!.content)
-      const content = JSON.stringify({ allowed: true, reason: "", prompt: `Rewritten: ${body.messages[1]!.content}` })
+      const body = JSON.parse(String(init?.body)) as { messages: Array<{ content: unknown }> }
+      systems.push(String(body.messages[0]!.content))
+      asked.push(body.messages[1]!.content)
+      const content = JSON.stringify({ allowed: true, reason: "", prompt: "Rewritten" })
       return Response.json({ choices: [{ message: { content } }], usage: { cost: 0.0001 } })
     })
-    return systems
+    return Object.assign(systems, { asked })
+  }
+
+  // Cloudflare Images stand-in: the small copy of a picture is "small:" and the picture's bytes.
+  function fakeImages(failure?: string): ImagesBinding {
+    const input = (stream: ReadableStream<Uint8Array>) => {
+      const bytes = new Response(stream).text()
+      const handle: ImageTransformer = {
+        transform: () => handle,
+        draw: () => handle,
+        output: async () => {
+          if (failure) throw new Error(failure)
+          const small = `small:${await bytes}`
+          return {
+            response: () => new Response(small),
+            contentType: () => "image/jpeg",
+            image: () => new Blob([small]).stream(),
+          }
+        },
+      }
+      return handle
+    }
+    return { info: async () => ({ format: "image/jpeg", fileSize: 0, width: 1, height: 1 }), input }
   }
 
   test("the characters' photos lead the references, the legend opens the prompt, and they are charged as references", async () => {
@@ -242,6 +270,63 @@ describe("prepareGeneration with characters", () => {
     expect(prepared.generation.reference_file_ids).toBe(JSON.stringify(["r1", "r2"]))
     // FLUX reads references at no extra cost.
     expect(prepared.generation.credits_reserved).toBe(1)
+  })
+
+  test("the screening and rewrite looks at small copies of the pictures to work from, not at the characters' photos", async () => {
+    const { db, user, bucket, picture } = await setup()
+    await picture("a1")
+    await picture("a2")
+    await picture("scene")
+    const lan = await createCharacter(db, bucket, { userID: "u1", name: "Lan", fileIDs: ["a1", "a2"] })
+    const systems = screener()
+
+    await prepareGeneration({
+      db,
+      bucket,
+      images: fakeImages(),
+      apiKey: "k",
+      user,
+      request: CreateGeneration.parse({
+        model: "nano-banana-2.1",
+        option: "1K",
+        aspectRatio: "1:1",
+        prompt: "Lan ngồi uống cà phê ở quán này",
+        referenceFileIDs: ["scene"],
+        characterIDs: [lan.id],
+      }),
+    })
+
+    expect(systems.asked[0]).toEqual([
+      { type: "text", text: "Lan ngồi uống cà phê ở quán này" },
+      { type: "text", text: "Reference image 3:" },
+      { type: "image_url", image_url: { url: `data:image/jpeg;base64,${btoa("small:scene")}` } },
+    ])
+  })
+
+  test("when no small copy can be made, the run goes ahead and the rewrite is told how many pictures there are", async () => {
+    const { db, user, bucket, picture } = await setup()
+    await picture("scene")
+    const systems = screener()
+    spyOn(console, "warn").mockImplementation(() => {})
+
+    const prepared = await prepareGeneration({
+      db,
+      bucket,
+      images: fakeImages("9422: usage limit reached"),
+      apiKey: "k",
+      user,
+      request: CreateGeneration.parse({
+        model: "flux-3-klein",
+        option: "1K",
+        aspectRatio: "1:1",
+        prompt: "Đổi nền sang bãi biển",
+        referenceFileIDs: ["scene"],
+      }),
+    })
+
+    expect(prepared.generation.status).toBe("running")
+    expect(systems.asked[0]).toBe("Đổi nền sang bãi biển")
+    expect(systems[0]).toContain("They attached 1 reference image(s), which you cannot see.")
   })
 
   test("a character of another account cannot be put in a run", async () => {

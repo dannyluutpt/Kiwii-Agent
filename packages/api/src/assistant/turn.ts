@@ -115,6 +115,7 @@ export async function checkAssistant(db: Database, user: User, request: z.infer<
 export async function runAssistantTurn(input: {
   db: Database
   bucket: R2Bucket
+  images?: ImagesBinding
   apiKey: string
   baseURL?: string
   user: User
@@ -269,6 +270,7 @@ export async function runAssistantTurn(input: {
     const prepared = await prepareGeneration({
       db,
       bucket: input.bucket,
+      images: input.images,
       apiKey: input.apiKey,
       baseURL: input.baseURL,
       user: input.user,
