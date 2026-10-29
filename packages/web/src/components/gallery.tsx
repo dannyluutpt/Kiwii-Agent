@@ -57,7 +57,7 @@ export function Gallery(props: {
     <div class="flex min-h-full w-full flex-col gap-4 px-3 py-3 md:px-5 md:py-5">
       <Show when={props.config?.trial}>
         <div class="flex flex-wrap items-center gap-3 rounded-card bg-accent-soft bg-amber-soft-gloss px-4 py-3 shadow-tinted">
-          <p class="min-w-0 flex-1 text-subhead text-label">{t("images.trial", { n: props.config?.credits ?? 0 })}</p>
+          <p class="min-w-0 flex-1 text-subhead text-label">{t("images.trial")}</p>
           <A href="/pricing" class={buttonClass("primary", "sm")}>
             {t("images.locked.cta")}
           </A>

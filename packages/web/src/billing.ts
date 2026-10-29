@@ -8,8 +8,8 @@ export type PlanInfo = {
   credits: number
   parallelLimit: number
 }
-// The credits a new account gets to try the cheapest model, and for how long.
-export type Trial = { credits: number; days: number }
+// Whether a new account gets to try the cheapest model. The amount is not advertised.
+export type Trial = { available: boolean }
 export type Topup = { id: string; credits: number; priceVnd: number }
 
 export type Order = {

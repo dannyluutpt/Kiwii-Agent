@@ -3,7 +3,7 @@ import { ulid } from "ulid"
 import { z } from "zod"
 import { ApiError, type User } from "../app"
 import { balance, reserve } from "../credits/ledger"
-import { TRIAL_MODELS } from "../credits/trial"
+import { TRIAL_MODELS, TRIAL_OPTIONS } from "../credits/trial"
 import type { Database } from "../db/client"
 import { files, generations } from "../db/schema"
 import { loadPlan } from "../plans"
@@ -29,11 +29,19 @@ export const CreateGeneration = z.object({
 })
 
 // Paid plans use their plan limit and every model. A free account with leftover trial (or
-// top-up) credits may run one generation at a time on the trial models only.
+// top-up) credits may run one generation at a time, on the trial model at its lowest setting.
 export function imageAccess(parallelLimit: number, credits: number) {
-  if (parallelLimit > 0) return { parallelLimit, models: null as readonly string[] | null, trial: false }
-  if (credits > 0) return { parallelLimit: 1, models: TRIAL_MODELS as readonly string[], trial: true }
-  return { parallelLimit: 0, models: TRIAL_MODELS as readonly string[], trial: false }
+  const limited = {
+    models: TRIAL_MODELS as readonly string[] | null,
+    options: TRIAL_OPTIONS as readonly string[] | null,
+  }
+  if (parallelLimit > 0) return { parallelLimit, models: null, options: null, trial: false }
+  if (credits > 0) return { parallelLimit: 1, ...limited, trial: true }
+  return { parallelLimit: 0, ...limited, trial: false }
+}
+
+export function accessAllows(access: ReturnType<typeof imageAccess>, model: string, option: string) {
+  return (access.models?.includes(model) ?? true) && (access.options?.includes(option) ?? true)
 }
 
 // Everything between a request for pictures and the run itself: who may run what and how many at
@@ -54,8 +62,8 @@ export async function prepareGeneration(input: {
   if (access.parallelLimit === 0) {
     throw new ApiError(403, "IMAGE_REQUIRES_PAID", "Tạo ảnh dành cho gói trả phí. Hãy nâng cấp gói.")
   }
-  if (access.models && !access.models.includes(body.model)) {
-    throw new ApiError(403, "IMAGE_REQUIRES_PAID", "Credit dùng thử chỉ dùng được với FLUX 3 Klein. Hãy nâng cấp gói.")
+  if (!accessAllows(access, body.model, body.option)) {
+    throw new ApiError(403, "IMAGE_REQUIRES_PAID", "Dùng thử chỉ tạo được ảnh FLUX 3 Klein 1K. Hãy nâng cấp gói.")
   }
   const project = body.projectID ? await ownProject(db, input.user.id, body.projectID) : undefined
   const models = await loadImageModels(db)

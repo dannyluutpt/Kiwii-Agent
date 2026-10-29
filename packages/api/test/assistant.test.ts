@@ -296,6 +296,8 @@ describe("checkAssistant", () => {
     const { db, user } = await setup("free", 1)
     const other = { ...request, settings: { ...SETTINGS, model: "gpt-image-2.5" as const, option: "medium" } }
     expect(await checkAssistant(db, user, other).catch((reason: unknown) => reason)).toMatchObject({ status: 403 })
+    const sharper = { ...request, settings: { ...SETTINGS, option: "2K" } }
+    expect(await checkAssistant(db, user, sharper).catch((reason: unknown) => reason)).toMatchObject({ status: 403 })
     const four = { ...request, settings: { ...SETTINGS, n: 4 } }
     expect(await checkAssistant(db, user, four).catch((reason: unknown) => reason)).toMatchObject({
       status: 402,

@@ -48,9 +48,9 @@ test.describe("free account", () => {
   test("plans offer image credits only, the free one a trial of FLUX", async ({ page }) => {
     await page.goto("/pricing")
     await expect(page.getByRole("article", { name: "Plus" })).toContainText("750 credit tạo ảnh mỗi tháng")
-    await expect(page.getByRole("article", { name: "Miễn phí" })).toContainText(
-      "10 credit dùng thử FLUX 3 Klein trong 14 ngày",
-    )
+    // The trial is offered without saying how many pictures it covers.
+    await expect(page.getByRole("article", { name: "Miễn phí" })).toContainText("Dùng thử FLUX 3 Klein miễn phí")
+    await expect(page.getByRole("article", { name: "Miễn phí" })).not.toContainText(/\d+ credit/)
     // Chat is gone, and the model behind the prompt rewriting never shows.
     await expect(page.getByRole("main")).not.toContainText(/chat|MiMo/i)
   })
