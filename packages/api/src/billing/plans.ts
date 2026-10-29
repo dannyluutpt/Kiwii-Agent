@@ -4,10 +4,11 @@ export const PERIOD_MS = 30 * 24 * 60 * 60 * 1000
 export const TOPUP_TTL_MS = 90 * 24 * 60 * 60 * 1000
 export const ORDER_TTL_MS = 24 * 60 * 60 * 1000
 
-// Credit packs sold on top of an active paid plan. ~0.04 USD per credit.
+// Credit packs sold on top of an active paid plan. A credit here costs more than in any plan
+// (Starter's is 1,661 đ), so upgrading always beats topping up: 1,895 đ and 1,790 đ a credit.
 export const TOPUP_PACKS = [
-  { id: "topup-200", credits: 200, price_vnd: 229_000 },
-  { id: "topup-1000", credits: 1000, price_vnd: 949_000 },
+  { id: "topup-200", credits: 200, price_vnd: 379_000 },
+  { id: "topup-1000", credits: 1000, price_vnd: 1_790_000 },
 ] as const
 
 export type TopupPackID = (typeof TOPUP_PACKS)[number]["id"]
