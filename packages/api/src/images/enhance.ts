@@ -71,7 +71,7 @@ export function castLegend(cast: CastMember[], references: number) {
 // The rewrite translates and clarifies; it must not stage the picture. Embellished prompts ("a
 // subtle smile", "50mm lens", "shallow depth of field", a change of clothes) made people pose and
 // look at the camera, which reads as a stock photo, and drifted edits away from the reference.
-function rewriteRules(model: ImageModelID, aspectRatio: string, references: number, cast: CastMember[]) {
+function rewriteRules(model: ImageModelID, aspectRatio: string, references: number, cast: CastMember[], seen: boolean) {
   const names = cast.map((member) => `"${member.name}"`).join(" and ")
   return [
     `When allowed, rewrite the prompt in English for ${model} as a faithful, clear translation:`,
@@ -82,7 +82,7 @@ function rewriteRules(model: ImageModelID, aspectRatio: string, references: numb
       ? `- The picture features ${names}, ${cast.length === 1 ? "a saved character" : "saved characters"} whose photos the image model gets with a note saying which is which. Call each one by that name, and do not describe their face, hair, body or clothes unless the person asks to change them: the photos show them. Say what each one is doing, where they are in the frame and what they are looking at, which is not the camera unless the person asks for a posed shot.`
       : "",
     references > 0
-      ? pictureRules(references, cast.length > 0)
+      ? pictureRules(references, cast.length > 0, seen)
       : "- Fill in only what the picture needs and they left open (setting, light, framing), briefly and plainly.",
     `- The picture is ${aspectRatio}, ${orientation(aspectRatio)}: compose for that frame, without writing the ratio.`,
     `- At most 100 words, no preamble. ${STYLE_HINTS[model]}`,
@@ -94,15 +94,34 @@ function rewriteRules(model: ImageModelID, aspectRatio: string, references: numb
 // What the person's own pictures are for. Read as edits to keep "exactly as they are", a portrait
 // attached to put someone in a new scene passed on its framing, head angle and gaze: the man cooked
 // while staring into the camera.
-function pictureRules(references: number, afterCast: boolean) {
+function pictureRules(references: number, afterCast: boolean, seen: boolean) {
+  const attached = afterCast
+    ? `They also attached ${references} picture(s) to work from, numbered after the characters' photos`
+    : `They attached ${references} reference image(s)`
+  const name = afterCast ? '"the picture to work from"' : '"the reference image"'
   return [
-    afterCast
-      ? `- They also attached ${references} picture(s) to work from, numbered after the characters' photos, which you cannot see. From their words, decide what each one is for:`
-      : `- They attached ${references} reference image(s), which you cannot see. From their words, decide what each one is for:`,
+    seen
+      ? `- ${attached}, shown after their words with those numbers. From their words and what each picture shows, decide what it is for:`
+      : `- ${attached}, which you cannot see. From their words, decide what each one is for:`,
     "  - The picture to change (a new background, light, color or season, something added or removed, or someone put into it): say the change, then that everything else in that picture stays exactly as it is: the people's faces, hair and clothes, the objects, the room, the framing, the camera angle, the light and the style.",
     "  - Someone or something to show in a new scene: keep only who or what it is (a person's face, facial features, skin tone, hairstyle and build, and their clothes unless they ask for others; an object's shape, colors and markings), and say not to copy that photo's pose, head angle, gaze, expression, framing, background or light. Say what each person is doing and what they are looking at, which is not the camera unless they ask for a posed shot.",
-    `  Refer to each one the way they do (for example "the photo of the scanner") or as ${afterCast ? '"the picture to work from"' : '"the reference image"'}, without describing what is in it.`,
+    // Seen, a picture lets the rewrite name what the person points at ("the gray shirt"), but a
+    // description of the rest would compete with the picture the image model gets.
+    seen
+      ? `  Refer to each one by its number or as ${name}. When you mention something in it, name it in a few words as it looks there (for example "the man in the gray shirt" or "the coffee bag"), and describe no more of it: the image model sees the picture.`
+      : `  Refer to each one the way they do (for example "the photo of the scanner") or as ${name}, without describing what is in it.`,
   ].join("\n")
+}
+
+// The person's words, then each picture after the number the image model knows it by.
+function withPictures(prompt: string, pictures: string[], first: number) {
+  return [
+    { type: "text" as const, text: prompt },
+    ...pictures.flatMap((url, index) => [
+      { type: "text" as const, text: `Reference image ${first + index}:` },
+      { type: "image_url" as const, image_url: { url } },
+    ]),
+  ]
 }
 
 const orientation = (ratio: string) => {
@@ -142,22 +161,30 @@ export async function enhancePrompt(input: {
   // The pictures the run works from, besides the photos of its characters.
   references: number
   cast?: CastMember[]
+  // Small copies of those pictures (data URLs, in order) for the screening and rewrite to look at.
+  // Without them it only knows how many there are.
+  pictures?: string[]
   // The language model that screens and rewrites; see languageModels.
   languageModel?: string
 }): Promise<EnhanceResult> {
   if (blockedByDenylist(input.prompt)) {
     return { allowed: false, reason: "Nội dung không được phép", prompt: input.prompt, rewritten: false, costUsd: 0 }
   }
+  const pictures = input.pictures ?? []
+  const cast = input.cast ?? []
   const system = [
     "You prepare prompts for an AI image generator and screen them for policy.",
     'Reply with JSON only: {"allowed": boolean, "reason": string, "prompt": string}.',
     "Set allowed=false (and explain briefly in Vietnamese in reason) for: sexual content involving minors, sexual deepfakes or nudity of real identifiable people, gore or graphic violence, hate symbols or propaganda, instructions for weapons or drugs. Everything else is allowed, including artistic nudity-free portraits of public figures in neutral contexts.",
+    pictures.length ? "Judge their words together with the pictures they attached." : "",
     input.rewrite
-      ? rewriteRules(input.model, input.aspectRatio, input.references, input.cast ?? [])
+      ? rewriteRules(input.model, input.aspectRatio, input.references, cast, pictures.length > 0)
       : "When allowed, return the user's prompt unchanged in prompt (translate to English only if it is not already English; keep quoted text exactly).",
   ]
     .filter(Boolean)
     .join("\n")
+  // The person's pictures come after the characters' photos in what the image model gets.
+  const firstPicture = 1 + cast.reduce((sum, member) => sum + member.images, 0)
   const ask = (model: string) =>
     completeJSON({
       apiKey: input.apiKey,
@@ -165,7 +192,7 @@ export async function enhancePrompt(input: {
       model,
       messages: [
         { role: "system", content: system },
-        { role: "user", content: input.prompt },
+        { role: "user", content: pictures.length ? withPictures(input.prompt, pictures, firstPicture) : input.prompt },
       ],
       // About a quarter of rewrites came back empty or late at 350 tokens and 8 seconds; completeJSON
       // also turns the model's thinking off.

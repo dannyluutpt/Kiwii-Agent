@@ -21,6 +21,8 @@
     },
   ],
   "r2_buckets": [{ "binding": "BUCKET", "bucket_name": "kiwii-files" }],
+  // Small copies of the pictures a run works from, for the prompt screening and rewrite to look at.
+  "images": { "binding": "IMAGES" },
   "send_email": [{ "name": "EMAIL" }],
   "ratelimits": [
     { "name": "RL_IP", "namespace_id": "1", "simple": { "limit": 60, "period": 60 } },

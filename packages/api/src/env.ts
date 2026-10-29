@@ -1,6 +1,8 @@
 export type Env = {
   DB: D1Database
   BUCKET: R2Bucket
+  // Cloudflare Images, for small copies of pictures; absent where it is not bound (tests).
+  IMAGES?: ImagesBinding
   ASSETS: Fetcher
   EMAIL?: SendEmail
   RL_IP: RateLimit

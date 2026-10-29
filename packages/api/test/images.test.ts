@@ -36,10 +36,14 @@ describe("imageCreditCost", () => {
 describe("enhancePrompt", () => {
   // The screening and rewrite is a paid call too; its cost starts the generation's cost_usd. Each call
   // gets the next of `replies`.
-  async function enhanceWith(replies: Response | Response[], references = 0) {
+  async function enhanceWith(
+    replies: Response | Response[],
+    references = 0,
+    more: Partial<Parameters<typeof enhancePrompt>[0]> = {},
+  ) {
     const original = globalThis.fetch
     const queue = [replies].flat()
-    const bodies: Array<{ model: string; messages: Array<{ content: string }> } & Record<string, unknown>> = []
+    const bodies: Array<{ model: string; messages: Array<{ content: unknown }> } & Record<string, unknown>> = []
     globalThis.fetch = (async (_url: unknown, init?: RequestInit) => {
       bodies.push(JSON.parse(String(init?.body)) as (typeof bodies)[number])
       return queue.shift() ?? new Response("no reply left", { status: 500 })
@@ -52,9 +56,12 @@ describe("enhancePrompt", () => {
         rewrite: true,
         aspectRatio: "3:2",
         references,
+        ...more,
       })
       const sent = bodies[0] ?? { model: "", messages: [] }
-      return { result, sent, models: bodies.map((body) => body.model), system: sent.messages[0]?.content ?? "" }
+      const first = sent.messages[0]?.content
+      const system = typeof first === "string" ? first : ""
+      return { result, sent, models: bodies.map((body) => body.model), system, asked: sent.messages[1]?.content }
     } finally {
       globalThis.fetch = original
     }
@@ -93,6 +100,40 @@ describe("enhancePrompt", () => {
     expect(system).toContain("They attached 2 reference image(s), which you cannot see. From their words, decide")
     expect(system).toContain("everything else in that picture stays exactly as it is")
     expect(system).toContain("not to copy that photo's pose, head angle, gaze, expression, framing")
+  })
+
+  // Told only how many pictures there were, the rewrite could not name what the person pointed at or
+  // tell a portrait from a scene, and the screening never saw the pictures at all.
+  test("small copies of the pictures follow the words, each after the number the image model knows it by", async () => {
+    const { system, asked } = await enhanceWith(
+      answer({ allowed: true, reason: "", prompt: "Put the fox in snow" }, 0),
+      2,
+      {
+        pictures: ["data:image/jpeg;base64,AAAA", "data:image/jpeg;base64,BBBB"],
+        cast: [{ name: "Lan", images: 2 }],
+      },
+    )
+    expect(asked).toEqual([
+      { type: "text", text: "con cáo đỏ trên tuyết" },
+      { type: "text", text: "Reference image 3:" },
+      { type: "image_url", image_url: { url: "data:image/jpeg;base64,AAAA" } },
+      { type: "text", text: "Reference image 4:" },
+      { type: "image_url", image_url: { url: "data:image/jpeg;base64,BBBB" } },
+    ])
+    expect(system).toContain("Judge their words together with the pictures they attached.")
+    expect(system).toContain("shown after their words with those numbers. From their words and what each picture shows")
+    expect(system).toContain("describe no more of it: the image model sees the picture")
+    expect(system).not.toContain("which you cannot see")
+  })
+
+  test("without the small copies, the words go alone and the rewrite knows only how many pictures there are", async () => {
+    const { system, asked } = await enhanceWith(
+      answer({ allowed: true, reason: "", prompt: "Put the fox in snow" }, 0),
+      1,
+    )
+    expect(asked).toBe("con cáo đỏ trên tuyết")
+    expect(system).toContain("They attached 1 reference image(s), which you cannot see.")
+    expect(system).not.toContain("Judge their words together with the pictures")
   })
 
   // A thinking model spent the whole token budget thinking and answered with nothing.

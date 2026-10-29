@@ -20,8 +20,10 @@ export async function putObject(bucket: R2Bucket, key: string, bytes: Uint8Array
 export async function toDataURL(bucket: R2Bucket, key: string) {
   const object = await bucket.get(key)
   if (!object) return undefined
-  const mime = object.httpMetadata?.contentType ?? "image/jpeg"
-  const bytes = new Uint8Array(await object.arrayBuffer())
+  return dataURL(object.httpMetadata?.contentType ?? "image/jpeg", new Uint8Array(await object.arrayBuffer()))
+}
+
+export function dataURL(mime: string, bytes: Uint8Array) {
   let binary = ""
   const chunk = 0x8000
   for (let i = 0; i < bytes.length; i += chunk) {

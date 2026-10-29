@@ -12,6 +12,7 @@ import { loadPlan } from "../plans"
 import { ownProject, touchProject } from "../projects/store"
 import { castLegend, enhancePrompt, reusableRewrite } from "./enhance"
 import { reapStaleGenerations } from "./generate"
+import { glance } from "./glance"
 import { imageCreditCost, ImageModelID, loadImageModels, MAX_IMAGES_PER_RUN, MAX_REFERENCES } from "./models"
 import type { ImageReference } from "./openrouter-images"
 import { toDataURL } from "./r2"
@@ -54,6 +55,8 @@ export function accessAllows(access: ReturnType<typeof imageAccess>, model: stri
 export async function prepareGeneration(input: {
   db: Database
   bucket: R2Bucket
+  // Makes the small copies of the pictures that the screening and rewrite look at.
+  images?: ImagesBinding
   apiKey: string
   baseURL?: string
   user: User
@@ -136,6 +139,18 @@ export async function prepareGeneration(input: {
     characterIDs: cast.map((character) => character.id),
     enhance: body.enhance,
   })
+  // The screening and rewrite looks at the pictures the run works from; the legend names the
+  // characters' photos. Without small copies it is told only how many pictures there are.
+  const images = input.images
+  const pictures =
+    reused || !images
+      ? []
+      : await Promise.all(
+          referenceIDs.map((fileID) => glance(images, input.bucket, rows.find((row) => row.id === fileID)!.r2_key)),
+        ).catch((error: unknown) => {
+          console.warn(`[enhance] no small copies of the pictures: ${String(error)}`)
+          return []
+        })
   const enhanced = reused
     ? { allowed: true, prompt: reused, rewritten: true, costUsd: 0 }
     : await enhancePrompt({
@@ -147,6 +162,7 @@ export async function prepareGeneration(input: {
         aspectRatio: body.aspectRatio,
         references: referenceIDs.length,
         cast: members,
+        pictures,
         languageModel: (await languageModels(db, input.user.id)).rewrite,
       })
   if (enhanced.unavailable) throw new ApiError(502, "SCREENING_UNAVAILABLE", enhanced.reason ?? "Hãy thử lại sau")
