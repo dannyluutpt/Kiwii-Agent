@@ -204,16 +204,26 @@ export async function runAssistantTurn(input: {
   let requested = 0
   let replied = ASSISTANT_MODEL
   let failed = false
+  const refusals: string[] = []
+  const refuse = (error: string) => {
+    refusals.push(error)
+    return { error }
+  }
 
-  // One generate_image call: the run starts (or is refused, and the model hears why) and renders in
-  // the background while the model goes on.
+  // One generate_image call: the run starts (or is refused, and the model hears why, with what it can
+  // do instead) and renders in the background while the model goes on.
   const start = async (call: ToolCall) => {
     const args = GenerateArgs.safeParse(parseArguments(call.function.arguments))
-    if (call.function.name !== "generate_image" || !args.success) return { error: "Unknown tool or arguments" }
+    if (call.function.name !== "generate_image" || !args.success)
+      return refuse('Call generate_image with JSON arguments such as {"prompt": "…"}')
     const count = Math.min(args.data.count ?? body.settings.n, MAX_IMAGES_PER_RUN, MAX_PICTURES - requested)
-    if (count < 1) return { error: `At most ${MAX_PICTURES} pictures per message` }
+    if (count < 1) return refuse(`At most ${MAX_PICTURES} pictures per message`)
+    const unknown = (args.data.reference_images ?? []).filter((label) => !labels.has(label.trim().toUpperCase()))
+    if (unknown.length)
+      return refuse(
+        `Unknown picture label ${unknown.join(", ")}. Labels you can use: ${[...labels.keys()].join(", ") || "none"}`,
+      )
     const references = (args.data.reference_images ?? []).map((label) => labels.get(label.trim().toUpperCase()))
-    if (references.some((fileID) => fileID === undefined)) return { error: "Unknown picture label" }
     const aspectRatio =
       args.data.aspect_ratio && model.aspectRatios.includes(args.data.aspect_ratio)
         ? args.data.aspect_ratio
@@ -290,7 +300,8 @@ export async function runAssistantTurn(input: {
       }
     }
     text += said
-    if (failed || !finished || calls.length === 0) break
+    // The last round offers no tool: a call the model makes anyway is not carried out.
+    if (failed || !finished || calls.length === 0 || round === MAX_ROUNDS - 1) break
     thread.push({ role: "assistant", content: said || null, tool_calls: calls })
     for (const call of calls) {
       thread.push({ role: "tool", tool_call_id: call.id, content: JSON.stringify(await start(call)) })
@@ -305,6 +316,7 @@ export async function runAssistantTurn(input: {
   await Promise.all(jobs)
   const reply = text.trim()
   if (!reply && parts.length === 0) {
+    console.error(`[assistant] no reply (${failed ? "provider error" : `refused: ${refusals.join(" | ") || "none"}`})`)
     await input.emit({ type: "error", message: "Trợ lý chưa trả lời được, hãy thử lại" })
     return
   }

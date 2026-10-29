@@ -217,14 +217,47 @@ describe("runAssistantTurn", () => {
   })
 
   test("the last round offers no tool, so the assistant ends with words", async () => {
-    const { turn } = await setup()
+    const { db, turn } = await setup()
     const calls = openrouter([
       { calls: [{ prompt: "Một" }] },
       { calls: [{ prompt: "Hai" }] },
-      { text: "Đã xong cả hai." },
+      // A call made anyway in the last round is not carried out.
+      { text: "Đã xong cả hai.", calls: [{ prompt: "Ba" }] },
     ])
     await turn("Vẽ liên tục")
     expect(calls.sent.map((s) => Array.isArray(s.tools))).toEqual([true, true, false])
+    expect((await db.select().from(generations)).map((g) => g.prompt_raw).sort()).toEqual(["Hai", "Một"])
+  })
+
+  test("a wrong picture label is answered with the labels there are", async () => {
+    const { db, turn } = await setup()
+    const calls = openrouter([
+      { calls: [{ prompt: "Ngọn hải đăng" }] },
+      { text: "Xong." },
+      { calls: [{ prompt: "Ngọn hải đăng lúc hoàng hôn", reference_images: ["R1"] }] },
+      { calls: [{ prompt: "Ngọn hải đăng lúc hoàng hôn", reference_images: ["#1"] }] },
+      { text: "Đã đổi." },
+    ])
+    await turn("Vẽ ngọn hải đăng")
+    await turn("Đổi sang hoàng hôn")
+    const answer = calls.sent[3]!.messages.at(-1)
+    expect(answer).toMatchObject({ role: "tool" })
+    expect(JSON.parse(String(answer?.content))).toEqual({
+      error: "Unknown picture label R1. Labels you can use: #1",
+    })
+    expect(await db.select().from(generations)).toHaveLength(2)
+  })
+
+  test("a message left unanswered is not carried out with the next one", async () => {
+    const { turn } = await setup()
+    // The first turn gets nothing back from the model, so it fails without a reply.
+    const calls = openrouter([{}, { calls: [{ prompt: "Chiếc thuyền buồm" }] }, { text: "Xong." }])
+    const failed = await turn("Vẽ con mèo")
+    expect(failed.at(-1)).toMatchObject({ type: "error" })
+    await turn("Vẽ chiếc thuyền buồm")
+    const history = calls.sent[1]!.messages
+    expect(history.map((m) => m.role)).toEqual(["system", "user"])
+    expect(history[1]?.content).toBe("Vẽ chiếc thuyền buồm")
   })
 })
 
