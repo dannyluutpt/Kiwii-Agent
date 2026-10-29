@@ -222,6 +222,25 @@ test("a second press while a run is being prepared starts nothing more", async (
   expect(posts).toBe(1)
 })
 
+// Phones drop a quiet stream or suspend the page while a picture renders. Here the stream stops
+// right after the run starts; the tile must still end with the picture the server made, not spin.
+test("a run whose stream breaks off still shows its picture", async ({ page, isMobile }, info) => {
+  const started = isMobile ? "start" : "generation-start"
+  await page.route(isMobile ? "**/api/images/generations" : "**/api/projects/*/messages", async (route) => {
+    if (route.request().method() !== "POST") return route.continue()
+    const response = await route.fetch()
+    const frames = (await response.text()).split("\n\n")
+    const cut = frames.findIndex((frame) => frame.startsWith(`event: ${started}\n`))
+    await route.fulfill({ response, body: `${frames.slice(0, cut + 1).join("\n\n")}\n\n` })
+  })
+  await page.goto("/")
+  const text = `Một ngọn hải đăng trong sương sớm ${info.project.name}`
+  await prompt(page).fill(text)
+  await page.keyboard.press("Enter")
+  await expect(card(page, text).getByRole("button", { name: /^Mở ảnh 1/ })).toBeVisible({ timeout: 20_000 })
+  await expect(card(page, text)).toHaveAttribute("aria-busy", "false")
+})
+
 test("a large reference photo is scaled to what the chosen model takes", async ({ page, isMobile }) => {
   await page.goto("/")
   // A 24-megapixel photo, larger than the image models accept. GPT Image takes a 4096px edge.
