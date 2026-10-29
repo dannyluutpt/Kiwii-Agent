@@ -6,6 +6,7 @@ import { balance, reserve } from "../credits/ledger"
 import { TRIAL_MODELS, TRIAL_OPTIONS } from "../credits/trial"
 import type { Database } from "../db/client"
 import { files, generations } from "../db/schema"
+import { languageModels } from "../llm/models"
 import { loadPlan } from "../plans"
 import { ownProject, touchProject } from "../projects/store"
 import { enhancePrompt, reusableRewrite } from "./enhance"
@@ -131,6 +132,7 @@ export async function prepareGeneration(input: {
         prompt: body.prompt,
         rewrite: body.enhance,
         references: references.length,
+        languageModel: (await languageModels(db, input.user.id)).rewrite,
       })
   if (!enhanced.allowed) throw new ApiError(422, "PROMPT_BLOCKED", enhanced.reason ?? "Nội dung không được phép")
 

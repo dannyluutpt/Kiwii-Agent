@@ -9,7 +9,7 @@ import { runGeneration, type GenerationEvent } from "../images/generate"
 import { imageCreditCost, ImageModelID, loadImageModels, MAX_IMAGES_PER_RUN, MAX_REFERENCES } from "../images/models"
 import { accessAllows, CreateGeneration, imageAccess, prepareGeneration } from "../images/prepare"
 import { presentGeneration } from "../images/present"
-import { ASSISTANT_MODEL } from "../llm/models"
+import { languageModels } from "../llm/models"
 import { streamChat, type ChatMessage, type ToolCall } from "../llm/openrouter"
 import { consumeWindow } from "../middleware/ratelimit"
 import { loadPlan } from "../plans"
@@ -211,7 +211,8 @@ export async function runAssistantTurn(input: {
   const usage = { input: 0, output: 0, cost: 0 }
   let text = ""
   let requested = 0
-  let replied = ASSISTANT_MODEL
+  const llm = await languageModels(db, input.user.id)
+  let replied = llm.assistant
   let failed = false
   const refusals: string[] = []
   const refuse = (error: string) => {
@@ -284,7 +285,7 @@ export async function runAssistantTurn(input: {
     for await (const event of streamChat({
       apiKey: input.apiKey,
       baseURL: input.baseURL,
-      model: ASSISTANT_MODEL,
+      model: llm.assistant,
       messages: thread,
       tools: round < MAX_ROUNDS - 1 ? [tool] : undefined,
       maxTokens: 1500,
