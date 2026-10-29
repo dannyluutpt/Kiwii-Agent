@@ -85,7 +85,7 @@ export function Sheet(props: {
           class={`k-sheet fixed z-(--z-sheet) flex flex-col outline-none ${
             props.side === "left"
               ? "inset-y-0 left-0 w-[min(86vw,320px)] touch-pan-y bg-sidebar shadow-overlay"
-              : "inset-x-0 bottom-0 max-h-[90dvh] rounded-t-sheet bg-elevated pb-safe shadow-overlay"
+              : "inset-x-0 bottom-0 max-h-[90dvh] rounded-t-sheet bg-elevated bg-sheen pb-safe shadow-overlay"
           } ${props.class ?? ""}`}
           onPointerDown={start}
           onPointerMove={move}

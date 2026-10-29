@@ -18,7 +18,7 @@ export function Dialog(props: {
         <KDialog.Overlay class="k-overlay fixed inset-0 z-(--z-dialog) bg-scrim" />
         <div class="fixed inset-0 z-(--z-dialog) flex items-end justify-center p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:items-center sm:p-6">
           <KDialog.Content
-            class="k-dialog w-full max-w-[400px] rounded-panel bg-elevated p-5 shadow-overlay outline-none sm:p-6"
+            class="k-dialog w-full max-w-[400px] rounded-panel bg-elevated bg-sheen p-5 shadow-overlay outline-none sm:p-6"
             onOpenAutoFocus={props.onOpenAutoFocus}
           >
             <KDialog.Title class="text-title-3 text-label">{props.title}</KDialog.Title>

@@ -39,11 +39,12 @@ export function AppShell(props: ParentProps) {
       </a>
       <Show when={layout.docked()}>
         <aside
-          class="h-full shrink-0 overflow-hidden shadow-[inset_-0.5px_0_0_var(--k-separator-strong)] transition-[width] duration-(--motion-enter) ease-standard"
+          class="h-full shrink-0 overflow-hidden transition-[width] duration-(--motion-enter) ease-standard"
           style={{ width: `${layout.collapsed() ? 0 : SIDEBAR_WIDTH}px` }}
           inert={layout.collapsed() || undefined}
         >
-          <div class="h-full" style={{ width: `${SIDEBAR_WIDTH}px` }}>
+          {/* A floating glass panel, like the assistant on the other side. */}
+          <div class="h-full py-3 pl-3" style={{ width: `${SIDEBAR_WIDTH}px` }}>
             <ProjectSidebar mode="docked" />
           </div>
         </aside>

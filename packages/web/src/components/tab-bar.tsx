@@ -28,7 +28,7 @@ export function TabBar() {
                 href={tab.href}
                 end={tab.end}
                 class="flex h-full flex-col items-center justify-center gap-0.5 pt-1 text-caption-2 font-medium transition-[color,background-color] duration-(--motion-micro)"
-                activeClass="text-accent"
+                activeClass="text-accent [&_svg]:drop-shadow-[0_0_6px_rgb(255_214_10/0.65)]"
                 inactiveClass="text-label-2 active:text-label"
               >
                 {tab.icon()}

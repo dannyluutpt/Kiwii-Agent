@@ -25,8 +25,8 @@ export function Switch(props: {
           <KSwitch.Description class="text-footnote text-label-2">{props.description}</KSwitch.Description>
         </Show>
       </span>
-      <KSwitch.Control class="relative h-[31px] w-[51px] shrink-0 rounded-full bg-fill-3 transition-[background-color] duration-(--motion-standard) ease-standard group-has-[input:focus-visible]/switch:outline-2 group-has-[input:focus-visible]/switch:outline-offset-2 group-has-[input:focus-visible]/switch:outline-focus data-[checked]:bg-accent">
-        <KSwitch.Thumb class="absolute top-0.5 left-0.5 size-[27px] rounded-full bg-white shadow-[0_3px_8px_rgb(0_0_0/0.15),0_1px_1px_rgb(0_0_0/0.16)] transition-[translate,background-color] duration-(--motion-standard) ease-spring data-[checked]:translate-x-5 data-[checked]:bg-on-accent" />
+      <KSwitch.Control class="relative h-[31px] w-[51px] shrink-0 rounded-full bg-fill-3 shadow-well transition-[background-color,box-shadow] duration-(--motion-standard) ease-standard group-has-[input:focus-visible]/switch:outline-2 group-has-[input:focus-visible]/switch:outline-offset-2 group-has-[input:focus-visible]/switch:outline-focus data-[checked]:bg-amber-gloss data-[checked]:shadow-amber">
+        <KSwitch.Thumb class="absolute top-0.5 left-0.5 size-[27px] rounded-full bg-white bg-[linear-gradient(180deg,#ffffff,#dcdcdc)] shadow-[inset_0_-1px_1px_rgb(0_0_0/0.15),0_3px_8px_rgb(0_0_0/0.35),0_1px_1px_rgb(0_0_0/0.3)] transition-[translate,background-color] duration-(--motion-standard) ease-spring data-[checked]:translate-x-5 data-[checked]:bg-on-accent data-[checked]:bg-[linear-gradient(180deg,#2e2e2e,#0a0a0a)]" />
       </KSwitch.Control>
     </KSwitch>
   )

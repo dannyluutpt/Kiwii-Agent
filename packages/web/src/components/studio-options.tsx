@@ -49,7 +49,7 @@ export function ModelOptions(props: OptionProps & { onPickModel: (model: ImageMo
       class="flex flex-col gap-2"
     >
       <RadioGroup.Label class="text-footnote font-semibold text-label-2">{t("images.model")}</RadioGroup.Label>
-      <div class="divide-y divide-separator overflow-hidden rounded-[14px] bg-fill">
+      <div class="divide-y divide-separator overflow-hidden rounded-[14px] bg-fill bg-sheen shadow-gloss">
         <For each={props.config.models}>
           {(m) => (
             <RadioGroup.Item
@@ -62,7 +62,7 @@ export function ModelOptions(props: OptionProps & { onPickModel: (model: ImageMo
                   <span class="text-callout font-medium text-label">{m.name}</span>
                   <span class="text-footnote text-label-2">{m.tagline}</span>
                 </span>
-                <RadioGroup.ItemIndicator class="text-accent">
+                <RadioGroup.ItemIndicator class="text-accent drop-shadow-[0_0_6px_rgb(255_214_10/0.7)]">
                   <IconCheck class="size-5" weight={2.25} />
                 </RadioGroup.ItemIndicator>
               </RadioGroup.ItemLabel>
@@ -95,7 +95,7 @@ export function QualityOptions(props: OptionProps) {
               class="rounded-[12px] has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-focus"
             >
               <RadioGroup.ItemInput />
-              <RadioGroup.ItemLabel class="flex h-14 cursor-pointer select-none flex-col items-center justify-center rounded-[12px] bg-fill px-2 text-center text-label-2 transition-[color,background-color,box-shadow] duration-(--motion-micro) hover:bg-fill-2 data-[checked]:bg-accent-soft data-[checked]:text-accent data-[checked]:shadow-[inset_0_0_0_1.5px_var(--k-accent)]">
+              <RadioGroup.ItemLabel class="flex h-14 cursor-pointer select-none flex-col items-center justify-center rounded-[12px] bg-fill bg-gloss px-2 text-center text-label-2 shadow-gloss transition-[color,background-color,box-shadow] duration-(--motion-micro) hover:bg-gloss-hover data-[checked]:bg-accent-soft data-[checked]:bg-amber-soft-gloss data-[checked]:text-accent data-[checked]:shadow-selected">
                 <span class="text-subhead font-medium">{option.label}</span>
                 <span class="text-caption opacity-80">{t("images.cost", { n: option.credits })}</span>
               </RadioGroup.ItemLabel>
@@ -124,7 +124,7 @@ export function AspectOptions(props: OptionProps) {
               class="rounded-[12px] has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-focus"
             >
               <RadioGroup.ItemInput />
-              <RadioGroup.ItemLabel class="flex h-16 cursor-pointer select-none flex-col items-center justify-center gap-1 rounded-[12px] bg-fill text-footnote font-medium text-label-2 transition-[color,background-color,box-shadow] duration-(--motion-micro) hover:bg-fill-2 data-[checked]:bg-accent-soft data-[checked]:text-accent data-[checked]:shadow-[inset_0_0_0_1.5px_var(--k-accent)]">
+              <RadioGroup.ItemLabel class="flex h-16 cursor-pointer select-none flex-col items-center justify-center gap-1 rounded-[12px] bg-fill bg-gloss text-footnote font-medium text-label-2 shadow-gloss transition-[color,background-color,box-shadow] duration-(--motion-micro) hover:bg-gloss-hover data-[checked]:bg-accent-soft data-[checked]:bg-amber-soft-gloss data-[checked]:text-accent data-[checked]:shadow-selected">
                 <AspectIcon ratio={ratio} class="size-6" />
                 {ratio}
               </RadioGroup.ItemLabel>

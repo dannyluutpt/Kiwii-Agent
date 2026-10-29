@@ -34,21 +34,25 @@ export function AssistantMessage(props: { message: Message; onOpen: (g: Generati
             <ul class="flex flex-wrap justify-end gap-1.5" aria-label={t("assistant.attached")}>
               <For each={attached()}>
                 {(fileID) => (
-                  <li class="size-14 overflow-hidden rounded-[10px] bg-fill">
+                  <li class="rim relative size-14 overflow-hidden rounded-[10px] bg-fill">
                     <img src={`/api/images/files/${fileID}`} alt="" class="size-full object-cover" />
                   </li>
                 )}
               </For>
             </ul>
           </Show>
-          <p class="max-w-[85%] rounded-[18px] rounded-br-[6px] bg-fill-2 px-3.5 py-2 text-callout whitespace-pre-wrap text-label">
+          <p class="max-w-[85%] rounded-[18px] rounded-br-[6px] bg-fill-2 bg-gloss px-3.5 py-2 text-callout whitespace-pre-wrap text-label shadow-gloss">
             {text()}
           </p>
         </div>
       }
     >
       <div class="flex gap-2.5 animate-fade-in" aria-busy={props.message.pending === true}>
-        <img src="/logo.svg" alt="" class="mt-0.5 size-6 shrink-0 rounded-[7px]" />
+        <img
+          src="/logo.svg"
+          alt=""
+          class="mt-0.5 size-6 shrink-0 rounded-[7px] shadow-[0_0_14px_-2px_rgb(255_214_10/0.6)]"
+        />
         <div class="flex min-w-0 flex-1 flex-col gap-2.5">
           <Show
             when={text()}
@@ -108,7 +112,10 @@ function RunStrip(props: { generation: Generation; onOpen: (index: number) => vo
           {(position) => {
             const image = () => g().images.find((img) => img.position === position)
             return (
-              <li class="relative h-24 overflow-hidden rounded-[12px] bg-fill" style={aspectStyle(g().aspectRatio)}>
+              <li
+                class="rim relative h-24 overflow-hidden rounded-[12px] bg-fill shadow-raised"
+                style={aspectStyle(g().aspectRatio)}
+              >
                 <Show
                   when={image()}
                   fallback={

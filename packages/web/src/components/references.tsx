@@ -84,7 +84,7 @@ export function ReferenceStrip(props: {
       <ul class={`flex gap-2 overflow-x-auto ${props.class ?? ""}`} aria-label={t("images.references")}>
         <For each={props.references}>
           {(ref) => (
-            <li class="relative size-14 shrink-0 overflow-hidden rounded-[12px] bg-fill animate-fade-in">
+            <li class="rim relative size-14 shrink-0 overflow-hidden rounded-[12px] bg-fill shadow-raised animate-fade-in">
               <img src={ref.url} alt={ref.name} class="size-full object-cover" />
               <span class="absolute top-0.5 right-0.5">
                 <IconButton

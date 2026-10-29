@@ -15,10 +15,10 @@ export function Segmented<T extends string>(props: {
     <SegmentedControl
       value={props.value}
       onChange={(value) => props.onChange(value as T)}
-      class={`relative rounded-[11px] bg-fill-2 p-[3px] ${props.block ? "flex w-full" : "inline-flex"} ${props.class ?? ""}`}
+      class={`relative rounded-[11px] bg-well p-[3px] shadow-well ${props.block ? "flex w-full" : "inline-flex"} ${props.class ?? ""}`}
     >
       <SegmentedControl.Label class="sr-only">{props.label}</SegmentedControl.Label>
-      <SegmentedControl.Indicator class="k-segmented-indicator absolute top-[3px] left-[3px] rounded-[8px] bg-surface-3 shadow-raised" />
+      <SegmentedControl.Indicator class="k-segmented-indicator absolute top-[3px] left-[3px] rounded-[8px] bg-surface-3 bg-gloss shadow-gloss" />
       <For each={props.options}>
         {(option) => (
           <SegmentedControl.Item

@@ -56,6 +56,15 @@
   --shadow-floating: var(--k-shadow-floating);
   --shadow-overlay: var(--k-shadow-overlay);
   --shadow-glow: var(--k-shadow-glow);
+  --shadow-lift: var(--k-shadow-lift);
+  --shadow-gloss: var(--k-shadow-gloss);
+  --shadow-amber: var(--k-shadow-amber);
+  --shadow-amber-hover: var(--k-shadow-amber-hover);
+  --shadow-pressed: var(--k-shadow-pressed);
+  --shadow-tinted: var(--k-shadow-tinted);
+  --shadow-well: var(--k-shadow-well);
+  --shadow-selected: var(--k-shadow-selected);
+  --shadow-focus: var(--k-shadow-focus);
   --shadow-sm: var(--k-shadow-raised);
   --shadow-2xl: var(--k-shadow-overlay);
 }
@@ -220,7 +229,11 @@
    catches the light. Solid where the browser cannot blur or the person asked for less transparency. */
 @utility glass-panel {
   background-color: var(--k-surface);
-  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.06);
+  background-image: var(--k-sheen);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.08),
+    inset 0 0 0 1px rgb(255 255 255 / 0.06),
+    0 24px 60px -28px rgb(0 0 0 / 0.9);
   @supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
     background-color: rgb(20 20 20 / 0.72);
     -webkit-backdrop-filter: saturate(160%) blur(24px);
@@ -233,11 +246,53 @@
   }
 }
 
+/* Surface finishes that give depth (theme.css). Each sets only a background image, so it layers over
+   a background colour: `bg-surface bg-sheen`, `bg-fill bg-gloss`. */
+@utility bg-sheen {
+  background-image: var(--k-sheen);
+}
+@utility bg-gloss {
+  background-image: var(--k-gloss);
+}
+@utility bg-gloss-hover {
+  background-image: var(--k-gloss-hover);
+}
+@utility bg-amber-soft-gloss {
+  background-image: var(--k-amber-soft-gloss);
+}
+/* The glossy amber of the primary action; the flat accent stays underneath as its colour. */
+@utility bg-amber-gloss {
+  background-color: var(--k-accent);
+  background-image: var(--k-amber-gloss);
+}
+@utility bg-amber-gloss-hover {
+  background-color: var(--k-accent-hover);
+  background-image: var(--k-amber-gloss-hover);
+}
+@utility bg-well {
+  background-color: var(--k-well);
+}
+
+/* A lit hairline drawn over the content, so a card filled by a picture still catches the light
+   along its top edge. The element must be positioned. */
+@utility rim {
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.16),
+      inset 0 0 0 1px rgb(255 255 255 / 0.07);
+    pointer-events: none;
+  }
+}
+
 /* The canvas with a faint amber glow from the top corner, behind the app and the sign-in card. */
 @utility bg-ambient {
   background-color: var(--k-canvas);
   background-image:
-    radial-gradient(60rem 36rem at 0% -10%, rgb(255 214 10 / 0.07), transparent 60%),
+    radial-gradient(60rem 36rem at 0% -10%, rgb(255 214 10 / 0.09), transparent 60%),
     radial-gradient(48rem 32rem at 110% 110%, rgb(255 159 10 / 0.04), transparent 60%);
 }
 
