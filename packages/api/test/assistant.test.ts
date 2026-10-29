@@ -19,7 +19,8 @@ afterEach(() => {
 type Script = Array<{ text?: string; calls?: Array<Record<string, unknown>> }>
 
 // OpenRouter as the assistant sees it: each streamed chat call plays the next round of `script`,
-// the screener allows anything without "BLOCKME", and the image model draws one pixel.
+// the screener allows anything without "BLOCKME" and fails on "NOVERDICT", and the image model draws
+// one pixel.
 function openrouter(script: Script) {
   const sent: Array<{
     messages: Array<{ role: string; content: unknown; tool_calls?: Array<{ function: { arguments: string } }> }>
@@ -34,6 +35,7 @@ function openrouter(script: Script) {
     }
     if (!body.stream) {
       const prompt = String((body.messages as Array<{ content: string }>).at(-1)?.content)
+      if (prompt.includes("NOVERDICT")) return new Response("upstream error", { status: 502 })
       const allowed = !prompt.includes("BLOCKME")
       const content = JSON.stringify({
         allowed,
@@ -271,6 +273,15 @@ describe("runAssistantTurn", () => {
     await turn("Thêm một bản 9:16 nữa")
     const runs = await db.select().from(generations).orderBy(asc(generations.id))
     expect(runs.map((run) => run.aspect_ratio)).toEqual(["9:16", "16:9"])
+  })
+
+  test("a prompt no model could screen starts no run and costs nothing", async () => {
+    const { db, turn } = await setup()
+    openrouter([{ calls: [{ prompt: "NOVERDICT con mèo" }] }, { text: "Chưa tạo được, bạn thử lại nhé." }])
+    const events = await turn("Vẽ con mèo")
+    expect(events).toContainEqual(expect.objectContaining({ type: "notice", code: "SCREENING_UNAVAILABLE" }))
+    expect(await db.select().from(generations)).toHaveLength(0)
+    expect(await balance(db, "u1")).toBe(100)
   })
 
   test("a message left unanswered is not carried out with the next one", async () => {

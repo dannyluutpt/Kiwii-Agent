@@ -5,6 +5,8 @@ import type { ImageModelID } from "./models"
 
 export type EnhanceResult = {
   allowed: boolean
+  // No model could screen the prompt: nothing is sent, and the person tries again shortly.
+  unavailable?: boolean
   reason?: string
   // The prompt to send to the image model; equals the input when rewriting is off or failed.
   prompt: string
@@ -13,6 +15,11 @@ export type EnhanceResult = {
   // What the screening and rewrite call cost; it starts the generation's cost_usd.
   costUsd: number
 }
+
+// Screens a prompt when the chosen language model gives no verdict (an error, a timeout, a reply
+// without the JSON). Unscreened prompts used to go out as written; in a trial of other models, one
+// model's failed call let a request for weapon instructions through.
+export const FALLBACK_SCREENING_MODEL = "google/gemini-2.5-flash-lite"
 
 // Cheap first pass before spending an LLM call. Keep it narrow: the enhancer does the real check.
 const DENYLIST = [
@@ -94,28 +101,43 @@ export async function enhancePrompt(input: {
   ]
     .filter(Boolean)
     .join("\n")
-  const reply = await completeJSON({
-    apiKey: input.apiKey,
-    baseURL: input.baseURL,
-    model: input.languageModel ?? ASSISTANT_MODEL,
-    messages: [
-      { role: "system", content: system },
-      { role: "user", content: input.prompt },
-    ],
-    // About a quarter of rewrites came back empty or late at 350 tokens and 8 seconds, and those runs
-    // went out unscreened and unrewritten; completeJSON now also turns the model's thinking off.
-    maxTokens: 900,
-    temperature: 0.3,
-    timeoutMs: 12000,
-  }).catch((error: unknown) => ({
-    value: undefined,
-    costUsd: 0,
-    failure: error instanceof Error ? error.name : "network error",
-  }))
-  const { value: result, costUsd } = reply
+  const ask = (model: string) =>
+    completeJSON({
+      apiKey: input.apiKey,
+      baseURL: input.baseURL,
+      model,
+      messages: [
+        { role: "system", content: system },
+        { role: "user", content: input.prompt },
+      ],
+      // About a quarter of rewrites came back empty or late at 350 tokens and 8 seconds; completeJSON
+      // also turns the model's thinking off.
+      maxTokens: 900,
+      temperature: 0.3,
+      timeoutMs: 12000,
+    }).catch((error: unknown) => ({
+      value: undefined,
+      costUsd: 0,
+      failure: error instanceof Error ? error.name : "network error",
+    }))
+  const chosen = input.languageModel ?? ASSISTANT_MODEL
+  const first = await ask(chosen)
+  const judged = typeof first.value?.allowed === "boolean"
+  const second = judged || chosen === FALLBACK_SCREENING_MODEL ? undefined : await ask(FALLBACK_SCREENING_MODEL)
+  if (second) console.warn(`[enhance] no verdict from ${chosen} (${first.failure ?? "no allowed field"}), asked again`)
+  const reply = second ?? first
+  const costUsd = first.costUsd + (second?.costUsd ?? 0)
+  const result = reply.value
   if (!result || typeof result.allowed !== "boolean") {
-    console.warn(`[enhance] kept the prompt as written: ${reply.failure ?? "no allowed field in the reply"}`)
-    return { allowed: true, prompt: input.prompt, rewritten: false, costUsd }
+    console.warn(`[enhance] not screened, so not sent: ${reply.failure ?? "no allowed field in the reply"}`)
+    return {
+      allowed: false,
+      unavailable: true,
+      reason: "Chưa kiểm duyệt được nội dung lúc này. Bạn thử lại sau giây lát nhé.",
+      prompt: input.prompt,
+      rewritten: false,
+      costUsd,
+    }
   }
   if (!result.allowed) {
     const reason = typeof result.reason === "string" && result.reason ? result.reason : "Nội dung không được phép"

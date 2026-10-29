@@ -134,6 +134,7 @@ export async function prepareGeneration(input: {
         references: references.length,
         languageModel: (await languageModels(db, input.user.id)).rewrite,
       })
+  if (enhanced.unavailable) throw new ApiError(502, "SCREENING_UNAVAILABLE", enhanced.reason ?? "Hãy thử lại sau")
   if (!enhanced.allowed) throw new ApiError(422, "PROMPT_BLOCKED", enhanced.reason ?? "Nội dung không được phép")
 
   const id = ulid()
