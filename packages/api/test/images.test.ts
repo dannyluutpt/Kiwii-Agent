@@ -50,6 +50,7 @@ describe("enhancePrompt", () => {
         model: "gpt-image-2.5",
         prompt: "con cáo đỏ trên tuyết",
         rewrite: true,
+        aspectRatio: "3:2",
         references,
       })
       const sent = bodies[0] ?? { model: "", messages: [] }
@@ -77,14 +78,21 @@ describe("enhancePrompt", () => {
 
   // Embellished rewrites ("a subtle smile", "50mm lens", medical clothes) staged the picture and
   // drifted edits away from the attached photos.
-  test("rewrites faithfully, and as an edit that keeps the rest when pictures are attached", async () => {
+  test("rewrites faithfully, for the frame the person chose", async () => {
     const fresh = await enhanceWith(answer({ allowed: true, reason: "", prompt: "A red fox in fresh snow" }, 0))
     expect(fresh.system).toContain("Add nothing they did not ask for")
     expect(fresh.system).toContain("do not look at the camera")
-    expect(fresh.system).not.toContain("this is an edit")
-    const edit = await enhanceWith(answer({ allowed: true, reason: "", prompt: "Put the fox in snow" }, 0), 2)
-    expect(edit.system).toContain("They attached 2 reference image(s), which you cannot see, so this is an edit")
-    expect(edit.system).toContain("everything else stays exactly as in the reference image(s)")
+    expect(fresh.system).toContain("The picture is 3:2, landscape")
+    expect(fresh.system).not.toContain("reference image")
+  })
+
+  // Every attached picture used to be an edit to keep as it is, so a portrait put in a new scene
+  // passed on its framing and gaze: the man cooked while staring into the camera.
+  test("attached pictures are either the picture to change or someone to show in a new scene", async () => {
+    const { system } = await enhanceWith(answer({ allowed: true, reason: "", prompt: "Put the fox in snow" }, 0), 2)
+    expect(system).toContain("They attached 2 reference image(s), which you cannot see. From their words, decide")
+    expect(system).toContain("everything else in that picture stays exactly as it is")
+    expect(system).toContain("not to copy that photo's pose, head angle, gaze, expression, framing")
   })
 
   // A thinking model spent the whole token budget thinking and answered with nothing.
