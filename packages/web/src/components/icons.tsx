@@ -170,3 +170,20 @@ export const IconCreditCard = icon(() => (
     <path d="M3.5 10h17M7.5 14.5h3" />
   </>
 ))
+
+export const IconArrowRight = icon(() => <path d="M4.5 12h15M13.5 6l6 6-6 6" />)
+
+export const IconPlay = icon(() => (
+  <path d="M8 5.6v12.8a1 1 0 0 0 1.5.86l10.6-6.4a1 1 0 0 0 0-1.72L9.5 4.74A1 1 0 0 0 8 5.6z" />
+))
+
+export const IconWand = icon(() => (
+  <>
+    <path d="m4.5 19.5 10-10M13 8l3 3" />
+    <path d="M17.5 3.5v3M16 5h3M19.5 11v2M18.5 12h2M9.5 3.5v2M8.5 4.5h2" />
+  </>
+))
+
+export const IconChat = icon(() => (
+  <path d="M20.5 11.5c0 4.15-3.8 7.5-8.5 7.5a9.6 9.6 0 0 1-3.2-.55L4 20l1.4-3.7A7 7 0 0 1 3.5 11.5C3.5 7.35 7.3 4 12 4s8.5 3.35 8.5 7.5z" />
+))

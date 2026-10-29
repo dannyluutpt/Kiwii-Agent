@@ -57,6 +57,15 @@ first message from "all" opens a project named after it. Phones keep the gallery
 composer with a bottom sheet (`components/studio-prompt-bar.tsx`) that makes pictures directly into
 "all".
 
+Signed out, `/` is the public website (`pages/landing.tsx`, inside the header and footer of
+`components/site.tsx`) and `/pricing` shows the plans there too (`pages/site-pricing.tsx`, sharing
+`PricingPlans` with the app); any other screen asks to sign in and comes back after. Every picture on
+the website was made with Amberpix on production: the files are in `public/showcase` (WebP at 640 and
+1280px) and their prompts in `src/showcase.ts`. The before/after pairs (`components/compare.tsx`)
+keep the original photo, from Unsplash, stretched to the edit's frame so the two line up. A
+sample's "Dùng prompt này" signs the visitor up and opens the studio with its prompt and model;
+`next` is carried through sign-up and verification (`lib/next.ts`).
+
 State sits above the screens: `context/projects.tsx` holds the project list and its flows,
 `context/studio.tsx` holds the options, the draft and every run seen this session with the galleries
 that list them, so a run keeps streaming into its tile while another project is open, and

@@ -1,13 +1,15 @@
-import { A, useNavigate } from "@solidjs/router"
+import { A, useNavigate, useSearchParams } from "@solidjs/router"
 import { createSignal } from "solid-js"
 import { api } from "@/api"
 import { useLanguage } from "@/context/language"
+import { withNext } from "@/lib/next"
 import { Turnstile } from "@/components/turnstile"
 import { AuthForm, Field } from "./form"
 
 export default function Signup() {
   const { t } = useLanguage()
   const navigate = useNavigate()
+  const [search] = useSearchParams<{ next?: string }>()
   const [email, setEmail] = createSignal("")
   const [turnstile, setTurnstile] = createSignal<string>()
   const [password, setPassword] = createSignal("")
@@ -18,12 +20,12 @@ export default function Signup() {
       submit={t("auth.signup")}
       onSubmit={async () => {
         await api("/auth/signup", { body: { email: email(), password: password(), turnstile: turnstile() } })
-        navigate(`/signup/verify?email=${encodeURIComponent(email().trim().toLowerCase())}`)
+        navigate(withNext(`/signup/verify?email=${encodeURIComponent(email().trim().toLowerCase())}`, search.next))
       }}
       footer={
         <span>
           {t("auth.signup.hasAccount")}{" "}
-          <A href="/login" class="font-medium text-accent">
+          <A href={withNext("/login", search.next)} class="font-medium text-accent">
             {t("auth.login")}
           </A>
         </span>

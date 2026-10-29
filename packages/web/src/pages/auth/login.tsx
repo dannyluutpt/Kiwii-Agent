@@ -2,7 +2,7 @@ import { A, useNavigate, useSearchParams } from "@solidjs/router"
 import { createSignal } from "solid-js"
 import { api } from "@/api"
 import { useAuth } from "@/context/auth"
-import { safeNext } from "@/lib/next"
+import { safeNext, withNext } from "@/lib/next"
 import { useLanguage } from "@/context/language"
 import { Turnstile } from "@/components/turnstile"
 import { AuthForm, Field } from "./form"
@@ -29,7 +29,7 @@ export default function Login() {
         <span class="flex flex-col gap-1">
           <span>
             {t("auth.login.noAccount")}{" "}
-            <A href="/signup" class="font-medium text-accent">
+            <A href={withNext("/signup", search.next)} class="font-medium text-accent">
               {t("auth.signup")}
             </A>
           </span>
