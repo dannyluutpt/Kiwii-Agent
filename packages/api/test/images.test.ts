@@ -2,9 +2,10 @@ import { describe, expect, test } from "bun:test"
 import { eq } from "drizzle-orm"
 import { balance, grant, reserve } from "../src/credits/ledger"
 import { credit_ledger, generation_images, generations } from "../src/db/schema"
-import { blockedByDenylist, enhancePrompt, reusableRewrite } from "../src/images/enhance"
+import { blockedByDenylist, enhancePrompt, FALLBACK_SCREENING_MODEL, reusableRewrite } from "../src/images/enhance"
 import { friendly, reapStaleGenerations, runGeneration, STALE_AFTER_MS } from "../src/images/generate"
 import { IMAGE_MODELS, imageCreditCost } from "../src/images/models"
+import { ASSISTANT_MODEL } from "../src/llm/models"
 import { testDatabase } from "./db"
 
 const DAY = 24 * 60 * 60 * 1000
@@ -33,13 +34,15 @@ describe("imageCreditCost", () => {
 })
 
 describe("enhancePrompt", () => {
-  // The screening and rewrite is a paid call too; its cost starts the generation's cost_usd.
-  async function enhanceWith(reply: Response, references = 0) {
+  // The screening and rewrite is a paid call too; its cost starts the generation's cost_usd. Each call
+  // gets the next of `replies`.
+  async function enhanceWith(replies: Response | Response[], references = 0) {
     const original = globalThis.fetch
-    let sent: { messages: Array<{ content: string }> } & Record<string, unknown> = { messages: [] }
+    const queue = [replies].flat()
+    const bodies: Array<{ model: string; messages: Array<{ content: string }> } & Record<string, unknown>> = []
     globalThis.fetch = (async (_url: unknown, init?: RequestInit) => {
-      sent = JSON.parse(String(init?.body)) as typeof sent
-      return reply
+      bodies.push(JSON.parse(String(init?.body)) as (typeof bodies)[number])
+      return queue.shift() ?? new Response("no reply left", { status: 500 })
     }) as typeof fetch
     try {
       const result = await enhancePrompt({
@@ -49,7 +52,8 @@ describe("enhancePrompt", () => {
         rewrite: true,
         references,
       })
-      return { result, sent, system: sent.messages[0]?.content ?? "" }
+      const sent = bodies[0] ?? { model: "", messages: [] }
+      return { result, sent, models: bodies.map((body) => body.model), system: sent.messages[0]?.content ?? "" }
     } finally {
       globalThis.fetch = original
     }
@@ -96,9 +100,33 @@ describe("enhancePrompt", () => {
     expect(result).toMatchObject({ allowed: false, reason: "Không được phép", costUsd: 0.00009 })
   })
 
-  test("a failed call costs nothing and keeps the customer's prompt", async () => {
-    const { result } = await enhanceWith(new Response("upstream error", { status: 502 }))
-    expect(result).toEqual({ allowed: true, prompt: "con cáo đỏ trên tuyết", rewritten: false, costUsd: 0 })
+  // An unscreened prompt used to go out as written: in a trial of other models, a failed call let a
+  // request for weapon instructions through.
+  test("a call that gives no verdict is screened again by the fallback model", async () => {
+    const { result, models } = await enhanceWith([
+      new Response("upstream error", { status: 502 }),
+      answer({ allowed: true, reason: "", prompt: "A red fox in fresh snow" }, 0.00005),
+    ])
+    expect(models).toEqual([ASSISTANT_MODEL, FALLBACK_SCREENING_MODEL])
+    expect(result).toEqual({ allowed: true, prompt: "A red fox in fresh snow", rewritten: true, costUsd: 0.00005 })
+  })
+
+  test("a reply without the verdict is screened again, and both checks are paid for", async () => {
+    const { result } = await enhanceWith([
+      reply("I can't help with that.", 0.0001),
+      answer({ allowed: false, reason: "Không được phép", prompt: "" }, 0.00005),
+    ])
+    expect(result).toMatchObject({ allowed: false, reason: "Không được phép" })
+    expect(result.costUsd).toBeCloseTo(0.00015)
+  })
+
+  test("with no verdict from either model, nothing is sent and the person is asked to try again", async () => {
+    const { result } = await enhanceWith([
+      new Response("upstream error", { status: 502 }),
+      new Response("upstream error", { status: 503 }),
+    ])
+    expect(result).toMatchObject({ allowed: false, unavailable: true, rewritten: false, costUsd: 0 })
+    expect(result.reason).toContain("thử lại")
   })
 })
 
