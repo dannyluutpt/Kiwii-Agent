@@ -13,6 +13,12 @@ Read `AGENTS.md` first; it holds the build commands and code style.
 - Prefer automation that removes the manual step for next time (a workflow, a script, a config)
   over describing commands for the user to run.
 
+## Paid runs
+
+- Never generate an image without asking the user first, tests included, and wait for a yes. In
+  the same message, say what each run is for and what it costs (credits, and USD with VND), and give
+  the total. The same goes for any other test that spends OpenRouter credit, such as trying models.
+
 ## Language
 
 - Reply in Vietnamese with full diacritics unless the user writes in English. Code, commit
