@@ -84,11 +84,14 @@ export function generateTool(model: ImageModel, maxPictures: number): ToolDefini
 // Earlier turns as the model reads them: what was said, and each run a reply started replayed as the
 // generate_image call that started it. Written out as text, runs taught the model to describe
 // pictures in its replies instead of calling the tool. Refused calls are left out; the reply says why.
+// A message that never got an answer (its turn failed) is left out too, or the model would carry it
+// out along with the next one, which is often the same request sent again.
 export function historyMessages(
   rows: Array<{ role: "user" | "assistant"; parts: MessagePart[] }>,
   runs: Map<string, { prompt: string; n: number }>,
 ): ChatMessage[] {
-  return rows.flatMap((row): ChatMessage[] => {
+  return rows.flatMap((row, index): ChatMessage[] => {
+    if (row.role === "user" && rows[index + 1]?.role === "user") return []
     const text = row.parts
       .flatMap((part) => {
         if (part.type === "text") return [clip(part.text, 4000)]
