@@ -1,5 +1,5 @@
 import { and, desc, eq, inArray } from "drizzle-orm"
-import { ulid } from "ulid"
+import { monotonicFactory } from "ulid"
 import { z } from "zod"
 import { ApiError, type User } from "../app"
 import { balance } from "../credits/ledger"
@@ -9,7 +9,7 @@ import { runGeneration, type GenerationEvent } from "../images/generate"
 import { imageCreditCost, ImageModelID, loadImageModels, MAX_IMAGES_PER_RUN, MAX_REFERENCES } from "../images/models"
 import { accessAllows, CreateGeneration, imageAccess, prepareGeneration } from "../images/prepare"
 import { presentGeneration } from "../images/present"
-import { ASSISTANT_MODEL } from "../llm/models"
+import { languageModels } from "../llm/models"
 import { streamChat, type ChatMessage, type ToolCall } from "../llm/openrouter"
 import { consumeWindow } from "../middleware/ratelimit"
 import { loadPlan } from "../plans"
@@ -27,6 +27,10 @@ export const MAX_PICTURES = 4
 export const DAILY_MESSAGES = { paid: 300, trial: 30 }
 const RECENT_RUNS = 8
 const HISTORY = 10
+
+// The conversation is read back by time, then by id. Plain ULIDs made within one millisecond come out
+// in random order, so a message sent right after another could be read back before it.
+const nextID = monotonicFactory()
 
 export const AssistantRequest = z.object({
   text: z.string().trim().min(1).max(4000),
@@ -115,8 +119,8 @@ export async function runAssistantTurn(input: {
   const db = input.db
   const body = input.request
   const now = Date.now()
-  const userMessageID = ulid()
-  const messageID = ulid()
+  const userMessageID = nextID()
+  const messageID = nextID()
   const userParts: MessagePart[] = [
     { type: "text", text: body.text },
     ...body.referenceFileIDs.map((fileID): MessagePart => ({ type: "image", fileID })),
@@ -211,7 +215,8 @@ export async function runAssistantTurn(input: {
   const usage = { input: 0, output: 0, cost: 0 }
   let text = ""
   let requested = 0
-  let replied = ASSISTANT_MODEL
+  const llm = await languageModels(db, input.user.id)
+  let replied = llm.assistant
   let failed = false
   const refusals: string[] = []
   const refuse = (error: string) => {
@@ -284,7 +289,7 @@ export async function runAssistantTurn(input: {
     for await (const event of streamChat({
       apiKey: input.apiKey,
       baseURL: input.baseURL,
-      model: ASSISTANT_MODEL,
+      model: llm.assistant,
       messages: thread,
       tools: round < MAX_ROUNDS - 1 ? [tool] : undefined,
       maxTokens: 1500,

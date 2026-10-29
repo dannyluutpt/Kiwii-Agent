@@ -50,8 +50,6 @@ function rewriteRules(model: ImageModelID, references: number) {
   ].join("\n")
 }
 
-export const ENHANCE_MODEL = ASSISTANT_MODEL
-
 type Previous = Pick<
   typeof generations.$inferSelect,
   "status" | "prompt_raw" | "prompt_enhanced" | "model" | "reference_file_ids" | "enhance"
@@ -80,6 +78,8 @@ export async function enhancePrompt(input: {
   prompt: string
   rewrite: boolean
   references: number
+  // The language model that screens and rewrites; see languageModels.
+  languageModel?: string
 }): Promise<EnhanceResult> {
   if (blockedByDenylist(input.prompt)) {
     return { allowed: false, reason: "Nội dung không được phép", prompt: input.prompt, rewritten: false, costUsd: 0 }
@@ -97,7 +97,7 @@ export async function enhancePrompt(input: {
   const reply = await completeJSON({
     apiKey: input.apiKey,
     baseURL: input.baseURL,
-    model: ENHANCE_MODEL,
+    model: input.languageModel ?? ASSISTANT_MODEL,
     messages: [
       { role: "system", content: system },
       { role: "user", content: input.prompt },

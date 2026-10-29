@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, mock, spyOn, test } from "bun:test"
+import { afterEach, describe, expect, mock, setSystemTime, spyOn, test } from "bun:test"
 import { asc, eq } from "drizzle-orm"
 import { checkAssistant, DAILY_MESSAGES, runAssistantTurn, type AssistantEvent } from "../src/assistant/turn"
 import { balance, grant } from "../src/credits/ledger"
@@ -11,7 +11,10 @@ const PIXEL =
   "/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wAALCAABAAEBAREA/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAD8AKp//2Q=="
 const SETTINGS = { model: "flux-3-klein" as const, option: "1K", aspectRatio: "1:1", n: 1 }
 
-afterEach(() => mock.restore())
+afterEach(() => {
+  mock.restore()
+  setSystemTime()
+})
 
 type Script = Array<{ text?: string; calls?: Array<Record<string, unknown>> }>
 
@@ -272,6 +275,8 @@ describe("runAssistantTurn", () => {
 
   test("a message left unanswered is not carried out with the next one", async () => {
     const { turn } = await setup()
+    // Both messages are stored within the same millisecond, as they are on a fast machine.
+    setSystemTime(new Date())
     // The first turn gets nothing back from the model, so it fails without a reply.
     const calls = openrouter([{}, { calls: [{ prompt: "Chiếc thuyền buồm" }] }, { text: "Xong." }])
     const failed = await turn("Vẽ con mèo")
