@@ -168,14 +168,14 @@ export async function runAssistantTurn(input: {
     .reverse()
     .map(presentMessage)
   const mentioned = history.flatMap((m) => m.parts.flatMap((part) => (part.type === "generation" ? [part.id] : [])))
-  const prompts = new Map(
+  const earlier = new Map(
     (mentioned.length
       ? await db
-          .select({ id: generations.id, prompt: generations.prompt_raw })
+          .select({ id: generations.id, prompt: generations.prompt_raw, n: generations.n })
           .from(generations)
           .where(inArray(generations.id, mentioned))
       : []
-    ).map((row) => [row.id, row.prompt]),
+    ).map((row) => [row.id, { prompt: row.prompt, n: row.n }]),
   )
 
   const model = (await loadImageModels(db)).find((m) => m.id === body.settings.model)!
@@ -194,7 +194,7 @@ export async function runAssistantTurn(input: {
         attached: attached.map((a) => a.label),
       }),
     },
-    ...historyMessages(history, prompts),
+    ...historyMessages(history, earlier),
   ]
   const tool = generateTool(model, MAX_PICTURES)
   const parts: MessagePart[] = []

@@ -101,7 +101,11 @@ async function assistant(body: Record<string, unknown>, messages: Array<{ role: 
       send(finish(reason))
     })
   if (last?.role === "tool") {
-    const results = messages.filter((m) => m.role === "tool").map((m) => String(m.content))
+    // Only this message's calls: the history replays earlier runs as tool results too.
+    const results = messages
+      .slice(messages.findLastIndex((m) => m.role === "user") + 1)
+      .filter((m) => m.role === "tool")
+      .map((m) => String(m.content))
     const refused = results.find((r) => r.includes('"error"'))
     if (refused) return say(`Mình chưa tạo được ảnh này: ${(JSON.parse(refused) as { error: string }).error}`)
     return say("Xong rồi! Ảnh đang được vẽ, bạn xem trong thư viện của dự án nhé.")
