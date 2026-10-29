@@ -161,6 +161,22 @@ test("a failed run is retried in place, reused and deleted", async ({ page }, in
   await expect(runs).toHaveCount(0)
 })
 
+// A run whose prompt was screened and rewritten but whose picture failed is retried with that same
+// rewrite. The mock numbers every rewrite and fails a FAILONCE prompt only the first time it sees
+// it, so the retry succeeds only if the server sends the identical prompt instead of rewriting again.
+test("retrying a failed run reuses its rewritten prompt", async ({ page }, info) => {
+  const text = `Ảnh FAILONCE thử lại ${info.project.name}`
+  await page.goto("/images")
+  await prompt(page).fill(text)
+  await page.keyboard.press("Enter")
+  const run = card(page, text)
+  const alert = run.getByRole("alert")
+  await expect(alert).toBeVisible({ timeout: 15_000 })
+  await alert.getByRole("button", { name: "Thử lại" }).click()
+  await expect(run.getByRole("button", { name: /^Mở ảnh 1 trên/ })).toBeVisible({ timeout: 15_000 })
+  await expect(run.getByRole("alert")).toHaveCount(0)
+})
+
 test("a second press while a run is being prepared starts nothing more", async ({ page }, info) => {
   let posts = 0
   // Preparing a run (prompt rewrite, references) takes a few seconds in production; hold it here.

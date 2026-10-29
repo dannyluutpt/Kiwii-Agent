@@ -6,12 +6,14 @@
 // Chat streams a short markdown answer word by word; a prompt containing "dài" or "long" streams a
 // long one (for scroll tests), "excel"/"word"/"file"/"tệp" triggers a file tool call and "giá vàng" a
 // web_search call when tools are offered, "RATELIMIT" returns 429. JSON-mode calls answer like the prompt enhancer ("BLOCKME" is
-// refused). The Images API returns gradient PNGs; "FAIL" in the prompt returns 400.
+// refused). The Images API returns gradient PNGs; "FAIL" in the prompt returns 400, and "FAILONCE"
+// fails only the first time that exact prompt arrives.
 import { deflateSync } from "node:zlib"
 
 const port = Number(process.env.MOCK_PORT ?? 8899)
 const encoder = new TextEncoder()
 let calls = 0
+let rewrites = 0
 
 Bun.serve({
   port,
@@ -26,9 +28,18 @@ Bun.serve({
 })
 console.log(`mock openrouter on :${port}`)
 
+// Prompts the Images API has refused once; "FAILONCE" fails only the first time a prompt is seen, so
+// a retry succeeds only when it sends the very same prompt.
+const refused = new Set<string>()
+
 async function images(body: Record<string, unknown>) {
   await Bun.sleep(1200)
-  if (String(body.prompt).includes("FAIL")) {
+  const prompt = String(body.prompt)
+  if (prompt.includes("FAILONCE") && !refused.has(prompt)) {
+    refused.add(prompt)
+    return Response.json({ error: { message: "provider overloaded" } }, { status: 503 })
+  }
+  if (prompt.includes("FAIL") && !prompt.includes("FAILONCE")) {
     return Response.json({ error: { message: "moderation blocked" } }, { status: 400 })
   }
   const [w, h] = size(String(body.aspect_ratio ?? "1:1"))
@@ -64,7 +75,8 @@ async function chat(body: Record<string, unknown>) {
     const content = JSON.stringify({
       allowed: !blocked,
       reason: blocked ? "Nội dung không được phép (mock)" : "",
-      prompt: `Enhanced: ${text}, cinematic lighting, 35mm`,
+      // Numbered, so every rewrite differs and a retry that rewrote again would send a new prompt.
+      prompt: `Enhanced #${++rewrites}: ${text}, cinematic lighting, 35mm`,
     })
     return Response.json({ choices: [{ message: { content } }], usage: { cost: 0.00012 } })
   }
