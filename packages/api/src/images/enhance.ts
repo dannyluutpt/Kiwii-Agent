@@ -116,12 +116,12 @@ function pictureRules(references: number, afterCast: boolean, seen: boolean) {
     seen
       ? `- ${attached}, shown after their words with those numbers. From their words and what each picture shows, decide what it is for:`
       : `- ${attached}, which you cannot see. From their words, decide what each one is for:`,
-    "  - The picture to change (a new background, light, color or season, something added or removed, or someone put into it): say the change, then that everything else in that picture stays exactly as it is: the people's faces, hair and clothes, the objects, the room, the framing, the camera angle, the light and the style.",
+    "  - The picture to change (a new background, light, color or season, something added or removed, or someone put into it): say the change, then that everything else in that picture stays exactly as it is: the people in it with their faces, hair and clothes, the objects, the room, the framing, the camera angle, the light and the style. Remove, replace or move no one unless they ask. Someone put into it joins the people already there, doing something that fits the scene, without the pose or gaze of the photo they come from.",
     "  - Someone or something to show in a new scene: keep only who or what it is (a person's face, facial features, skin tone, hairstyle and build, and their clothes unless they ask for others; an object's shape, colors and markings), and say not to copy that photo's pose, head angle, gaze, expression, framing, background or light. Say what each person is doing and what they are looking at, which is not the camera unless they ask for a posed shot.",
     // Seen, a picture lets the rewrite name what the person points at ("the gray shirt"), but a
     // description of the rest would compete with the picture the image model gets.
     seen
-      ? `  Refer to each one by its number or as ${name}. When you mention something in it, name it in a few words as it looks there (for example "the man in the gray shirt" or "the coffee bag"), and describe no more of it: the image model sees the picture.`
+      ? `  Refer to each one by its number or as ${name}. When you mention something in it, name it in a few words as it looks there (for example "the man in the gray shirt" or "the coffee bag"), and describe no more of it: the image model sees the picture. Do not copy out text already written in a picture: the image model reads it there, and a copy with a slip would change it.`
       : `  Refer to each one the way they do (for example "the photo of the scanner") or as ${name}, without describing what is in it.`,
   ].join("\n")
 }
