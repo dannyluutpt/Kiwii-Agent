@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test"
 import { eq } from "drizzle-orm"
 import { balance, grant, reserve } from "../src/credits/ledger"
 import { credit_ledger, generation_images, generations } from "../src/db/schema"
-import { blockedByDenylist } from "../src/images/enhance"
+import { blockedByDenylist, enhancePrompt } from "../src/images/enhance"
 import { friendly, reapStaleGenerations, runGeneration, STALE_AFTER_MS } from "../src/images/generate"
 import { IMAGE_MODELS, imageCreditCost } from "../src/images/models"
 import { testDatabase } from "./db"
@@ -23,6 +23,55 @@ describe("imageCreditCost", () => {
     ).toBeUndefined()
     expect(imageCreditCost(IMAGE_MODELS, { model: "flux-3-klein", option: "8K", n: 1, references: 0 })).toBeUndefined()
     expect(imageCreditCost(IMAGE_MODELS, { model: "flux-3-klein", option: "1K", n: 5, references: 0 })).toBeUndefined()
+  })
+})
+
+describe("enhancePrompt", () => {
+  // The screening and rewrite is a paid call too; its cost starts the generation's cost_usd.
+  async function enhanceWith(reply: Response) {
+    const original = globalThis.fetch
+    let sent: Record<string, unknown> | undefined
+    globalThis.fetch = (async (_url: unknown, init?: RequestInit) => {
+      sent = JSON.parse(String(init?.body)) as Record<string, unknown>
+      return reply
+    }) as typeof fetch
+    try {
+      const result = await enhancePrompt({
+        apiKey: "k",
+        model: "gpt-image-2.5",
+        prompt: "con cáo đỏ trên tuyết",
+        rewrite: true,
+        references: 0,
+      })
+      return { result, sent }
+    } finally {
+      globalThis.fetch = original
+    }
+  }
+  const answer = (content: Record<string, unknown>, cost: number) =>
+    Response.json({ choices: [{ message: { content: JSON.stringify(content) } }], usage: { cost } })
+
+  test("asks OpenRouter for the cost and reports it with the rewrite", async () => {
+    const { result, sent } = await enhanceWith(
+      answer({ allowed: true, reason: "", prompt: "A red fox in fresh snow, golden hour" }, 0.00011),
+    )
+    expect(result).toEqual({
+      allowed: true,
+      prompt: "A red fox in fresh snow, golden hour",
+      rewritten: true,
+      costUsd: 0.00011,
+    })
+    expect(sent?.usage).toEqual({ include: true })
+  })
+
+  test("a blocked prompt still reports what the check cost", async () => {
+    const { result } = await enhanceWith(answer({ allowed: false, reason: "Không được phép", prompt: "" }, 0.00009))
+    expect(result).toMatchObject({ allowed: false, reason: "Không được phép", costUsd: 0.00009 })
+  })
+
+  test("a failed call costs nothing and keeps the customer's prompt", async () => {
+    const { result } = await enhanceWith(new Response("upstream error", { status: 502 }))
+    expect(result).toEqual({ allowed: true, prompt: "con cáo đỏ trên tuyết", rewritten: false, costUsd: 0 })
   })
 })
 
@@ -60,7 +109,7 @@ function mockFetch(handler: (body: ImageBody) => Response | Promise<Response>) {
 
 async function seed(
   db: Awaited<ReturnType<typeof testDatabase>>,
-  input: { model: string; option: string; n: number; credits: number },
+  input: { model: string; option: string; n: number; credits: number; costUsd?: number },
 ) {
   await grant(db, { userID: "u1", source: "plan", amount: 100, expiresAt: Date.now() + DAY, reason: "p" })
   const id = `gen-${Math.random().toString(36).slice(2)}`
@@ -75,6 +124,7 @@ async function seed(
     n: input.n,
     prompt_raw: "a cat",
     credits_reserved: input.credits,
+    cost_usd: input.costUsd,
   })
   return (await db.select().from(generations).where(eq(generations.id, id)).get())!
 }
@@ -123,7 +173,8 @@ describe("runGeneration", () => {
 
   test("streaming provider forwards partials, stores the final image and settles", async () => {
     const db = await testDatabase()
-    const generation = await seed(db, { model: "gpt-image-2.5", option: "medium", n: 1, credits: 3 })
+    // 0.0002 for the prompt screening and rewrite, recorded when the generation was created.
+    const generation = await seed(db, { model: "gpt-image-2.5", option: "medium", n: 1, credits: 3, costUsd: 0.0002 })
     const { bucket } = fakeBucket()
     const restore = mockFetch(() => {
       const sse = [
@@ -155,6 +206,9 @@ describe("runGeneration", () => {
     expect(await balance(db, "u1")).toBe(97)
     const ledger = await db.select().from(credit_ledger).where(eq(credit_ledger.generation_id, generation.id))
     expect(ledger.map((r) => r.type)).toEqual(["reserve", "settle"])
+    expect(ledger[1]?.reason).toBe("cost_usd=0.0502")
+    const row = (await db.select().from(generations).where(eq(generations.id, generation.id)).get())!
+    expect(row.cost_usd).toBeCloseTo(0.0502)
   })
 
   test("an edit (references) on the streaming model is sent without streaming", async () => {
@@ -204,7 +258,7 @@ describe("runGeneration", () => {
 
   test("total failure marks failed and refunds everything", async () => {
     const db = await testDatabase()
-    const generation = await seed(db, { model: "nano-banana-2.1", option: "1K", n: 2, credits: 4 })
+    const generation = await seed(db, { model: "nano-banana-2.1", option: "1K", n: 2, credits: 4, costUsd: 0.0001 })
     const { bucket } = fakeBucket()
     const restore = mockFetch(
       () => new Response(JSON.stringify({ error: { message: "rate limited" } }), { status: 429 }),
@@ -229,9 +283,11 @@ describe("runGeneration", () => {
     expect(events.at(-1)?.type).toBe("error")
     expect(events.at(-1)?.message).toContain("quá tải")
     expect(await balance(db, "u1")).toBe(100)
+    // The customer gets every credit back; the rewrite Kiwii paid for stays in the cost.
     expect(await db.select().from(generations).where(eq(generations.id, generation.id)).get()).toMatchObject({
       status: "failed",
       credits_final: 0,
+      cost_usd: 0.0001,
     })
   })
 })

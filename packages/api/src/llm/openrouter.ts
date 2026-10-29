@@ -167,7 +167,10 @@ async function* sseData(body: ReadableStream<Uint8Array>) {
   }
 }
 
-export async function completeJSON<T>(request: Omit<StreamRequest, "signal"> & { timeoutMs?: number }) {
+// One buffered JSON-mode completion. `value` is the parsed reply, missing when it is empty or not
+// JSON (the caller checks each field); `costUsd` is what OpenRouter billed either way (0 when the
+// request failed).
+export async function completeJSON(request: Omit<StreamRequest, "signal"> & { timeoutMs?: number }) {
   const res = await fetch(`${request.baseURL ?? DEFAULT_BASE_URL}/chat/completions`, {
     method: "POST",
     headers: { authorization: `Bearer ${request.apiKey}`, "content-type": "application/json" },
@@ -177,16 +180,21 @@ export async function completeJSON<T>(request: Omit<StreamRequest, "signal"> & {
       max_tokens: request.maxTokens,
       temperature: request.temperature,
       response_format: { type: "json_object" },
+      usage: { include: true },
     }),
     signal: AbortSignal.timeout(request.timeoutMs ?? 8000),
   })
-  if (!res.ok) return undefined
-  const body = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> }
+  if (!res.ok) return { costUsd: 0 }
+  const body = (await res.json()) as {
+    choices?: Array<{ message?: { content?: string } }>
+    usage?: { cost?: number }
+  }
+  const costUsd = body.usage?.cost ?? 0
   const content = body.choices?.[0]?.message?.content
-  if (!content) return undefined
+  if (!content) return { costUsd }
   try {
-    return JSON.parse(content) as T
+    return { value: JSON.parse(content) as Record<string, unknown>, costUsd }
   } catch {
-    return undefined
+    return { costUsd }
   }
 }
