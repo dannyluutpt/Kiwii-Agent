@@ -63,6 +63,11 @@ export const dict: Record<I18nKey, string> = {
   "video.frame.last": "Last frame",
   "video.frame.removeFirst": "Remove the first frame",
   "video.frame.removeLast": "Remove the last frame",
+  "video.nextScene": "Next scene",
+  "video.useFrame": "Start a new scene from this frame",
+  "video.nextScene.failed": "Couldn't take a frame from this clip. Please try again.",
+  "video.nextScene.drift":
+    "You have chained {{n}} scenes in a row. Characters drift over time: make a fresh starting picture in Image mode.",
   "video.locked": "Videos are for paid plans",
   "video.status.running": "Making the video…",
   "video.status.wait": "Usually 2–5 minutes",

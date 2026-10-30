@@ -6,7 +6,17 @@ import { IconButton, iconButtonClass } from "@/ui/icon-button"
 import { Menu, MenuContent, MenuItem, MenuSeparator } from "@/ui/menu"
 import { Spinner } from "@/ui/spinner"
 import { toast } from "@/ui/toast"
-import { IconCopy, IconEllipsis, IconImage, IconPersonAdd, IconPlay, IconRefresh, IconTrash, IconVideo } from "./icons"
+import {
+  IconArrowRight,
+  IconCopy,
+  IconEllipsis,
+  IconImage,
+  IconPersonAdd,
+  IconPlay,
+  IconRefresh,
+  IconTrash,
+  IconVideo,
+} from "./icons"
 
 // One run in the gallery: its pictures edge to edge, then a short bar with the prompt and actions.
 // A run that is still being prepared or rendered shows a shimmer in each frame, with the blurred
@@ -22,6 +32,8 @@ export function GenerationTile(props: {
   onDelete: () => void
   // Opens the dialog that saves a character from the run's pictures.
   onCharacter?: () => void
+  // Starts the next clip from this clip's last frame.
+  onNextScene?: () => void
 }) {
   const { t } = useLanguage()
   const g = () => props.generation
@@ -175,6 +187,11 @@ export function GenerationTile(props: {
             <Show when={props.onCharacter && g().images.length > 0 && !clip()}>
               <MenuItem icon={<IconPersonAdd class="size-[18px]" />} onSelect={() => props.onCharacter?.()}>
                 {t("characters.saveAs")}
+              </MenuItem>
+            </Show>
+            <Show when={props.onNextScene && clip() && g().status === "done" && g().images.length > 0}>
+              <MenuItem icon={<IconArrowRight class="size-[18px]" />} onSelect={() => props.onNextScene?.()}>
+                {t("video.nextScene")}
               </MenuItem>
             </Show>
             <MenuSeparator />

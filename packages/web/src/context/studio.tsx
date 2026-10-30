@@ -2,7 +2,8 @@ import { useNavigate } from "@solidjs/router"
 import { createEffect, createMemo, createResource, createSignal, onCleanup } from "solid-js"
 import { createStore, produce } from "solid-js/store"
 import { createSimpleContext } from "@kiwii/ui/context/helper"
-import { api, ApiError, apiStream, type SSEEvent } from "@/api"
+import { api, ApiError, apiStream, apiUpload, type SSEEvent } from "@/api"
+import { BRAND_SLUG } from "@/brand"
 import { useAuth } from "@/context/auth"
 import { useCharacters } from "@/context/characters"
 import { useLanguage } from "@/context/language"
@@ -17,6 +18,8 @@ import type {
   VideoSettings,
 } from "@/images"
 import { errorMessage } from "@/lib/errors"
+import { grabStill } from "@/lib/frame"
+import { shrinkImage } from "@/lib/image"
 import { askConfirm } from "@/ui/confirm"
 import { toast } from "@/ui/toast"
 
@@ -97,6 +100,12 @@ export const { use: useStudio, provider: StudioProvider } = createSimpleContext(
     const [references, setReferences] = createSignal<Reference[]>([])
     // The picture a clip ends on, next to its first frame (the first reference).
     const [lastFrame, setLastFrame] = createSignal<Reference>()
+    // While a clip's last frame is grabbed and uploaded to start the next clip from.
+    const [framing, setFraming] = createSignal(false)
+    // How many clips in a row were made each from the one before, by run, this session: characters
+    // drift after a few, and the studio says so.
+    const chains: Record<string, number> = {}
+    let continued: { fileID: string; length: number } | undefined
     const [state, setState] = createStore<{ runs: Record<string, Generation>; galleries: Record<string, Gallery> }>({
       runs: {},
       galleries: {},
@@ -464,6 +473,7 @@ export const { use: useStudio, provider: StudioProvider } = createSimpleContext(
       setRunning(running() + 1)
       await api<Generation>("/videos/generations", { body })
         .then((g) => {
+          if (!from && continued && body.referenceFileIDs[0] === continued.fileID) chains[g.id] = continued.length
           place(pending, { ...g, images: [], previews: {} }, into)
           if (g.projectID) projects.touched()
           void auth.refresh()
@@ -484,6 +494,45 @@ export const { use: useStudio, provider: StudioProvider } = createSimpleContext(
           }
         })
       setRunning(running() - 1)
+    }
+
+    // The next clip starts where `g` ends, or at the frame `at` seconds in: that frame becomes its
+    // first frame, with the same model, resolution, length and shape. Nothing is charged until the
+    // person writes what happens next and makes the clip.
+    const continueFrom = async (g: Generation, at?: number) => {
+      const clip = g.images[0]
+      if (g.kind !== "video" || !clip) return
+      setMode("video")
+      patchVideo({
+        model: g.model,
+        option: g.option,
+        aspectRatio: g.aspectRatio,
+        duration: g.duration ?? video.duration,
+      })
+      setReferences([])
+      setLastFrame(undefined)
+      const length = (chains[g.id] ?? 1) + 1
+      if (length > 3) toast.show(t("video.nextScene.drift", { n: length - 1 }))
+      setFraming(true)
+      const edge = clipModel()?.maxReferenceEdge ?? 1920
+      const stored = await grabStill(clip.url, at)
+        .then((still) =>
+          shrinkImage(new File([still.blob], `${BRAND_SLUG}-${g.id}-frame.jpg`, { type: "image/jpeg" }), edge),
+        )
+        .then(async (fitted) => {
+          const form = new FormData()
+          form.append("file", fitted.file)
+          const saved = await apiUpload<{ id: string; url: string; name: string }>("/images/references", form)
+          return { ...saved, edge: Math.max(fitted.width, fitted.height) }
+        })
+        .catch(() => undefined)
+      setFraming(false)
+      if (!stored) {
+        toast.error(t("video.nextScene.failed"))
+        return
+      }
+      setReferences([stored])
+      continued = { fileID: stored.id, length }
     }
 
     const generate = (projectID: string | undefined, from?: Generation) =>
@@ -521,6 +570,8 @@ export const { use: useStudio, provider: StudioProvider } = createSimpleContext(
       setReferences,
       lastFrame,
       setLastFrame,
+      framing,
+      continueFrom,
       cost,
       gallery,
       items,

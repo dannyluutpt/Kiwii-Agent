@@ -42,6 +42,8 @@ export function StudioPromptBar(props: {
   onReferences: (next: Reference[]) => void
   lastFrame: Reference | undefined
   onLastFrame: (next: Reference | undefined) => void
+  // While a clip's last frame is being taken as the first frame.
+  framing: boolean
   cost: number | undefined
   busy: boolean
   locked: boolean
@@ -130,7 +132,7 @@ export function StudioPromptBar(props: {
         <FrameSlots
           class="px-3 pt-3"
           first={props.references[0]}
-          firstUploading={uploads.uploading()}
+          firstUploading={uploads.uploading() || props.framing}
           onRemoveFirst={() => {
             props.onReferences([])
             props.onLastFrame(undefined)

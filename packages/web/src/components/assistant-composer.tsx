@@ -119,7 +119,7 @@ export function AssistantComposer(props: {
         <FrameSlots
           class="px-3 pt-3"
           first={studio.references()[0]}
-          firstUploading={uploads.uploading()}
+          firstUploading={uploads.uploading() || studio.framing()}
           onRemoveFirst={() => {
             studio.setReferences([])
             studio.setLastFrame(undefined)
