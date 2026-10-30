@@ -1,6 +1,6 @@
 import { createEffect, createSignal, For, Show } from "solid-js"
-import { useCharacters } from "@/context/characters"
 import { useLanguage } from "@/context/language"
+import type { SavedStore } from "@/context/saved"
 import type { Reference } from "@/images"
 import { Button } from "@/ui/button"
 import { Dialog } from "@/ui/dialog"
@@ -12,14 +12,15 @@ import { IconClose, IconPlus } from "./icons"
 import { createReferenceUploads } from "./references"
 
 const MAX_PHOTOS = 4
-// Plenty for a face to be recognised; a larger photo only costs more to read on every run.
+// Plenty for a face to be recognised or a place to be told; a larger photo only costs more to read
+// on every run.
 const PHOTO_EDGE = 2048
 
-// Saves a character from one to four photos: uploads, or pictures the account made, which the
-// gallery and the viewer open it with. The server keeps its own copies of them.
-export function CharacterDialog(props: { max: number }) {
+// Saves a character or a location from one to four photos: uploads, or pictures the account made,
+// which the gallery and the viewer open it with. The server keeps its own copies of them.
+export function SavedDialog(props: { store: SavedStore; max: number }) {
   const { t } = useLanguage()
-  const characters = useCharacters()
+  const kind = props.store.kind
   const [name, setName] = createSignal("")
   const [photos, setPhotos] = createSignal<Reference[]>([])
   const [saving, setSaving] = createSignal(false)
@@ -33,7 +34,7 @@ export function CharacterDialog(props: { max: number }) {
 
   // Each opening starts from the photos it was opened with.
   createEffect(() => {
-    const draft = characters.draft()
+    const draft = props.store.draft()
     if (!draft) return
     setName("")
     setPhotos(draft.slice(0, MAX_PHOTOS))
@@ -43,27 +44,27 @@ export function CharacterDialog(props: { max: number }) {
   const save = async () => {
     if (!canSave()) return
     setSaving(true)
-    const made = await characters.create(
+    const made = await props.store.create(
       name().trim(),
       photos().map((photo) => photo.id),
     )
     setSaving(false)
     if (!made) return
-    characters.closeDraft()
-    toast.success(t("characters.saved", { name: made.name }), {
-      action: { label: t("characters.use"), onClick: () => characters.pick(made.id, props.max) },
+    props.store.closeDraft()
+    toast.success(t(`${kind}.saved`, { name: made.name }), {
+      action: { label: t(`${kind}.use`), onClick: () => props.store.pick(made.id, props.max) },
     })
   }
 
   return (
     <Dialog
-      open={characters.draft() !== undefined}
-      onOpenChange={(open) => !open && characters.closeDraft()}
-      title={t("characters.create")}
-      description={t("characters.lead")}
+      open={props.store.draft() !== undefined}
+      onOpenChange={(open) => !open && props.store.closeDraft()}
+      title={t(`${kind}.create`)}
+      description={t(`${kind}.lead`)}
       actions={
         <>
-          <Button variant="secondary" onClick={() => characters.closeDraft()}>
+          <Button variant="secondary" onClick={() => props.store.closeDraft()}>
             {t("common.cancel")}
           </Button>
           <Button variant="primary" disabled={!canSave()} loading={saving()} onClick={() => void save()}>
@@ -80,23 +81,23 @@ export function CharacterDialog(props: { max: number }) {
         }}
       >
         <TextField
-          label={t("characters.name")}
-          placeholder={t("characters.namePlaceholder")}
+          label={t(`${kind}.name`)}
+          placeholder={t(`${kind}.namePlaceholder`)}
           value={name()}
           onChange={setName}
           maxLength={40}
           autocapitalize="words"
         />
         <div class="flex flex-col gap-1.5">
-          <p class="text-subhead font-medium text-label">{t("characters.photos")}</p>
-          <ul class="grid grid-cols-4 gap-2" aria-label={t("characters.photos")}>
+          <p class="text-subhead font-medium text-label">{t(`${kind}.photos`)}</p>
+          <ul class="grid grid-cols-4 gap-2" aria-label={t(`${kind}.photos`)}>
             <For each={photos()}>
               {(photo, index) => (
                 <li class="rim relative aspect-square overflow-hidden rounded-[12px] bg-fill animate-fade-in">
-                  <img src={photo.url} alt={t("characters.photo", { n: index() + 1 })} class="size-full object-cover" />
+                  <img src={photo.url} alt={t(`${kind}.photo`, { n: index() + 1 })} class="size-full object-cover" />
                   <span class="absolute top-0.5 right-0.5">
                     <IconButton
-                      label={t("characters.removePhoto")}
+                      label={t(`${kind}.removePhoto`)}
                       variant="overlay"
                       size="xs"
                       circle
@@ -121,7 +122,7 @@ export function CharacterDialog(props: { max: number }) {
                   onClick={() => fileInput?.click()}
                 >
                   <IconPlus class="size-5" />
-                  {t("characters.addPhoto")}
+                  {t(`${kind}.addPhoto`)}
                 </button>
               </li>
             </Show>
@@ -138,9 +139,9 @@ export function CharacterDialog(props: { max: number }) {
               event.currentTarget.value = ""
             }}
           />
-          <p class="text-footnote text-label-2">{t("characters.tip")}</p>
+          <p class="text-footnote text-label-2">{t(`${kind}.tip`)}</p>
         </div>
-        <p class="rounded-[12px] bg-fill px-3 py-2 text-footnote text-label-2">{t("characters.rights")}</p>
+        <p class="rounded-[12px] bg-fill px-3 py-2 text-footnote text-label-2">{t(`${kind}.rights`)}</p>
       </form>
     </Dialog>
   )

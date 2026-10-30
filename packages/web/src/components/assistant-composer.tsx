@@ -2,16 +2,17 @@ import { A } from "@solidjs/router"
 import { createSignal, Show, type JSX } from "solid-js"
 import { useCharacters } from "@/context/characters"
 import { useLanguage } from "@/context/language"
+import { useLocations } from "@/context/locations"
 import { useStudio } from "@/context/studio"
 import type { ImageModel, ModelsResponse, VideoModel } from "@/images"
 import { Button, buttonClass } from "@/ui/button"
 import { IconButton } from "@/ui/icon-button"
 import { Popover, PopoverContent } from "@/ui/popover"
 import { AspectIcon } from "./aspect-icon"
-import { CastStrip, CharacterOptions } from "./characters"
 import { createLastFrameUploads, FrameSlots } from "./frame-slots"
-import { IconArrowUp, IconChevronDown, IconImage, IconPerson } from "./icons"
+import { IconArrowUp, IconChevronDown, IconImage, IconPerson, IconPlace } from "./icons"
 import { createReferenceUploads, ReferenceStrip } from "./references"
+import { PickedStrip, SavedOptions } from "./saved"
 import { AspectOptions, CountOptions, ModelOptions, QualityOptions } from "./studio-options"
 import {
   DurationOptions,
@@ -40,6 +41,8 @@ export function AssistantComposer(props: {
   const studio = useStudio()
   const characters = useCharacters()
   const cast = () => characters.picked().flatMap((id) => characters.find(id) ?? [])
+  const locations = useLocations()
+  const place = () => locations.picked().flatMap((id) => locations.find(id) ?? [])[0]
   let fileInput: HTMLInputElement | undefined
   const video = () => studio.mode() === "video"
   const model = () => props.config.models.find((m) => m.id === studio.settings.model)
@@ -132,7 +135,7 @@ export function AssistantComposer(props: {
         />
       </Show>
       <Show when={!video()}>
-        <CastStrip class="px-3 pt-3" />
+        <PickedStrip class="px-3 pt-3" />
       </Show>
       <textarea
         data-studio-prompt
@@ -191,7 +194,15 @@ export function AssistantComposer(props: {
             icon={<IconPerson class="size-4 shrink-0" />}
             disabled={props.locked}
           >
-            {(close) => <CharacterOptions max={props.config.maxCharacters} onCreate={close} />}
+            {(close) => <SavedOptions store={characters} max={props.config.maxCharacters} onCreate={close} />}
+          </Option>
+          <Option
+            label={t("locations.picker")}
+            value={place()?.name ?? t("locations.picker")}
+            icon={<IconPlace class="size-4 shrink-0" />}
+            disabled={props.locked}
+          >
+            {(close) => <SavedOptions store={locations} max={1} onCreate={close} />}
           </Option>
           <Show when={model()}>
             {(m) => {

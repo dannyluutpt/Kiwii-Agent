@@ -22,6 +22,7 @@ export default function globalSetup() {
     "DELETE FROM generations WHERE user_id = 'e2e-pro'",
     "DELETE FROM projects WHERE user_id IN ('e2e-user', 'e2e-pro')",
     "DELETE FROM characters WHERE user_id = 'e2e-pro'",
+    "DELETE FROM locations WHERE user_id = 'e2e-pro'",
     "DELETE FROM credit_ledger WHERE user_id = 'e2e-pro'",
     "DELETE FROM credit_grants WHERE user_id = 'e2e-pro'",
     "DELETE FROM plan_orders WHERE user_id IN ('e2e-user', 'e2e-pro')",

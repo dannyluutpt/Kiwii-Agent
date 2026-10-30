@@ -123,7 +123,12 @@ test("a run streams into the gallery and its pictures open in the viewer", async
 
   // No menu entry reveals the rewrite, and the API never hands it to the browser.
   await run.getByRole("button", { name: "Thao tác khác" }).click()
-  await expect(page.getByRole("menuitem")).toHaveText(["Sao chép prompt", "Lưu thành nhân vật", "Xoá"])
+  await expect(page.getByRole("menuitem")).toHaveText([
+    "Sao chép prompt",
+    "Lưu thành nhân vật",
+    "Lưu thành bối cảnh",
+    "Xoá",
+  ])
   await page.keyboard.press("Escape")
   const feed = await (await page.request.get("/api/images/generations")).text()
   expect(feed).toContain(text)

@@ -8,6 +8,7 @@ import { CharactersProvider } from "@/context/characters"
 import { safeNext } from "@/lib/next"
 import { LanguageProvider } from "@/context/language"
 import { LayoutProvider } from "@/context/layout"
+import { LocationsProvider } from "@/context/locations"
 import { ProjectsProvider } from "@/context/projects"
 import { StudioProvider } from "@/context/studio"
 // The sign-in screens are small and are the first thing a signed-out visitor sees, so they ship in
@@ -72,11 +73,13 @@ function Private(props: ParentProps) {
         <LayoutProvider>
           <ProjectsProvider>
             <CharactersProvider>
-              <StudioProvider>
-                <AssistantProvider>
-                  <AppShell>{props.children}</AppShell>
-                </AssistantProvider>
-              </StudioProvider>
+              <LocationsProvider>
+                <StudioProvider>
+                  <AssistantProvider>
+                    <AppShell>{props.children}</AppShell>
+                  </AssistantProvider>
+                </StudioProvider>
+              </LocationsProvider>
             </CharactersProvider>
           </ProjectsProvider>
         </LayoutProvider>

@@ -1,19 +1,11 @@
 import { afterEach, describe, expect, mock, spyOn, test } from "bun:test"
 import { eq } from "drizzle-orm"
-import {
-  castPhotos,
-  cleanName,
-  createCharacter,
-  deleteCharacter,
-  ownCharacter,
-  photosOf,
-  presentCharacter,
-  type Character,
-} from "../src/characters/store"
+import { castPhotos, createCharacter, deleteCharacter, ownCharacter, type Character } from "../src/characters/store"
 import { grant } from "../src/credits/ledger"
 import { characters, files, users } from "../src/db/schema"
 import { castLegend } from "../src/images/enhance"
 import { CreateGeneration, prepareGeneration } from "../src/images/prepare"
+import { cleanName, photosOf, presentSaved } from "../src/images/saved"
 import { testDatabase } from "./db"
 
 const DAY = 24 * 60 * 60 * 1000
@@ -93,7 +85,7 @@ describe("characters", () => {
     const first = stored.find((file) => file.id === copies[0])!
     expect(new TextDecoder().decode(store.get(first.r2_key)!.bytes)).toBe("p2")
     expect(first.r2_key).not.toBe("u/u1/p2.jpg")
-    expect(presentCharacter(row).images[0]).toEqual({ fileID: copies[0], url: `/api/images/files/${copies[0]}` })
+    expect(presentSaved(row).images[0]).toEqual({ fileID: copies[0], url: `/api/images/files/${copies[0]}` })
   })
 
   test("only the account's own pictures can become a character", async () => {

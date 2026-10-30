@@ -2,13 +2,14 @@ import { For } from "solid-js"
 import { useLanguage } from "@/context/language"
 import type { I18nKey } from "@/i18n/vi"
 
-export type Filter = "all" | "images" | "videos" | "characters"
+export type Filter = "all" | "images" | "videos" | "characters" | "locations"
 
 const CHIPS: Array<{ value: Filter; label: I18nKey }> = [
   { value: "all", label: "filter.all" },
   { value: "images", label: "filter.images" },
   { value: "videos", label: "filter.videos" },
   { value: "characters", label: "filter.characters" },
+  { value: "locations", label: "filter.locations" },
 ]
 
 // Pill toggles above the gallery: which kind of work it shows.

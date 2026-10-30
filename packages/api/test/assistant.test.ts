@@ -4,6 +4,7 @@ import { checkAssistant, DAILY_MESSAGES, runAssistantTurn, type AssistantEvent }
 import { createCharacter } from "../src/characters/store"
 import { balance, grant } from "../src/credits/ledger"
 import { files, generation_images, generations, project_messages, users } from "../src/db/schema"
+import { createLocation } from "../src/locations/store"
 import { createProject, ownProject } from "../src/projects/store"
 import { testDatabase } from "./db"
 
@@ -102,7 +103,12 @@ async function setup(tier: "plus" | "free" = "plus", credits = 100) {
   const user = (await db.select().from(users).where(eq(users.id, "u1")).get())!
   const project = await createProject(db, { userID: "u1", name: "" })
   const bucket = fakeBucket()
-  const turn = async (text: string, settings: Partial<typeof SETTINGS> = {}, characterIDs: string[] = []) => {
+  const turn = async (
+    text: string,
+    settings: Partial<typeof SETTINGS> = {},
+    characterIDs: string[] = [],
+    locationID?: string,
+  ) => {
     const events: AssistantEvent[] = []
     await runAssistantTurn({
       db,
@@ -111,15 +117,15 @@ async function setup(tier: "plus" | "free" = "plus", credits = 100) {
       user,
       project: await ownProject(db, "u1", project.id),
       parallel: 4,
-      request: { text, settings: { ...SETTINGS, ...settings }, referenceFileIDs: [], characterIDs },
+      request: { text, settings: { ...SETTINGS, ...settings }, referenceFileIDs: [], characterIDs, locationID },
       emit: (event) => {
         events.push(event)
       },
     })
     return events
   }
-  // A character saved from one photo.
-  const character = async (name: string) => {
+  // An upload of the account, named after what it shows.
+  const photo = async (name: string) => {
     const id = `photo-${name}`
     await bucket.put(
       `u/u1/${id}.jpg`,
@@ -137,9 +143,14 @@ async function setup(tier: "plus" | "free" = "plus", credits = 100) {
       size: 1,
       kind: "reference",
     })
-    return createCharacter(db, bucket, { userID: "u1", name, fileIDs: [id] })
+    return id
   }
-  return { db, user, project, turn, character }
+  // A character or a location saved from one photo.
+  const character = async (name: string) =>
+    createCharacter(db, bucket, { userID: "u1", name, fileIDs: [await photo(name)] })
+  const location = async (name: string) =>
+    createLocation(db, bucket, { userID: "u1", name, fileIDs: [await photo(name)] })
+  return { db, user, project, turn, character, location }
 }
 
 describe("runAssistantTurn", () => {
@@ -363,6 +374,27 @@ describe("runAssistantTurn", () => {
     expect(system).toContain("The person picked C1 for this message")
     const asked = (await db.select().from(project_messages).orderBy(asc(project_messages.created_at)).get())!
     expect(JSON.parse(asked.parts)).toContainEqual({ type: "character", id: lan.id, name: "Lan" })
+  })
+
+  test("a picked location is in every run of the reply, and the model is told not to describe it", async () => {
+    const { db, turn, location } = await setup()
+    const cafe = await location("Quán Gió")
+    const calls = openrouter([
+      { calls: [{ prompt: "Một cô gái đọc sách bên cửa sổ" }, { prompt: "Một chú mèo ngủ trên ghế" }] },
+      { text: "Xong." },
+    ])
+    await turn("Vẽ hai cảnh ở quán", {}, [], cafe.id)
+
+    const runs = await db.select().from(generations).orderBy(asc(generations.id))
+    expect(runs.map((run) => run.location_id)).toEqual([cafe.id, cafe.id])
+    const system = String(calls.sent[0]!.messages[0]!.content)
+    expect(system).toContain('The person picked the saved location "Quán Gió" for this message')
+    // The image model reads the place's photo before the prompt, with the note that names it.
+    expect(String(calls.images[0]!.prompt)).toStartWith(
+      "Reference image 1: Quán Gió, the place where the scene is set.",
+    )
+    const asked = (await db.select().from(project_messages).orderBy(asc(project_messages.created_at)).get())!
+    expect(JSON.parse(asked.parts)).toContainEqual({ type: "location", id: cafe.id, name: "Quán Gió" })
   })
 
   test("an unknown character is refused with the labels the model can use", async () => {

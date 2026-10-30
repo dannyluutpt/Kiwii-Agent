@@ -12,6 +12,7 @@ import {
   IconEllipsis,
   IconImage,
   IconPersonAdd,
+  IconPlaceAdd,
   IconPlay,
   IconRefresh,
   IconTrash,
@@ -32,6 +33,7 @@ export function GenerationTile(props: {
   onDelete: () => void
   // Opens the dialog that saves a character from the run's pictures.
   onCharacter?: () => void
+  onLocation?: () => void
   // Starts the next clip from this clip's last frame.
   onNextScene?: () => void
 }) {
@@ -187,6 +189,11 @@ export function GenerationTile(props: {
             <Show when={props.onCharacter && g().images.length > 0 && !clip()}>
               <MenuItem icon={<IconPersonAdd class="size-[18px]" />} onSelect={() => props.onCharacter?.()}>
                 {t("characters.saveAs")}
+              </MenuItem>
+            </Show>
+            <Show when={props.onLocation && g().images.length > 0 && !clip()}>
+              <MenuItem icon={<IconPlaceAdd class="size-[18px]" />} onSelect={() => props.onLocation?.()}>
+                {t("locations.saveAs")}
               </MenuItem>
             </Show>
             <Show when={props.onNextScene && clip() && g().status === "done" && g().images.length > 0}>

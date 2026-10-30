@@ -193,14 +193,23 @@ describe("enhancePrompt", () => {
 
 describe("reusableRewrite", () => {
   const failed = {
-    status: "failed",
+    status: "failed" as const,
     prompt_raw: "con cáo đỏ trên tuyết",
     prompt_enhanced: "A red fox in fresh snow, golden hour",
     model: "gpt-image-2.5",
     reference_file_ids: JSON.stringify(["ref-1"]),
+    character_ids: "[]",
+    location_id: "loc-1",
     enhance: 1,
   }
-  const retry = { prompt: "con cáo đỏ trên tuyết", model: "gpt-image-2.5", referenceIDs: ["ref-1"], enhance: true }
+  const retry = {
+    prompt: "con cáo đỏ trên tuyết",
+    model: "gpt-image-2.5",
+    referenceIDs: ["ref-1"],
+    characterIDs: [],
+    locationID: "loc-1",
+    enhance: true,
+  }
 
   test("a retry of a failed run reuses the prompt that run was screened and rewritten for", () => {
     expect(reusableRewrite(failed, retry)).toBe("A red fox in fresh snow, golden hour")
@@ -213,6 +222,9 @@ describe("reusableRewrite", () => {
     expect(reusableRewrite(failed, { ...retry, prompt: "con cáo trắng trên tuyết" })).toBeUndefined()
     expect(reusableRewrite(failed, { ...retry, model: "flux-3-klein" })).toBeUndefined()
     expect(reusableRewrite(failed, { ...retry, referenceIDs: [] })).toBeUndefined()
+    expect(reusableRewrite(failed, { ...retry, characterIDs: ["lan"] })).toBeUndefined()
+    expect(reusableRewrite(failed, { ...retry, locationID: null })).toBeUndefined()
+    expect(reusableRewrite(failed, { ...retry, locationID: "loc-2" })).toBeUndefined()
     expect(reusableRewrite(failed, { ...retry, enhance: false })).toBeUndefined()
   })
 })
