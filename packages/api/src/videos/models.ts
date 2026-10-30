@@ -34,9 +34,9 @@ export type VideoModel = {
 
 // Credits = ceil(OpenRouter price for the clip × 25,460 đ/USD ÷ (1,083 đ × 0.45)): at least a 55%
 // gross margin on the cheapest credit, Ultra's. Prices from GET /api/v1/videos/models on
-// 2026-10-29: Wan 3.0 0.10 USD/s at 720p and 0.20 at 1080p; MiniMax H3 0.13 USD/s at 2K and 0.04 USD
-// a reference picture; Seedance 2.5 0.0000107 USD a video token, with (width × height × seconds ×
-// 24) / 1024 tokens, so 0.233 USD/s at 720p in its largest frame (1112×834).
+// 2026-10-29: Wan 3.0 0.10 USD/s at 720p and 0.20 at 1080p; MiniMax H3 0.13 USD/s at 2K, its first
+// five reference pictures free; Seedance 2.5 0.0000107 USD a video token, with (width × height ×
+// seconds × 24) / 1024 tokens, so 0.233 USD/s at 720p in its largest frame (1112×834).
 export const VIDEO_MODELS: VideoModel[] = [
   {
     id: "wan-3.0",
@@ -67,7 +67,7 @@ export const VIDEO_MODELS: VideoModel[] = [
     sound: true,
     maxReferences: 1,
     maxReferenceEdge: 1920,
-    firstFrameCredits: 3,
+    firstFrameCredits: 0,
   },
   {
     id: "seedance-2.5",

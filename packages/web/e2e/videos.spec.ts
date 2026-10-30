@@ -100,7 +100,7 @@ test("the price follows the model, the resolution, the length and a first frame"
   await pick(page, isMobile, "Model", "MiniMax H3")
   await done(page, isMobile)
   await expect(makeButton(page, 68)).toBeEnabled()
-  // MiniMax bills the picture a clip starts from; only one picture can be added.
+  // The picture a clip starts from costs nothing more; only one can be added.
   await page.locator('input[type="file"]').setInputFiles({
     name: "frame.png",
     mimeType: "image/png",
@@ -109,7 +109,7 @@ test("the price follows the model, the resolution, the length and a first frame"
       "base64",
     ),
   })
-  await expect(makeButton(page, 71)).toBeEnabled()
+  await expect(makeButton(page, 68)).toBeEnabled()
   await expect(page.getByRole("button", { name: /^Thêm ảnh làm khung hình đầu/ })).toBeDisabled()
 
   await pick(page, isMobile, "Model", "Seedance 2.5")
