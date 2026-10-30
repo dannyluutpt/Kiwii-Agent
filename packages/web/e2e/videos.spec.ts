@@ -179,7 +179,7 @@ test("a clip can feature a saved character instead of frames, never both", async
   // Seedance says up front what it may do with a real face.
   await pick(page, isMobile, "Model", "Seedance 2.5")
   await done(page, isMobile)
-  await expect(page.getByText("Seedance có thể từ chối ảnh mặt người thật")).toBeVisible()
+  await expect(page.getByText("Seedance có thể từ chối ảnh trông như người thật")).toBeVisible()
   await pick(page, isMobile, "Model", "Wan 3.0")
   await done(page, isMobile)
 

@@ -178,6 +178,10 @@ export function friendly(error: string | undefined, what: "ảnh" | "video" = "�
   if (error.startsWith("429")) return "Model đang quá tải, thử lại sau ít phút. Credit đã được hoàn"
   if (/megapixel|dimensions exceed/i.test(error))
     return "Ảnh tham chiếu quá lớn, hãy dùng ảnh nhỏ hơn. Credit đã được hoàn"
+  // Seedance refuses a picture that "may contain real person"; its code names privacy, so this goes
+  // before the data policy case below.
+  if (/real person|InputImageSensitiveContentDetected/i.test(error))
+    return "Model này từ chối ảnh trông như người thật. Hãy chọn model khác, hoặc dùng nhân vật hoạt hình. Credit đã được hoàn"
   if (/data policy|ZDR|privacy/i.test(error))
     return "Model này tạm thời chưa dùng được, hãy chọn model khác. Credit đã được hoàn"
   if (/moderation|safety|policy|content/i.test(error)) return "Nội dung bị model từ chối. Credit đã được hoàn"

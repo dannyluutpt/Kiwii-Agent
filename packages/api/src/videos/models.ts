@@ -91,8 +91,11 @@ export const VIDEO_MODELS: VideoModel[] = [
     name: "Seedance 2.5",
     tagline_vi: "Chuyển động tự nhiên, hợp kể chuyện, có âm thanh",
     tagline_en: "Natural motion for storytelling, with sound",
-    castNote_vi: "Seedance có thể từ chối ảnh mặt người thật; nếu bị từ chối, credit được hoàn tự động.",
-    castNote_en: "Seedance may refuse photos of real faces; if it does, your credits come back on their own.",
+    // On production it refused a photorealistic portrait made with Nano Banana as a "real person".
+    castNote_vi:
+      "Seedance có thể từ chối ảnh trông như người thật, kể cả ảnh tạo bằng AI; nếu bị từ chối, credit được hoàn tự động.",
+    castNote_en:
+      "Seedance may refuse photos that look like real people, AI-made ones included; if it does, your credits come back on their own.",
     options: [{ id: "720p", label_vi: "720p", label_en: "720p", credits: { 5: 61, 10: 122 } }],
     durations: [5, 10],
     aspectRatios: ["16:9", "9:16", "1:1", "4:3", "3:4", "21:9"],
