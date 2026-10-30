@@ -32,6 +32,28 @@ async function photo(page: Page) {
   return { name: "face.jpg", mimeType: "image/jpeg", buffer: Buffer.from(bytes) }
 }
 
+test("characters have a page of their own, and using one there goes to the studio with it picked", async ({
+  page,
+}, testInfo) => {
+  const name = unique("Hoa", testInfo.project.name)
+  await page.goto("/")
+  // The sidebar on wide screens, the tab bar on phones.
+  await page.getByRole("navigation", { name: "Điều hướng chính" }).getByRole("link", { name: "Nhân vật" }).click()
+  await expect(page).toHaveURL(/\/characters$/)
+  await expect(page.getByRole("heading", { level: 1, name: "Nhân vật" })).toBeVisible()
+
+  await page.getByRole("button", { name: "Tạo nhân vật" }).click()
+  const dialog = page.getByRole("dialog", { name: "Tạo nhân vật" })
+  await dialog.locator('input[type="file"]').setInputFiles(await photo(page))
+  await dialog.getByRole("textbox", { name: "Tên nhân vật" }).fill(name)
+  await dialog.getByRole("button", { name: "Lưu", exact: true }).click()
+  await expect(dialog).toBeHidden()
+
+  await characterCard(page, name).getByRole("button", { name: "Dùng" }).click()
+  await expect(page).toHaveURL(/\/$/)
+  await expect(page.getByRole("list", { name: "Đang dùng" })).toContainText(name)
+})
+
 test("a picture saved as a character can be picked, and the next run features it", async ({
   page,
   isMobile,

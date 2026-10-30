@@ -1,9 +1,10 @@
 import { A, useNavigate } from "@solidjs/router"
-import { createSignal, For, Match, Show, Switch } from "solid-js"
+import { createSignal, For, Match, Show, Switch, type JSX } from "solid-js"
 import { useAuth } from "@/context/auth"
 import { useLanguage } from "@/context/language"
 import { useLayout } from "@/context/layout"
 import { projectPath, useProjects, type Project } from "@/context/projects"
+import type { I18nKey } from "@/i18n/vi"
 import { fold, groupByDate } from "@/lib/projects"
 import { SEARCH_SHORTCUT, shortcutLabel, SIDEBAR_SHORTCUT, useShortcut } from "@/lib/shortcuts"
 import { Avatar } from "@/ui/avatar"
@@ -12,12 +13,15 @@ import { IconButton, iconButtonClass } from "@/ui/icon-button"
 import { Menu, MenuContent, MenuItem, MenuSeparator } from "@/ui/menu"
 import { Skeleton } from "@/ui/skeleton"
 import {
+  IconCharacter,
   IconClose,
   IconEllipsis,
+  IconImage,
   IconLibrary,
   IconLogout,
   IconPencil,
   IconPerson,
+  IconPlace,
   IconPlus,
   IconSearch,
   IconSidebar,
@@ -28,6 +32,16 @@ import {
 
 const ROW =
   "flex h-9 items-center gap-3 rounded-[10px] px-2.5 text-callout transition-[color,background-color,box-shadow] duration-(--motion-micro) hover:bg-fill pointer-coarse:h-11"
+const ACTIVE =
+  "bg-fill bg-gloss font-semibold text-label shadow-gloss [&_svg]:text-accent [&_svg]:drop-shadow-[0_0_6px_rgb(255_214_10/0.6)]"
+const INACTIVE = "text-label [&_svg]:text-label-2"
+
+// The characters and locations saved to use in every scene, and everything made so far.
+const TOOLS: Array<{ href: string; label: I18nKey; icon: () => JSX.Element }> = [
+  { href: "/characters", label: "characters.title", icon: () => <IconCharacter class="size-5" /> },
+  { href: "/locations", label: "locations.title", icon: () => <IconPlace class="size-5" /> },
+  { href: "/library", label: "nav.assets", icon: () => <IconLibrary class="size-5" /> },
+]
 
 // The workspace's left column: a new project, every project newest activity first, and the account.
 // The same list renders docked on wide screens and inside the drawer elsewhere.
@@ -68,16 +82,18 @@ export function ProjectSidebar(props: { mode: "docked" | "drawer" }) {
         >
           {t("projects.new")}
         </Button>
-        <A
-          href="/"
-          end
-          class={ROW}
-          activeClass="bg-fill bg-gloss font-semibold text-label shadow-gloss [&_svg]:text-accent [&_svg]:drop-shadow-[0_0_6px_rgb(255_214_10/0.6)]"
-          inactiveClass="text-label [&_svg]:text-label-2"
-        >
-          <IconLibrary class="size-5" />
+        <A href="/" end class={ROW} activeClass={ACTIVE} inactiveClass={INACTIVE}>
+          <IconImage class="size-5" />
           {t("projects.all")}
         </A>
+        <For each={TOOLS}>
+          {(tool) => (
+            <A href={tool.href} class={ROW} activeClass={ACTIVE} inactiveClass={INACTIVE}>
+              {tool.icon()}
+              {t(tool.label)}
+            </A>
+          )}
+        </For>
       </div>
 
       <ProjectList />

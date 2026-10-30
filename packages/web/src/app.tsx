@@ -26,6 +26,7 @@ import { ToastRegion } from "@/ui/toast"
 
 const Studio = lazy(() => import("@/pages/studio"))
 const Assets = lazy(() => import("@/pages/assets"))
+const Saved = lazy(() => import("@/pages/saved"))
 const Pricing = lazy(() => import("@/pages/pricing"))
 const Checkout = lazy(() => import("@/pages/checkout"))
 const Account = lazy(() => import("@/pages/account"))
@@ -49,7 +50,7 @@ function preloadScreens() {
   const connection = (navigator as Navigator & { connection?: { saveData?: boolean } }).connection
   if (connection?.saveData) return
   const run = () => {
-    for (const screen of [Studio, Assets, Pricing, Account, Checkout]) void screen.preload()
+    for (const screen of [Studio, Assets, Saved, Pricing, Account, Checkout]) void screen.preload()
   }
   // Safari has no requestIdleCallback; a short delay keeps the fetches clear of the first paint.
   const later =
@@ -130,6 +131,8 @@ export function App() {
         <Route path="/" component={Studio} />
         <Route path="/p/:projectId" component={Studio} />
         <Route path="/library" component={Assets} />
+        <Route path="/characters" component={Saved} />
+        <Route path="/locations" component={Saved} />
         <Route path="/pricing" component={Pricing} />
         <Route path="/pricing/checkout/:orderId" component={Checkout} />
         <Route path="/account" component={Account} />
