@@ -174,40 +174,41 @@ function SavedCard(props: { store: SavedStore; item: Saved; max: number; shape: 
         decoding="async"
         class={`${props.shape} w-full bg-fill object-cover`}
       />
-      <div class="flex items-center gap-1 py-1.5 pr-1 pl-3">
-        <div class="flex min-w-0 flex-1 flex-col">
-          <p class="truncate text-subhead font-semibold text-label">{props.item.name}</p>
-          <p class="text-caption text-label-2">
+      {/* The name has a line of its own: a place's name is often longer than a narrow card leaves. */}
+      <div class="flex flex-col gap-0.5 py-1.5 pr-1 pl-3">
+        <p class="truncate pr-2 text-subhead font-semibold text-label">{props.item.name}</p>
+        <div class="flex items-center gap-1">
+          <p class="min-w-0 flex-1 truncate text-caption text-label-2">
             {t(`${props.store.kind}.photoCount`, { n: props.item.images.length })}
           </p>
+          <Button
+            size="sm"
+            pill
+            variant={on() ? "tinted" : "secondary"}
+            aria-pressed={on()}
+            onClick={() => props.store.pick(props.item.id, props.max)}
+          >
+            {on() ? t(`${props.store.kind}.inUse`) : t(`${props.store.kind}.use`)}
+          </Button>
+          <Menu placement="bottom-end" gutter={4}>
+            <Menu.Trigger aria-label={t(`${props.store.kind}.actions`)} class={iconButtonClass("ghost", "sm")}>
+              <IconEllipsis class="size-4" />
+            </Menu.Trigger>
+            <MenuContent>
+              <MenuItem icon={<IconPencil class="size-[18px]" />} onSelect={() => void props.store.rename(props.item)}>
+                {t("projects.rename")}
+              </MenuItem>
+              <MenuSeparator />
+              <MenuItem
+                icon={<IconTrash class="size-[18px]" />}
+                destructive
+                onSelect={() => void props.store.remove(props.item)}
+              >
+                {t("common.delete")}
+              </MenuItem>
+            </MenuContent>
+          </Menu>
         </div>
-        <Button
-          size="sm"
-          pill
-          variant={on() ? "tinted" : "secondary"}
-          aria-pressed={on()}
-          onClick={() => props.store.pick(props.item.id, props.max)}
-        >
-          {on() ? t(`${props.store.kind}.inUse`) : t(`${props.store.kind}.use`)}
-        </Button>
-        <Menu placement="bottom-end" gutter={4}>
-          <Menu.Trigger aria-label={t(`${props.store.kind}.actions`)} class={iconButtonClass("ghost", "sm")}>
-            <IconEllipsis class="size-4" />
-          </Menu.Trigger>
-          <MenuContent>
-            <MenuItem icon={<IconPencil class="size-[18px]" />} onSelect={() => void props.store.rename(props.item)}>
-              {t("projects.rename")}
-            </MenuItem>
-            <MenuSeparator />
-            <MenuItem
-              icon={<IconTrash class="size-[18px]" />}
-              destructive
-              onSelect={() => void props.store.remove(props.item)}
-            >
-              {t("common.delete")}
-            </MenuItem>
-          </MenuContent>
-        </Menu>
       </div>
     </li>
   )
