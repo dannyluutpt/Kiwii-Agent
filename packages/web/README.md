@@ -1,6 +1,6 @@
 # @kiwii/web
 
-The Amberpix web app (image studio) at https://kiwiiagent.com: a SolidJS single-page app that
+The Amberpix web app (image studio) at https://amberpix.com: a SolidJS single-page app that
 `@kiwii/api` serves as static assets from the same Worker.
 
 ## Develop
