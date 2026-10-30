@@ -143,6 +143,10 @@ describe("prepareVideo", () => {
     expect(system).toContain("AI video generator")
     expect(system).toContain("a 5-second video clip")
     expect(system).toContain("The clip has sound")
+    // A real-life scene looks filmed by a person, and nobody is given words the person did not write:
+    // Seedance's grandmother got a line of Vietnamese no one asked for.
+    expect(system).toContain("the camera is handheld")
+    expect(system).toContain("Never make up words for anyone to say")
     expect(generation).toMatchObject({
       kind: "video",
       status: "running",
