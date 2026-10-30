@@ -11,7 +11,7 @@ on:
     inputs:
       base_url:
         description: Worker origin
-        default: https://kiwiiagent.com
+        default: https://amberpix.com
         required: false
 
 jobs:
@@ -21,7 +21,7 @@ jobs:
       - name: Post test webhook
         env:
           SEPAY_API_KEY: ${{ secrets.SEPAY_API_KEY }}
-          BASE_URL: ${{ inputs.base_url || 'https://kiwiiagent.com' }}
+          BASE_URL: ${{ inputs.base_url || 'https://amberpix.com' }}
         run: |
           set -euo pipefail
           if [ -z "$SEPAY_API_KEY" ]; then

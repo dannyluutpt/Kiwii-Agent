@@ -14,6 +14,8 @@ export type Env = {
   RL_IP: RateLimit
   RL_AUTH: RateLimit
   APP_URL: string
+  // Space-separated hostnames the app moved from; see the host redirect in src/index.ts.
+  MOVED_FROM?: string
   EMAIL_FROM: string
   SEPAY_BANK_CODE?: string
   SEPAY_BANK_ACCOUNT?: string

@@ -5,5 +5,5 @@ export const BRAND = "Amberpix"
 // For file names: "amberpix-<run>-1.png".
 export const BRAND_SLUG = BRAND.toLowerCase()
 
-// Sent to OpenRouter as the referring site; moves to the brand's own domain with the domain switch.
-export const BRAND_URL = "https://kiwiiagent.com"
+// Sent to OpenRouter as the referring site.
+export const BRAND_URL = "https://amberpix.com"
