@@ -50,8 +50,8 @@
     // Hostnames the app moved from, space-separated: their pages redirect to APP_URL, their /api
     // keeps answering for payment webhooks and pages opened before the move.
     "MOVED_FROM": "kiwiiagent.com www.kiwiiagent.com",
-    // Stays on kiwiiagent.com until amberpix.com is onboarded in Email Service → Email Sending.
-    "EMAIL_FROM": "Amberpix <no-reply@kiwiiagent.com>",
+    // Sends the sign-up and password codes; amberpix.com is onboarded in Email Service → Email Sending.
+    "EMAIL_FROM": "Amberpix <no-reply@amberpix.com>",
     // Receiving account shown on every VietQR; public by nature, so it lives here.
     "SEPAY_BANK_CODE": "ACB",
     "SEPAY_BANK_ACCOUNT": "20097141",
