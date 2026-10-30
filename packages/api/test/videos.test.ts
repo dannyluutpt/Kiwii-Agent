@@ -496,7 +496,7 @@ describe("a clip with saved characters and a location", () => {
     expect(submitted.frame_images).toBeUndefined()
     expect(submitted.input_references.map((ref) => atob(ref.image_url.url.split(",")[1]!))).toEqual(["a1", "a2", "l1"])
     expect(submitted.prompt.split("\n").slice(0, 2)).toEqual([
-      "Reference images 1–2: Lan.",
+      "Reference images 1–2: Lan, one and the same character in each.",
       "Reference image 3: Quán Gió, the place where the scene is set.",
     ])
     expect(submitted.prompt.endsWith("\n\nA paper boat drifts on a pond.")).toBe(true)

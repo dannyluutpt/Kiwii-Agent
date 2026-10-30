@@ -138,7 +138,7 @@ describe("characters", () => {
   test("the legend says which reference images show whom, and that they are for identity only", () => {
     expect(castLegend([], 2)).toBe("")
     expect(castLegend([{ name: "Lan", images: 2 }], 0).split("\n")).toEqual([
-      "Reference images 1–2: Lan.",
+      "Reference images 1–2: Lan, one and the same character in each.",
       "Use Lan's reference images only for who they are: keep their face, facial features, skin tone, hairstyle and build, and their clothes unless the prompt below changes them. Do not copy the pose, head angle, gaze, expression, framing, background or light of those photos.",
     ])
     expect(
@@ -151,7 +151,7 @@ describe("characters", () => {
       ).split("\n"),
     ).toEqual([
       "Reference image 1: Lan.",
-      "Reference images 2–3: Minh.",
+      "Reference images 2–3: Minh, one and the same character in each.",
       "Reference image 4: the picture to work from.",
       "Use each character's reference images only for who they are: keep their face, facial features, skin tone, hairstyle and build, and their clothes unless the prompt below changes them. Do not copy the pose, head angle, gaze, expression, framing, background or light of those photos.",
     ])
@@ -222,7 +222,7 @@ describe("prepareGeneration with characters", () => {
 
     expect(prepared.references.map((ref) => decoded(ref.image_url.url))).toEqual(["a1", "a2", "b1", "scene"])
     expect(prepared.legend.split("\n").slice(0, 3)).toEqual([
-      "Reference images 1–2: Lan.",
+      "Reference images 1–2: Lan, one and the same character in each.",
       "Reference image 3: Minh.",
       "Reference image 4: the picture to work from.",
     ])

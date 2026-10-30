@@ -181,7 +181,7 @@ describe("locations", () => {
     ])
     const legend = castLegend([{ name: "Lan", images: 2 }], 0, { name: "Phố cổ", images: 1 }).split("\n")
     expect(legend.slice(0, 2)).toEqual([
-      "Reference images 1–2: Lan.",
+      "Reference images 1–2: Lan, one and the same character in each.",
       "Reference image 3: Phố cổ, the place where the scene is set.",
     ])
     expect(legend[2]).toStartWith("Use Lan's reference images only for who they are")
@@ -216,7 +216,7 @@ describe("prepareGeneration with a location", () => {
     // One photo each at least, then the picture to work from, then more of the character.
     expect(prepared.references.map((ref) => decoded(ref.image_url.url))).toEqual(["a1", "a2", "l1", "scene"])
     expect(prepared.legend.split("\n").slice(0, 3)).toEqual([
-      "Reference images 1–2: Lan.",
+      "Reference images 1–2: Lan, one and the same character in each.",
       "Reference image 3: Quán Gió, the place where the scene is set.",
       "Reference image 4: the picture to work from.",
     ])
