@@ -85,13 +85,37 @@ const CSP = [
 app.notFound(async (c) => {
   if (c.req.path.startsWith("/api/")) return c.json({ error: { code: "NOT_FOUND", message: "Không tìm thấy" } }, 404)
   const res = await c.env.ASSETS.fetch(c.req.raw)
-  if (!res.headers.get("content-type")?.includes("text/html")) return res
+  const html = res.headers.get("content-type")?.includes("text/html")
+  // Safari plays a clip only from a server that answers byte ranges, and the assets binding always sends
+  // the whole file: the website's sample clips are cut to the range asked for here.
+  const range = c.req.header("range")
+  if (!html && range && res.status === 200) return byteRange(res, range)
+  if (!html) return res
   const headers = new Headers(res.headers)
   headers.set("content-security-policy", CSP)
   headers.set("x-content-type-options", "nosniff")
   headers.set("referrer-policy", "strict-origin-when-cross-origin")
   return new Response(res.body, { status: res.status, headers })
 })
+
+// The bytes of one "bytes=a-b", "bytes=a-" or "bytes=-n" range as a 206; a range past the end is a 416,
+// and a header it does not read (several ranges, other units) gets the whole file.
+async function byteRange(res: Response, range: string) {
+  const body = new Uint8Array(await res.arrayBuffer())
+  const size = body.length
+  const match = /^bytes=(\d*)-(\d*)$/.exec(range.trim())
+  if (!match || (!match[1] && !match[2])) return new Response(body, { status: 200, headers: res.headers })
+  const start = match[1] ? Number(match[1]) : Math.max(0, size - Number(match[2]))
+  const end = match[1] && match[2] ? Math.min(size - 1, Number(match[2])) : size - 1
+  if (start >= size || start > end) {
+    return new Response(null, { status: 416, headers: { "content-range": `bytes */${size}` } })
+  }
+  const headers = new Headers(res.headers)
+  headers.set("accept-ranges", "bytes")
+  headers.set("content-range", `bytes ${start}-${end}/${size}`)
+  headers.set("content-length", String(end - start + 1))
+  return new Response(body.subarray(start, end + 1), { status: 206, headers })
+}
 
 app.onError((error, c) => {
   if (error instanceof ApiError) {
