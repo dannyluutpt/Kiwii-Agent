@@ -91,6 +91,11 @@ describe("enhancePrompt", () => {
     expect(fresh.system).toContain("do not look at the camera")
     expect(fresh.system).toContain("The picture is 3:2, landscape")
     expect(fresh.system).not.toContain("reference image")
+    // Believable without staging: where the light comes from and the texture of what is there.
+    expect(fresh.system).toContain("say where its light comes from")
+    expect(fresh.system).toContain("a phone snapshot")
+    // "cành đào" came out as an apricot branch, which is hoa mai.
+    expect(fresh.system).toContain("cành đào or hoa đào is a pink peach blossom branch")
   })
 
   // Every attached picture used to be an edit to keep as it is, so a portrait put in a new scene
