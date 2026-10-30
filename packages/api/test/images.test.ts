@@ -96,6 +96,9 @@ describe("enhancePrompt", () => {
     expect(fresh.system).toContain("a phone snapshot")
     // "cành đào" came out as an apricot branch, which is hoa mai.
     expect(fresh.system).toContain("cành đào or hoa đào is a pink peach blossom branch")
+    // Glossy, poreless skin and over-sharpened frames read as AI.
+    expect(fresh.system).toContain("In a photograph, people have real skin: matte, with visible pores")
+    expect(fresh.system).toContain("no HDR glow, no over-sharpening")
   })
 
   // Every attached picture used to be an edit to keep as it is, so a portrait put in a new scene

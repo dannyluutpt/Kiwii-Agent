@@ -147,6 +147,9 @@ describe("prepareVideo", () => {
     // Seedance's grandmother got a line of Vietnamese no one asked for.
     expect(system).toContain("the camera is handheld")
     expect(system).toContain("Never make up words for anyone to say")
+    // The owner found the clips' skin glossy and the frames too sharp: real life on film is softer.
+    expect(system).toContain("In a real-life scene, people have real skin")
+    expect(system).toContain("a real-life scene looks shot on 35mm film")
     expect(generation).toMatchObject({
       kind: "video",
       status: "running",
