@@ -1,12 +1,17 @@
-import { and, eq } from "drizzle-orm"
+import { and, eq, inArray } from "drizzle-orm"
 import { ApiError } from "../app"
 import { BRAND_SLUG } from "../brand"
+import { ownCharacters } from "../characters/store"
 import { refund, settle } from "../credits/ledger"
 import type { Database } from "../db/client"
 import { files, generation_images, generations } from "../db/schema"
+import { castLegend } from "../images/enhance"
 import { friendly } from "../images/generate"
-import { objectKey, putObject } from "../images/r2"
-import type { VideoModel } from "./models"
+import { framed, glance } from "../images/glance"
+import { savedPhotos } from "../images/prepare"
+import { objectKey, putObject, toDataURL } from "../images/r2"
+import { ownLocation } from "../locations/store"
+import { MAX_VIDEO_REFERENCES, type VideoModel } from "./models"
 import { downloadVideo, submitVideo, VideoProviderError, videoJob } from "./openrouter-videos"
 
 type Generation = typeof generations.$inferSelect
@@ -18,30 +23,92 @@ export type VideoParams = { generationID: string }
 // Job states that will never bring a clip.
 const ENDED = ["failed", "cancelled", "expired"]
 
+// What a clip's job gets besides its prompt and settings, read from its run when it is submitted:
+// the frames it starts from and ends on, or the photos of its characters and location with the note
+// that names them. A clip waiting for a free slot is submitted long after it was prepared, so nothing
+// here may come from the request that made it.
+async function videoInputs(input: {
+  db: Database
+  bucket: R2Bucket
+  images?: ImagesBinding
+  generation: Generation
+  model: VideoModel
+}) {
+  const g = input.generation
+  const images = input.images
+  const firstID = (JSON.parse(g.reference_file_ids) as string[])[0]
+  const lastID = g.last_frame_file_id ?? undefined
+  const cast = await ownCharacters(input.db, g.user_id, JSON.parse(g.character_ids) as string[])
+  const place = g.location_id ? await ownLocation(input.db, g.user_id, g.location_id) : undefined
+  const chosen = savedPhotos(cast, place, MAX_VIDEO_REFERENCES)
+  const photos = [...chosen.photos.flat(), ...chosen.placePhotos]
+  const wanted = [firstID, lastID, ...photos].filter((id): id is string => id !== undefined)
+  const rows = wanted.length
+    ? await input.db
+        .select({ id: files.id, r2_key: files.r2_key })
+        .from(files)
+        .where(and(eq(files.user_id, g.user_id), inArray(files.id, wanted)))
+    : []
+  // Each picture at most the model's edge on its long side (its videos are no larger). A clip that
+  // ends on a picture gets both frames cut to its own shape, so the two match.
+  const scaled = (key: string, cut: boolean) => {
+    if (!images) return toDataURL(input.bucket, key)
+    const edge = input.model.maxReferenceEdge
+    const copy = cut ? framed(images, input.bucket, key, g.aspect_ratio, edge) : glance(images, input.bucket, key, edge)
+    return copy.catch(() => toDataURL(input.bucket, key))
+  }
+  const picture = async (fileID: string, cut: boolean) => {
+    const key = rows.find((row) => row.id === fileID)?.r2_key
+    const url = key ? await scaled(key, cut) : undefined
+    if (!url) throw new Error(`picture ${fileID} is gone`)
+    return url
+  }
+  return {
+    firstFrame: firstID ? await picture(firstID, lastID !== undefined) : undefined,
+    lastFrame: lastID ? await picture(lastID, true) : undefined,
+    references: await Promise.all(photos.map((fileID) => picture(fileID, false))),
+    legend: castLegend(
+      cast.map((character, index) => ({ name: character.name, images: chosen.photos[index]?.length ?? 0 })),
+      0,
+      place ? { name: place.name, images: chosen.placePhotos.length } : undefined,
+    ),
+  }
+}
+
 // Submits the run's job and hands the wait to the workflow. A refused job fails the run, refunded,
 // before the person leaves the page.
 export async function startVideo(
   input: Connection & {
     db: Database
+    bucket: R2Bucket
+    images?: ImagesBinding
     generation: Generation
     model: VideoModel
-    firstFrame?: string
-    lastFrame?: string
     workflow?: Workflow<VideoParams>
   },
 ) {
   const g = input.generation
+  const sent = await videoInputs(input).catch((error: unknown) =>
+    error instanceof Error ? error : new Error(String(error)),
+  )
+  if (sent instanceof Error) {
+    await failVideo(input.db, g, sent.message)
+    if (sent instanceof ApiError) throw sent
+    throw new ApiError(502, "VIDEO_FAILED", friendly(sent.message, "video"))
+  }
   const jobID = await submitVideo({
     apiKey: input.apiKey,
     baseURL: input.baseURL,
     slug: input.model.slug,
-    prompt: g.prompt_enhanced ?? g.prompt_raw,
+    // The note naming the characters' and the location's photos leads, as it does for a picture.
+    prompt: [sent.legend, g.prompt_enhanced ?? g.prompt_raw].filter(Boolean).join("\n\n"),
     duration: g.duration ?? 0,
     resolution: g.option,
     aspectRatio: g.aspect_ratio,
     sound: input.model.sound,
-    firstFrame: input.firstFrame,
-    lastFrame: input.lastFrame,
+    firstFrame: sent.firstFrame,
+    lastFrame: sent.lastFrame,
+    references: sent.references,
   }).catch((error: unknown) => (error instanceof Error ? error : new Error(String(error))))
   if (jobID instanceof Error) {
     await failVideo(input.db, g, describe(jobID))

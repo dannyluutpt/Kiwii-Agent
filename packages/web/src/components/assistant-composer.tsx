@@ -45,6 +45,9 @@ export function AssistantComposer(props: {
   const place = () => locations.picked().flatMap((id) => locations.find(id) ?? [])[0]
   let fileInput: HTMLInputElement | undefined
   const video = () => studio.mode() === "video"
+  // A clip starts from frames or features the picked cast, never both.
+  const framed = () => video() && studio.references().length > 0
+  const casting = () => video() && (cast().length > 0 || place() !== undefined)
   const model = () => props.config.models.find((m) => m.id === studio.settings.model)
   const clipModel = () => studio.videoConfig.latest?.models.find((m) => m.id === studio.video.model)
   const maxReferences = () =>
@@ -134,8 +137,12 @@ export function AssistantComposer(props: {
           disabled={locked()}
         />
       </Show>
-      <Show when={!video()}>
-        <PickedStrip class="px-3 pt-3" />
+      <PickedStrip class={`px-3 pt-3 ${framed() ? "opacity-50" : ""}`} />
+      <Show when={framed() || casting()}>
+        <p class="px-3.5 pt-2 text-footnote text-label-2">{t("video.castOrFrames")}</p>
+      </Show>
+      <Show when={casting() && !framed() && clipModel()?.castNote}>
+        {(note) => <p class="px-3.5 pt-1 text-footnote text-label-2">{note()}</p>}
       </Show>
       <textarea
         data-studio-prompt
@@ -175,35 +182,35 @@ export function AssistantComposer(props: {
           label={addLabel()}
           size="md"
           icon={<IconImage class="size-5" />}
-          disabled={locked() || uploads.uploading() || studio.references().length >= maxReferences()}
+          disabled={locked() || casting() || uploads.uploading() || studio.references().length >= maxReferences()}
           onClick={() => fileInput?.click()}
         />
+        <Option
+          label={t("characters.picker")}
+          value={
+            cast().length
+              ? cast()
+                  .map((c) => c.name)
+                  .join(", ")
+              : t("characters.picker")
+          }
+          icon={<IconPerson class="size-4 shrink-0" />}
+          disabled={locked() || framed()}
+        >
+          {(close) => <SavedOptions store={characters} max={props.config.maxCharacters} onCreate={close} />}
+        </Option>
+        <Option
+          label={t("locations.picker")}
+          value={place()?.name ?? t("locations.picker")}
+          icon={<IconPlace class="size-4 shrink-0" />}
+          disabled={locked() || framed()}
+        >
+          {(close) => <SavedOptions store={locations} max={1} onCreate={close} />}
+        </Option>
         <Show when={video()}>
           <VideoChips locked={locked()} onPickModel={pickClip} />
         </Show>
         <Show when={!video()}>
-          <Option
-            label={t("characters.picker")}
-            value={
-              cast().length
-                ? cast()
-                    .map((c) => c.name)
-                    .join(", ")
-                : t("characters.picker")
-            }
-            icon={<IconPerson class="size-4 shrink-0" />}
-            disabled={props.locked}
-          >
-            {(close) => <SavedOptions store={characters} max={props.config.maxCharacters} onCreate={close} />}
-          </Option>
-          <Option
-            label={t("locations.picker")}
-            value={place()?.name ?? t("locations.picker")}
-            icon={<IconPlace class="size-4 shrink-0" />}
-            disabled={props.locked}
-          >
-            {(close) => <SavedOptions store={locations} max={1} onCreate={close} />}
-          </Option>
           <Show when={model()}>
             {(m) => {
               const shared = () => ({

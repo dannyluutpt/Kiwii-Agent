@@ -33,6 +33,7 @@ videos.get("/models", async (c) => {
       maxReferenceEdge: model.maxReferenceEdge,
       firstFrameCredits: model.firstFrameCredits,
       lastFrame: model.lastFrame,
+      castNote: (en ? model.castNote_en : model.castNote_vi) ?? null,
     })),
   })
 })
@@ -55,12 +56,12 @@ videos.post("/generations", async (c) => {
   })
   const generation = await startVideo({
     db,
+    bucket: c.env.BUCKET,
+    images: c.env.IMAGES,
     apiKey,
     baseURL: c.env.OPENROUTER_BASE_URL,
     generation: prepared.generation,
     model: prepared.model,
-    firstFrame: prepared.firstFrame,
-    lastFrame: prepared.lastFrame,
     workflow: c.env.VIDEO_WORKFLOW,
   })
   return c.json(presentGeneration(generation, []), 202)

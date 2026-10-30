@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, mock, spyOn, test } from "bun:test"
 import { eq } from "drizzle-orm"
-import { createCharacter } from "../src/characters/store"
+import { createCharacter, deleteCharacter } from "../src/characters/store"
 import { balance, grant } from "../src/credits/ledger"
 import { app_config, credit_ledger, files, generation_images, generations, users } from "../src/db/schema"
 import { enhancePrompt } from "../src/images/enhance"
@@ -9,6 +9,7 @@ import { CreateGeneration, prepareGeneration } from "../src/images/prepare"
 import { cropBox } from "../src/images/glance"
 import { presentGeneration } from "../src/images/present"
 import { byteSpan } from "../src/images/r2"
+import { createLocation } from "../src/locations/store"
 import { loadVideoModels, videoCreditCost, VIDEO_MODELS } from "../src/videos/models"
 import { CreateVideo, prepareVideo } from "../src/videos/prepare"
 import { checkVideo, giveUpVideo, startVideo, type VideoParams } from "../src/videos/run"
@@ -77,6 +78,22 @@ function openRouter(job: { status: string; error?: string; cost?: number } = { s
   return asked
 }
 
+// A picture of the person's own, uploaded to work from.
+async function picture(context: Awaited<ReturnType<typeof setup>>, id: string) {
+  await context.bucket.put(`u/u1/${id}.jpg`, new TextEncoder().encode(id).buffer, {
+    httpMetadata: { contentType: "image/jpeg" },
+  })
+  await context.db.insert(files).values({
+    id,
+    user_id: "u1",
+    r2_key: `u/u1/${id}.jpg`,
+    name: `${id}.jpg`,
+    mime: "image/jpeg",
+    size: 1,
+    kind: "reference",
+  })
+}
+
 const request = (extra: Record<string, unknown> = {}) =>
   CreateVideo.parse({
     model: "wan-3.0",
@@ -120,7 +137,7 @@ describe("prepareVideo", () => {
   test("the clip is screened and rewritten as a clip, its price held, and one video run stored", async () => {
     const { db, user, bucket } = await setup()
     const asked = openRouter()
-    const { generation, firstFrame } = await prepareVideo({ db, bucket, apiKey: "k", user, request: request() })
+    const { generation } = await prepareVideo({ db, bucket, apiKey: "k", user, request: request() })
 
     const system = JSON.stringify(asked[0]!.body)
     expect(system).toContain("AI video generator")
@@ -135,8 +152,10 @@ describe("prepareVideo", () => {
       n: 1,
       credits_reserved: 27,
       prompt_enhanced: "A paper boat drifts on a pond.",
+      reference_file_ids: "[]",
+      character_ids: "[]",
+      location_id: null,
     })
-    expect(firstFrame).toBeUndefined()
     expect(await balance(db, "u1")).toBe(73)
   })
 
@@ -155,16 +174,22 @@ describe("prepareVideo", () => {
       kind: "reference",
     })
     const asked = openRouter()
-    const { generation, firstFrame } = await prepareVideo({
+    const prepared = await prepareVideo({
       db,
       bucket,
       apiKey: "k",
       user,
       request: request({ model: "minimax-h3", option: "2K", referenceFileIDs: ["p"] }),
     })
-    expect(firstFrame).toBe(`data:image/jpeg;base64,${btoa("p")}`)
-    expect(generation).toMatchObject({ reference_file_ids: JSON.stringify(["p"]), credits_reserved: 34 })
+    expect(prepared.generation).toMatchObject({ reference_file_ids: JSON.stringify(["p"]), credits_reserved: 34 })
     expect(JSON.stringify(asked[0]!.body)).toContain("The clip starts from the picture they attached")
+    // The frame is read back from the run when the job is submitted.
+    await startVideo({ db, bucket, apiKey: "k", ...prepared })
+    expect(asked.find((call) => call.url.endsWith("/videos"))!.body).toMatchObject({
+      frame_images: [
+        { type: "image_url", image_url: { url: `data:image/jpeg;base64,${btoa("p")}` }, frame_type: "first_frame" },
+      ],
+    })
 
     const error = await prepareVideo({ db, bucket, apiKey: "k", user, request: request({ duration: 7 }) }).catch(
       (e: unknown) => e,
@@ -212,7 +237,7 @@ describe("a video run", () => {
     const asked = openRouter(job)
     const { created, workflow } = fakeWorkflow()
     const prepared = await prepareVideo({ ...context, apiKey: "k", request: request() })
-    const generation = await startVideo({ db: context.db, apiKey: "k", ...prepared, workflow })
+    const generation = await startVideo({ db: context.db, bucket: context.bucket, apiKey: "k", ...prepared, workflow })
     return { ...context, asked, created, generation, job }
   }
 
@@ -317,7 +342,9 @@ describe("a video run", () => {
         : Response.json({ error: { message: "duration must be one of 5, 10" } }, { status: 400 }),
     )
     const prepared = await prepareVideo({ ...context, apiKey: "k", request: request() })
-    const error = await startVideo({ db: context.db, apiKey: "k", ...prepared }).catch((e: unknown) => e)
+    const error = await startVideo({ db: context.db, bucket: context.bucket, apiKey: "k", ...prepared }).catch(
+      (e: unknown) => e,
+    )
     expect(error).toMatchObject({ status: 502, code: "VIDEO_FAILED" })
     expect((await context.db.select().from(generations).get())!).toMatchObject({ status: "failed", credits_final: 0 })
     expect(await balance(context.db, "u1")).toBe(100)
@@ -328,7 +355,13 @@ describe("a video run", () => {
     openRouter()
     const { workflow } = fakeWorkflow("binding gone")
     const prepared = await prepareVideo({ ...context, apiKey: "k", request: request() })
-    const error = await startVideo({ db: context.db, apiKey: "k", ...prepared, workflow }).catch((e: unknown) => e)
+    const error = await startVideo({
+      db: context.db,
+      bucket: context.bucket,
+      apiKey: "k",
+      ...prepared,
+      workflow,
+    }).catch((e: unknown) => e)
     expect(error).toMatchObject({ status: 502, code: "VIDEO_FAILED" })
     expect((await context.db.select().from(generations).get())!).toMatchObject({
       status: "failed",
@@ -340,22 +373,6 @@ describe("a video run", () => {
 })
 
 describe("a clip that ends on a picture", () => {
-  // A picture of the person's own, uploaded to work from.
-  async function picture(context: Awaited<ReturnType<typeof setup>>, id: string) {
-    await context.bucket.put(`u/u1/${id}.jpg`, new TextEncoder().encode(id).buffer, {
-      httpMetadata: { contentType: "image/jpeg" },
-    })
-    await context.db.insert(files).values({
-      id,
-      user_id: "u1",
-      r2_key: `u/u1/${id}.jpg`,
-      name: `${id}.jpg`,
-      mime: "image/jpeg",
-      size: 1,
-      kind: "reference",
-    })
-  }
-
   test("sends both frames, says so to the rewrite, keeps the price and remembers the last frame", async () => {
     const context = await setup()
     await picture(context, "start")
@@ -377,7 +394,7 @@ describe("a clip that ends on a picture", () => {
       lastFrameFileID: "end",
     })
 
-    await startVideo({ db: context.db, apiKey: "k", ...prepared })
+    await startVideo({ db: context.db, bucket: context.bucket, apiKey: "k", ...prepared })
     const submitted = asked.find((call) => call.url.endsWith("/videos"))!.body
     expect(submitted).toMatchObject({
       frame_images: [
@@ -412,6 +429,75 @@ describe("a clip that ends on a picture", () => {
     expect(cropBox(1080, 1920, "16:9", 1920)).toEqual({ width: 1080, height: 608 })
     expect(cropBox(800, 600, "9:16", 1920)).toEqual({ width: 338, height: 600 })
     expect(cropBox(4000, 1000, "1:1", 1920)).toEqual({ width: 1000, height: 1000 })
+  })
+})
+
+describe("a clip with saved characters and a location", () => {
+  test("sends their photos as references, after the note that names them, and no frames", async () => {
+    const context = await setup()
+    for (const id of ["a1", "a2", "l1"]) await picture(context, id)
+    const lan = await createCharacter(context.db, context.bucket, { userID: "u1", name: "Lan", fileIDs: ["a1", "a2"] })
+    const cafe = await createLocation(context.db, context.bucket, { userID: "u1", name: "Quán Gió", fileIDs: ["l1"] })
+    const asked = openRouter()
+    const prepared = await prepareVideo({
+      ...context,
+      apiKey: "k",
+      request: request({ characterIDs: [lan.id], locationID: cafe.id }),
+    })
+    expect(prepared.generation).toMatchObject({
+      character_ids: JSON.stringify([lan.id]),
+      location_id: cafe.id,
+      reference_file_ids: "[]",
+      // The price of the clip alone.
+      credits_reserved: 27,
+    })
+    const rules = JSON.stringify(asked[0]!.body)
+    expect(rules).toContain('The clip features \\"Lan\\", a saved character whose photos the video model gets')
+    expect(rules).toContain('The scene is set in \\"Quán Gió\\", a saved location')
+
+    await startVideo({ ...context, apiKey: "k", ...prepared })
+    const submitted = asked.find((call) => call.url.endsWith("/videos"))!.body as {
+      prompt: string
+      frame_images?: unknown
+      input_references: Array<{ type: string; image_url: { url: string } }>
+    }
+    expect(submitted.frame_images).toBeUndefined()
+    expect(submitted.input_references.map((ref) => atob(ref.image_url.url.split(",")[1]!))).toEqual(["a1", "a2", "l1"])
+    expect(submitted.prompt.split("\n").slice(0, 2)).toEqual([
+      "Reference images 1–2: Lan.",
+      "Reference image 3: Quán Gió, the place where the scene is set.",
+    ])
+    expect(submitted.prompt.endsWith("\n\nA paper boat drifts on a pond.")).toBe(true)
+  })
+
+  test("are not sent with frames, which OpenRouter would put first", async () => {
+    const context = await setup()
+    await picture(context, "start")
+    await picture(context, "a1")
+    const lan = await createCharacter(context.db, context.bucket, { userID: "u1", name: "Lan", fileIDs: ["a1"] })
+    openRouter()
+    const error = await prepareVideo({
+      ...context,
+      apiKey: "k",
+      request: request({ referenceFileIDs: ["start"], characterIDs: [lan.id] }),
+    }).catch((e: unknown) => e)
+    expect(error).toMatchObject({ status: 400, code: "FRAMES_OR_CAST" })
+    expect(await balance(context.db, "u1")).toBe(100)
+  })
+
+  test("a character deleted before the job is submitted fails the clip and gives its credits back", async () => {
+    const context = await setup()
+    await picture(context, "a1")
+    const lan = await createCharacter(context.db, context.bucket, { userID: "u1", name: "Lan", fileIDs: ["a1"] })
+    openRouter()
+    const prepared = await prepareVideo({ ...context, apiKey: "k", request: request({ characterIDs: [lan.id] }) })
+    expect(await balance(context.db, "u1")).toBe(73)
+    await deleteCharacter(context.db, context.bucket, lan)
+
+    const error = await startVideo({ ...context, apiKey: "k", ...prepared }).catch((e: unknown) => e)
+    expect(error).toMatchObject({ status: 404, code: "CHARACTER_NOT_FOUND" })
+    expect((await context.db.select().from(generations).get())!.status).toBe("failed")
+    expect(await balance(context.db, "u1")).toBe(100)
   })
 })
 

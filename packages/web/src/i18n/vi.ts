@@ -62,6 +62,7 @@ export const dict = {
   "video.frame.last": "Khung cuối",
   "video.frame.removeFirst": "Bỏ khung đầu",
   "video.frame.removeLast": "Bỏ khung cuối",
+  "video.castOrFrames": "Video dùng khung hình hoặc nhân vật và bối cảnh, không dùng cùng lúc.",
   "video.nextScene": "Cảnh tiếp theo",
   "video.useFrame": "Dùng khung đang xem làm cảnh mới",
   "video.nextScene.failed": "Không lấy được khung hình của clip này. Bạn thử lại nhé.",

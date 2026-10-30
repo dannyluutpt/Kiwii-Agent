@@ -60,6 +60,9 @@ export function StudioPromptBar(props: {
   const clip = () => props.mode === "video"
   const model = () => props.config.models.find((m) => m.id === props.settings.model)
   const clipModel = () => props.videoConfig?.models.find((m) => m.id === props.video.model)
+  // A clip starts from frames or features the picked cast, never both.
+  const framed = () => clip() && props.references.length > 0
+  const casting = () => clip() && (characters.picked().length > 0 || locations.picked().length > 0)
   const maxReferences = () =>
     clip() ? (clipModel()?.maxReferences ?? 1) : (model()?.maxReferences ?? props.config.maxReferences)
   const maxEdge = () => (clip() ? clipModel()?.maxReferenceEdge : model()?.maxReferenceEdge) ?? 2048
@@ -148,8 +151,12 @@ export function StudioPromptBar(props: {
           disabled={props.locked}
         />
       </Show>
-      <Show when={!clip()}>
-        <PickedStrip class="px-3 pt-3" />
+      <PickedStrip class={`px-3 pt-3 ${framed() ? "opacity-50" : ""}`} />
+      <Show when={framed() || casting()}>
+        <p class="px-4 pt-2 text-footnote text-label-2">{t("video.castOrFrames")}</p>
+      </Show>
+      <Show when={casting() && !framed() && clipModel()?.castNote}>
+        {(note) => <p class="px-4 pt-1 text-footnote text-label-2">{note()}</p>}
       </Show>
 
       <textarea
@@ -191,7 +198,7 @@ export function StudioPromptBar(props: {
           label={addLabel()}
           size="lg"
           icon={<IconImage class="size-[22px]" />}
-          disabled={props.locked || uploads.uploading() || props.references.length >= maxReferences()}
+          disabled={props.locked || casting() || uploads.uploading() || props.references.length >= maxReferences()}
           onClick={() => fileInput?.click()}
         />
 
@@ -264,6 +271,25 @@ export function StudioPromptBar(props: {
                         onPickModel={pickClip}
                         cost={props.cost}
                         balance={props.config.credits}
+                        extra={
+                          <>
+                            <SavedOptions
+                              store={characters}
+                              max={props.config.maxCharacters}
+                              disabled={framed()}
+                              onCreate={() => setSheet(false)}
+                            />
+                            <SavedOptions
+                              store={locations}
+                              max={1}
+                              disabled={framed()}
+                              onCreate={() => setSheet(false)}
+                            />
+                            <Show when={framed()}>
+                              <p class="text-footnote text-label-2">{t("video.castOrFrames")}</p>
+                            </Show>
+                          </>
+                        }
                       />
                     )}
                   </Show>

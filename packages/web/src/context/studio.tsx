@@ -432,6 +432,8 @@ export const { use: useStudio, provider: StudioProvider } = createSimpleContext(
             prompt: from.prompt,
             referenceFileIDs: from.referenceFileIDs,
             lastFrameFileID: from.lastFrameFileID ?? undefined,
+            characterIDs: from.characterIDs,
+            locationID: from.locationID ?? undefined,
             projectID: from.projectID ?? undefined,
           }
         : {
@@ -445,6 +447,10 @@ export const { use: useStudio, provider: StudioProvider } = createSimpleContext(
               .map((r) => r.id),
             // Only with a first frame, and for a model that ends on a picture.
             lastFrameFileID: references().length > 0 && clipModel()?.lastFrame ? lastFrame()?.id : undefined,
+            // Without frames, the picked characters and location: OpenRouter drops references next to
+            // frames.
+            characterIDs: references().length > 0 ? [] : characters.picked(),
+            locationID: references().length > 0 ? undefined : locations.picked()[0],
             projectID,
           }
       const into = body.projectID ? [ALL, body.projectID] : [ALL]
@@ -460,8 +466,7 @@ export const { use: useStudio, provider: StudioProvider } = createSimpleContext(
             lastFrameFileID: body.lastFrameFileID ?? null,
             status: "running",
             n: 1,
-            characterIDs: [],
-            locationID: null,
+            locationID: body.locationID ?? null,
             projectID: body.projectID ?? null,
             creditsReserved: videoCost() ?? 0,
             creditsFinal: null,
