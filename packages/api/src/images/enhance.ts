@@ -60,7 +60,10 @@ export function castLegend(cast: CastMember[], references: number, place?: CastM
     return line
   }
   const lines = [
-    ...cast.map((member) => named(member, member.name)),
+    // Several photos of one character could read as several people.
+    ...cast.map((member) =>
+      named(member, member.images > 1 ? `${member.name}, one and the same character in each` : member.name),
+    ),
     ...(place ? [named(place, `${place.name}, the place where the scene is set`)] : []),
   ]
   if (references > 0)
@@ -95,7 +98,7 @@ const REAL_SKIN =
 // Where people are has to be said, not implied: "seen past a waiting customer, looking across the
 // counter" became a barista sitting at a café table like a customer.
 const PLACES =
-  "- When people or things have places in the scene, say plainly where each one is, whether they stand or sit, and what is between them (for example: the barista stands behind a tall counter, the customer stands in front of it)."
+  "- When people or things have places in the scene, say plainly where each one is, whether they stand or sit, which way they face, and what is between them (for example: the barista stands behind a tall counter, the customer stands in front of it)."
 
 // The rewrite translates and clarifies; it must not stage the picture. Embellished prompts ("a
 // subtle smile", "50mm lens", "shallow depth of field", a change of clothes) made people pose and
@@ -152,20 +155,20 @@ function videoRules(
     "- Keep everything the person asked for: subjects, actions, expressions, clothing, counts, named styles and quoted text. Translate the meaning faithfully and no stronger.",
     EXACT_NAMES,
     PLACES,
-    `- Say what happens during the clip, in order: who or what moves and how. Keep to what fits in ${clip.seconds} seconds.`,
+    `- Open with one sentence on what the clip shows. Then, in order: who or what moves, which way and how, ending on what the last second shows. With several actions or a line of speech, give each beat its whole seconds (0–2 s, 2–${clip.seconds} s). Keep every event they asked for: when the clip is crowded, cut incidental detail, never an event.`,
     "- Add nothing they did not ask for: no new people or objects, and no quality words (8k, masterpiece, cinematic).",
-    "- Say how the camera moves, in plain words and at most two moves. When they name a move (a dolly, a pan, a tilt, a zoom, a crane or drone shot, a static shot), use exactly that move and keep it smooth and steady: never call that camera handheld or let it sway. When they name none, for a real-life scene of people (everyday life, family, street, a vlog, a documentary) the camera is handheld, moved as the person holding it would, with a slight natural sway, and does what the scene needs of these: follows the action, refocuses from one subject to another, lets its exposure adjust when the light changes, swings quickly toward something sudden. For a staged, product or animated scene, one steady move (a static shot, a slow push-in, a pan to the left).",
+    "- Name the framing once (a wide, medium or close shot, and the angle if it matters) and say it is one continuous shot, unless they ask for cuts: then give each shot its seconds and framing. Say how the camera moves, in plain words and at most two moves, each with its direction and speed. When they name a move (a dolly, a pan, a tilt, a zoom, a crane or drone shot, a static shot), use exactly that move and keep it smooth and steady: never call that camera handheld or let it sway. When they name none, for a real-life scene of people (everyday life, family, street, a vlog, a documentary) the camera is handheld, moved as the person holding it would, with a slight natural sway, and does what the scene needs of these: follows the action, refocuses from one subject to another, lets its exposure adjust when the light changes, swings quickly toward something sudden. For a staged, product or animated scene, one steady move (a static shot, a slow push-in, a pan to the left).",
     `- In a real-life scene, people have ${REAL_SKIN}. Unless they ask for another look (a phone video, a crisp commercial, animation), a real-life scene looks shot on 35mm film: a little soft rather than razor-sharp, with fine natural grain, muted true-to-life colors and highlights that roll off gently.`,
     "- Unless they ask for a posed shot, people carry on with what they are doing and do not look at the camera, in the light the place really has. Say where that light comes from and name the textures that move or catch it (hair, fabric, steam, water, dust) in a few plain words.",
     clip.sound
-      ? "- The clip has sound: name the sounds that belong to the scene in a few words. Put words someone says in double quotes, exactly as given, and say who says them and in which language. Never make up words for anyone to say: people chatting or laughing stays a sound."
+      ? '- The clip has sound: name the sounds that belong to the scene in a few words, kept beneath any speech. For each spoken line, write its language, who says it, when and how (a tone or accent they gave), then the words in double quotes exactly as given, for example: Dialogue language: Vietnamese. At 2 s, Lan says warmly: "…". After the lines, write: No other words are spoken. Never make up words for anyone to say: people chatting or laughing stays a sound.'
       : "",
     ...savedRules(cast, place, "clip"),
     references > 0
       ? frameRule(clip.lastFrame === true, seen)
       : `- Fill in only what the clip needs and they left open (${place ? "light, mood" : "setting, light, mood"}), briefly and plainly.`,
     `- The video is ${aspectRatio}, ${orientation(aspectRatio)}: compose for that frame, without writing the ratio.`,
-    "- At most 120 words, no preamble. Write plain sentences.",
+    "- At most 120 words, no preamble. Write plain sentences. When words run short, trim the look and the textures, never an event, a second, the camera or a spoken word.",
   ]
     .filter(Boolean)
     .join("\n")
@@ -190,9 +193,9 @@ function savedRules(cast: CastMember[], place: CastMember | undefined, made: "pi
 // says what moves between them instead of describing them.
 function frameRule(lastFrame: boolean, seen: boolean) {
   if (lastFrame) {
-    return `- The clip starts on the first picture they attached and ends on the second${seen ? ", both shown after their words" : ", which you cannot see"}. Do not describe them again: say how the scene moves and changes from the first frame to the last, and that the people, things and setting in them stay as they are unless they ask otherwise.`
+    return `- The clip starts on the first picture they attached and ends on the second${seen ? ", both shown after their words" : ", which you cannot see"}. Do not describe them again: say how the scene moves and changes from the first frame to the last, and that the people, things and setting in them stay as they are unless they ask otherwise. The pictures set the framing: do not name another; say only how the camera moves between them.`
   }
-  return `- The clip starts from the picture they attached${seen ? ", shown after their words" : ", which you cannot see"}. Do not describe it again: say what moves and changes from that first frame, and that the people, things and setting in it stay as they are unless they ask otherwise.`
+  return `- The clip starts from the picture they attached${seen ? ", shown after their words" : ", which you cannot see"}. Do not describe it again: say what moves and changes from that first frame, and that the people, things and setting in it stay as they are unless they ask otherwise. The picture sets the opening framing: do not name another; say only how the camera moves from that view.`
 }
 
 // What the person's own pictures are for. Read as edits to keep "exactly as they are", a portrait
