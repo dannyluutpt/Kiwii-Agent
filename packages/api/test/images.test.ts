@@ -99,6 +99,8 @@ describe("enhancePrompt", () => {
     // Glossy, poreless skin and over-sharpened frames read as AI.
     expect(fresh.system).toContain("In a photograph, people have real skin: matte, with visible pores")
     expect(fresh.system).toContain("no HDR glow, no over-sharpening")
+    // A barista seen "across the counter" ended up seated at a table like a customer.
+    expect(fresh.system).toContain("say plainly where each one is, whether they stand or sit")
   })
 
   // Every attached picture used to be an edit to keep as it is, so a portrait put in a new scene
