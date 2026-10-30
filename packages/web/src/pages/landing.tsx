@@ -1,5 +1,5 @@
 import { A } from "@solidjs/router"
-import { createResource, For, Show, type JSX } from "solid-js"
+import { createEffect, createResource, createSignal, For, onCleanup, onMount, Show, type JSX } from "solid-js"
 import { api } from "@/api"
 import { vnd, type PlanInfo, type Topup, type Trial } from "@/billing"
 import { Compare } from "@/components/compare"
@@ -9,15 +9,19 @@ import {
   IconChat,
   IconCheck,
   IconChevronDown,
+  IconPause,
   IconPerson,
   IconPlay,
+  IconSpeaker,
+  IconSpeakerSlash,
   IconWand,
 } from "@/components/icons"
 import { SitePage } from "@/components/site"
 import { useLanguage } from "@/context/language"
 import type { I18nKey } from "@/i18n/vi"
-import { MODEL_NAMES, sample, sampleSrc, sampleSrcset, type Sample } from "@/showcase"
+import { CLIPS, MODEL_NAMES, sample, sampleSrc, sampleSrcset, type Clip, type Sample } from "@/showcase"
 import { buttonClass } from "@/ui/button"
+import { IconButton } from "@/ui/icon-button"
 import { Tag } from "@/ui/tag"
 
 const HERO = [
@@ -114,6 +118,8 @@ const tryPath = (s: Sample) =>
 export default function Landing() {
   const { t, locale } = useLanguage()
   const [prices] = createResource(() => api<{ plans: PlanInfo[]; topups: Topup[]; trial: Trial }>("/billing/plans"))
+  // The sample clip whose sound is on; one at a time.
+  const [speaking, setSpeaking] = createSignal<string>()
 
   return (
     <SitePage>
@@ -326,34 +332,31 @@ export default function Landing() {
         </ul>
       </Section>
 
-      {/* Video, new */}
-      <section class="mx-auto w-full max-w-6xl px-4 py-12 md:px-6">
-        <div class="rim relative overflow-hidden rounded-panel shadow-[var(--k-shadow-raised),0_30px_80px_-30px_rgb(255_200_0/0.35)]">
-          <Picture
-            sample={sample("ha-long")}
-            sizes="(min-width: 1152px) 1104px, 100vw"
-            cover
-            class="absolute inset-0 size-full"
-          />
-          <div class="absolute inset-0 bg-gradient-to-r from-black/90 via-black/60 to-black/10" />
-          <div class="relative flex min-h-[340px] flex-col items-start justify-center gap-4 p-6 md:min-h-[420px] md:p-12">
-            <Tag tone="accent">{t("landing.new")}</Tag>
-            <h2 class="max-w-lg text-[2rem] leading-[1.15] font-bold tracking-[-0.02em] text-white">
-              {t("landing.video.title")}
-            </h2>
-            <p class="max-w-md text-callout text-white/80">{t("landing.video.lead")}</p>
-            <A href="/signup" class={buttonClass("primary", "lg", "mt-2 px-6", true)}>
+      {/* Clips made with it: the first one large, the rest beside and below it, then a way in */}
+      <Section id="video-mau" badge={t("landing.new")} title={t("landing.video.title")} lead={t("landing.video.lead")}>
+        <ul class="grid gap-3 sm:grid-cols-2 md:gap-4 lg:grid-cols-3" aria-label={t("landing.video.clips")}>
+          <For each={CLIPS}>
+            {(clip, index) => (
+              <li class={index() === 0 ? "aspect-[16/9] sm:col-span-2 lg:row-span-2 lg:aspect-auto" : "aspect-[16/9]"}>
+                <ClipCard
+                  clip={clip}
+                  large={index() === 0}
+                  sound={speaking() === clip.key}
+                  onSound={(on) => setSpeaking(on ? clip.key : undefined)}
+                />
+              </li>
+            )}
+          </For>
+          <li class="rim relative flex flex-col items-start justify-center gap-2 overflow-hidden rounded-card bg-surface bg-sheen p-5 shadow-raised sm:col-span-2 md:p-6 lg:col-span-1">
+            <h3 class="text-headline text-label">{t("landing.video.next")}</h3>
+            <p class="text-subhead text-label-2">{t("landing.video.nextLead")}</p>
+            <A href="/signup" class={buttonClass("primary", "md", "mt-2 px-5", true)}>
               {t("landing.video.cta")}
+              <IconArrowRight class="size-4" weight={2.25} />
             </A>
-          </div>
-          <span
-            class="absolute top-1/2 right-[12%] hidden size-20 -translate-y-1/2 items-center justify-center rounded-full bg-amber-gloss text-on-accent shadow-[var(--k-shadow-amber),0_0_60px_rgb(255_200_0/0.6)] md:flex"
-            aria-hidden="true"
-          >
-            <IconPlay class="ml-1 size-8" weight={2} />
-          </span>
-        </div>
-      </section>
+          </li>
+        </ul>
+      </Section>
 
       {/* Prices */}
       <Section title={t("landing.pricing.title")} lead={t("pricing.lead")}>
@@ -428,10 +431,15 @@ export default function Landing() {
   )
 }
 
-function Section(props: { id?: string; title: string; lead?: string; children: JSX.Element }) {
+function Section(props: { id?: string; badge?: string; title: string; lead?: string; children: JSX.Element }) {
   return (
     <section id={props.id} class="mx-auto w-full max-w-6xl scroll-mt-20 px-4 py-12 md:px-6 lg:py-16">
       <header class="mx-auto mb-8 flex max-w-2xl flex-col gap-3 text-center md:mb-10">
+        <Show when={props.badge}>
+          <Tag tone="accent" class="self-center">
+            {props.badge}
+          </Tag>
+        </Show>
         <h2 class="text-[2rem] leading-[1.15] font-bold tracking-[-0.02em] text-balance text-label">{props.title}</h2>
         <Show when={props.lead}>
           <p class="text-callout text-label-2 md:text-body">{props.lead}</p>
@@ -457,6 +465,86 @@ function Picture(props: { sample: Sample; sizes: string; eager?: boolean; cover?
       decoding="async"
       class={`block ${props.cover ? "size-full object-cover" : "h-auto w-full"} ${props.class ?? ""}`}
     />
+  )
+}
+
+// A sample clip, playing without sound while it is on screen, unless the visitor paused it or asks
+// for less motion. Turning its sound on starts it over, so its words are heard from the start; once
+// through, it goes quiet and plays on.
+function ClipCard(props: { clip: Clip; large?: boolean; sound: boolean; onSound: (on: boolean) => void }) {
+  const { t, locale } = useLanguage()
+  const [stopped, setStopped] = createSignal(window.matchMedia("(prefers-reduced-motion: reduce)").matches)
+  const [seen, setSeen] = createSignal(false)
+  const [playing, setPlaying] = createSignal(false)
+  const title = () => props.clip.title[locale()]
+  let video: HTMLVideoElement | undefined
+
+  onMount(() => {
+    const observer = new IntersectionObserver((entries) => setSeen(entries.some((entry) => entry.isIntersecting)), {
+      threshold: 0.5,
+    })
+    observer.observe(video!)
+    onCleanup(() => observer.disconnect())
+  })
+  createEffect(() => {
+    const run = seen() && !stopped()
+    if (run) void video?.play().catch(() => undefined)
+    if (!run) video?.pause()
+  })
+
+  return (
+    <figure class="rim relative isolate size-full overflow-hidden rounded-card bg-surface shadow-raised">
+      <video
+        ref={video}
+        src={`/showcase/clips/${props.clip.key}.mp4`}
+        poster={`/showcase/clips/${props.clip.key}.webp`}
+        muted={!props.sound}
+        loop={!props.sound}
+        playsinline
+        preload="none"
+        aria-hidden="true"
+        onPlay={() => setPlaying(true)}
+        onPause={() => setPlaying(false)}
+        onError={() => setPlaying(false)}
+        onEnded={() => {
+          props.onSound(false)
+          void video?.play().catch(() => undefined)
+        }}
+        class="absolute inset-0 size-full object-cover"
+      />
+      <div class="absolute top-2.5 right-2.5 flex gap-2 md:top-3 md:right-3">
+        <IconButton
+          label={t(playing() ? "landing.video.pause" : "landing.video.play", { title: title() })}
+          icon={playing() ? <IconPause class="size-4" weight={2.5} /> : <IconPlay class="ml-0.5 size-4" weight={2} />}
+          variant="overlay"
+          circle
+          onClick={() => setStopped(playing())}
+        />
+        <IconButton
+          label={t(props.sound ? "landing.video.soundOff" : "landing.video.soundOn", { title: title() })}
+          icon={props.sound ? <IconSpeaker class="size-[18px]" /> : <IconSpeakerSlash class="size-[18px]" />}
+          variant="overlay"
+          circle
+          onClick={() => {
+            props.onSound(!props.sound)
+            if (!props.sound || !video) return
+            video.currentTime = 0
+            setStopped(false)
+            void video.play().catch(() => undefined)
+          }}
+        />
+      </div>
+      <figcaption
+        class={`pointer-events-none absolute inset-x-0 bottom-0 flex flex-col gap-0.5 bg-gradient-to-t from-black/85 via-black/45 to-transparent ${props.large ? "p-4 pt-16 md:p-6 md:pt-24" : "p-3 pt-12 md:p-4 md:pt-14"}`}
+      >
+        <span class={`font-semibold text-white ${props.large ? "text-callout md:text-title-3" : "text-footnote"}`}>
+          {title()}
+        </span>
+        <span class="text-caption-2 text-white/70">
+          {props.clip.model} · {props.clip.made[locale()]}
+        </span>
+      </figcaption>
+    </figure>
   )
 }
 

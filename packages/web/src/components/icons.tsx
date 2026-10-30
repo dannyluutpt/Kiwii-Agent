@@ -207,6 +207,24 @@ export const IconPlay = icon(() => (
   <path d="M8 5.6v12.8a1 1 0 0 0 1.5.86l10.6-6.4a1 1 0 0 0 0-1.72L9.5 4.74A1 1 0 0 0 8 5.6z" />
 ))
 
+export const IconPause = icon(() => <path d="M9 5.5v13M15 5.5v13" />)
+
+const SPEAKER = "M4.5 9.5v5a1 1 0 0 0 1 1h2.6l4.3 3.6a.6.6 0 0 0 1-.46V5.36a.6.6 0 0 0-1-.46L8.1 8.5H5.5a1 1 0 0 0-1 1z"
+
+export const IconSpeaker = icon(() => (
+  <>
+    <path d={SPEAKER} />
+    <path d="M16.5 9a4.2 4.2 0 0 1 0 6M19 6.5a7.8 7.8 0 0 1 0 11" />
+  </>
+))
+
+export const IconSpeakerSlash = icon(() => (
+  <>
+    <path d={SPEAKER} />
+    <path d="m16.5 9.5 5 5M21.5 9.5l-5 5" />
+  </>
+))
+
 export const IconWand = icon(() => (
   <>
     <path d="m4.5 19.5 10-10M13 8l3 3" />

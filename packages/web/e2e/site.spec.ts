@@ -41,6 +41,30 @@ test("the before and after slider follows the keys and the pointer", async ({ pa
   await expect(slider).toHaveAttribute("aria-valuenow", "25")
 })
 
+test("the sample clips say what each was made from, and one at a time has its sound on", async ({ page }) => {
+  await page.goto("/")
+  const clips = page.getByRole("list", { name: "Clip mẫu" })
+  await clips.scrollIntoViewIfNeeded()
+  await expect(clips.locator("video")).toHaveCount(5)
+  await expect(clips.getByRole("figure", { name: /^Quầy cà phê Sài Gòn/ })).toContainText(
+    "MiniMax H3 · Từ một câu mô tả, có lời thoại",
+  )
+  // The music under the Tết clip was not the model's; the caption says so.
+  await expect(clips.getByRole("figure", { name: /^Bà cháu gói bánh chưng/ })).toContainText("nhạc nền ghép thêm")
+  for (const key of ["quay-ca-phe", "quan-pho", "banh-chung", "hoa-dang", "meo-mua"]) {
+    expect((await page.request.get(`/showcase/clips/${key}.mp4`)).headers()["content-type"]).toContain("video/mp4")
+    expect((await page.request.get(`/showcase/clips/${key}.webp`)).headers()["content-type"]).toContain("image/webp")
+  }
+  await clips.getByRole("button", { name: "Bật tiếng clip Quầy cà phê Sài Gòn" }).click()
+  await expect(clips.getByRole("button", { name: "Tắt tiếng clip Quầy cà phê Sài Gòn" })).toBeVisible()
+  // Turning another clip's sound on turns the first one's off.
+  await clips.getByRole("button", { name: "Bật tiếng clip Quán phở vỉa hè Hà Nội" }).click()
+  await expect(clips.getByRole("button", { name: "Bật tiếng clip Quầy cà phê Sài Gòn" })).toBeVisible()
+  await expect(clips.getByRole("button", { name: "Tắt tiếng clip Quán phở vỉa hè Hà Nội" })).toBeVisible()
+  const muted = await clips.locator("video").evaluateAll((videos: HTMLVideoElement[]) => videos.map((v) => v.muted))
+  expect(muted).toEqual([true, false, true, true, true])
+})
+
 test("a sample's prompt carries through signing up to the studio", async ({ page }) => {
   await page.goto("/")
   const use = page.getByRole("link", { name: "Dùng prompt của ảnh Áo dài giữa phố cổ Hội An" })

@@ -203,6 +203,51 @@ const SAMPLES: Sample[] = [
   },
 ]
 
+// Clips on the public website, each made with Amberpix on production. The files live in
+// public/showcase/clips: the clip at 720p as H.264 with its sound brought to a steady loudness, and
+// its first frame as a WebP poster.
+export type Clip = {
+  key: string
+  title: { vi: string; en: string }
+  model: string
+  // What it was made from, in a few words.
+  made: { vi: string; en: string }
+}
+
+export const CLIPS: Clip[] = [
+  {
+    key: "quay-ca-phe",
+    title: { vi: "Quầy cà phê Sài Gòn", en: "A Saigon coffee counter" },
+    model: "MiniMax H3",
+    made: { vi: "Từ một câu mô tả, có lời thoại", en: "From one sentence, with dialogue" },
+  },
+  {
+    key: "quan-pho",
+    title: { vi: "Quán phở vỉa hè Hà Nội", en: "A street phở stall in Hà Nội" },
+    model: "Wan 3.0",
+    made: { vi: "Từ một câu mô tả, có lời thoại", en: "From one sentence, with dialogue" },
+  },
+  {
+    key: "banh-chung",
+    title: { vi: "Bà cháu gói bánh chưng", en: "Wrapping bánh chưng with grandma" },
+    model: "Seedance 2.5",
+    // The model's own sound was swapped for a tune made afterwards.
+    made: { vi: "Từ một câu mô tả, nhạc nền ghép thêm", en: "From one sentence, music added afterwards" },
+  },
+  {
+    key: "hoa-dang",
+    title: { vi: "Thả hoa đăng trên sông Hoài", en: "A lantern on the Hoài River" },
+    model: "MiniMax H3",
+    made: { vi: "Từ nhân vật và bối cảnh đã lưu", en: "From a saved character and location" },
+  },
+  {
+    key: "meo-mua",
+    title: { vi: "Mèo ngủ từ chiều đến đêm mưa", en: "A cat naps into a rainy night" },
+    model: "Wan 3.0",
+    made: { vi: "Từ hai ảnh làm khung đầu và khung cuối", en: "From two pictures as its first and last frames" },
+  },
+]
+
 export const sample = (key: string) => SAMPLES.find((s) => s.key === key) ?? SAMPLES[0]
 
 export const sampleSrc = (s: Sample) => `/showcase/${s.key}-l.webp`
