@@ -26,6 +26,7 @@ export async function startVideo(
     generation: Generation
     model: VideoModel
     firstFrame?: string
+    lastFrame?: string
     workflow?: Workflow<VideoParams>
   },
 ) {
@@ -40,6 +41,7 @@ export async function startVideo(
     aspectRatio: g.aspect_ratio,
     sound: input.model.sound,
     firstFrame: input.firstFrame,
+    lastFrame: input.lastFrame,
   }).catch((error: unknown) => (error instanceof Error ? error : new Error(String(error))))
   if (jobID instanceof Error) {
     await failVideo(input.db, g, describe(jobID))

@@ -32,6 +32,7 @@ videos.get("/models", async (c) => {
       maxReferences: model.maxReferences,
       maxReferenceEdge: model.maxReferenceEdge,
       firstFrameCredits: model.firstFrameCredits,
+      lastFrame: model.lastFrame,
     })),
   })
 })
@@ -59,6 +60,7 @@ videos.post("/generations", async (c) => {
     generation: prepared.generation,
     model: prepared.model,
     firstFrame: prepared.firstFrame,
+    lastFrame: prepared.lastFrame,
     workflow: c.env.VIDEO_WORKFLOW,
   })
   return c.json(presentGeneration(generation, []), 202)

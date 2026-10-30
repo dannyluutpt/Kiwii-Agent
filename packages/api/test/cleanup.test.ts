@@ -47,6 +47,8 @@ describe("removeUnusedReferences", () => {
       file("INRUN", "reference", 8 * DAY),
       file("INCHAT", "reference", 8 * DAY),
       file("FRESH", "reference", 1 * DAY),
+      // The picture a clip ends on.
+      file("LASTFRAME", "reference", 8 * DAY),
       file("OUTPUT", "image", 30 * DAY),
       // A character's copy of a photo is never a leftover upload.
       file("FACE", "character", 30 * DAY),
@@ -65,6 +67,22 @@ describe("removeUnusedReferences", () => {
       created_at: NOW,
       updated_at: NOW,
     })
+    await db.insert(generations).values({
+      id: "G2",
+      user_id: "u1",
+      status: "done",
+      kind: "video",
+      model: "wan-3.0",
+      option: "720p",
+      aspect_ratio: "16:9",
+      n: 1,
+      prompt_raw: "x",
+      reference_file_ids: JSON.stringify(["INRUN"]),
+      last_frame_file_id: "LASTFRAME",
+      credits_reserved: 27,
+      created_at: NOW,
+      updated_at: NOW,
+    })
     await db.insert(projects).values({ id: "P1", user_id: "u1", created_at: NOW, updated_at: NOW })
     await db.insert(project_messages).values({
       id: "M1",
@@ -76,7 +94,10 @@ describe("removeUnusedReferences", () => {
       updated_at: NOW,
     })
     const { store, bucket } = fakeBucket(
-      ["UNUSED", "INRUN", "INCHAT", "FRESH", "OUTPUT", "FACE"].map((id) => ({ key: `u/u1/${id}.jpg`, uploaded: NOW })),
+      ["UNUSED", "INRUN", "INCHAT", "FRESH", "LASTFRAME", "OUTPUT", "FACE"].map((id) => ({
+        key: `u/u1/${id}.jpg`,
+        uploaded: NOW,
+      })),
     )
 
     expect(await removeUnusedReferences(db, bucket, NOW)).toBe(1)
@@ -85,10 +106,11 @@ describe("removeUnusedReferences", () => {
       "u/u1/FRESH.jpg",
       "u/u1/INCHAT.jpg",
       "u/u1/INRUN.jpg",
+      "u/u1/LASTFRAME.jpg",
       "u/u1/OUTPUT.jpg",
     ])
     const left = await db.select({ id: files.id }).from(files)
-    expect(left.map((row) => row.id).sort()).toEqual(["FACE", "FRESH", "INCHAT", "INRUN", "OUTPUT"])
+    expect(left.map((row) => row.id).sort()).toEqual(["FACE", "FRESH", "INCHAT", "INRUN", "LASTFRAME", "OUTPUT"])
   })
 })
 

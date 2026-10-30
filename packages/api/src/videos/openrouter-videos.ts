@@ -50,10 +50,17 @@ export async function submitVideo(
     aspectRatio: string
     // Whether the model makes the clip's sound.
     sound: boolean
-    // A picture the clip starts from, as a data URL.
+    // Pictures the clip starts from and ends on, as data URLs; a last frame comes with a first.
     firstFrame?: string
+    lastFrame?: string
   },
 ) {
+  const frames = [
+    { url: input.firstFrame, frame_type: "first_frame" },
+    { url: input.lastFrame, frame_type: "last_frame" },
+  ].flatMap((frame) =>
+    frame.url ? [{ type: "image_url", image_url: { url: frame.url }, frame_type: frame.frame_type }] : [],
+  )
   const res = await fetch(`${input.baseURL ?? DEFAULT_BASE_URL}/videos`, {
     method: "POST",
     headers: headers(input.apiKey),
@@ -64,9 +71,7 @@ export async function submitVideo(
       resolution: input.resolution,
       aspect_ratio: input.aspectRatio,
       generate_audio: input.sound,
-      frame_images: input.firstFrame
-        ? [{ type: "image_url", image_url: { url: input.firstFrame }, frame_type: "first_frame" }]
-        : undefined,
+      frame_images: frames.length ? frames : undefined,
     }),
   })
   const body = Submitted.safeParse(await res.json().catch(() => undefined)).data

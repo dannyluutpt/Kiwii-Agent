@@ -21,6 +21,8 @@ export function presentGeneration(
     prompt: g.prompt_raw,
     enhance: g.enhance === 1,
     referenceFileIDs: JSON.parse(g.reference_file_ids) as string[],
+    // A clip's last frame; its first is referenceFileIDs.
+    lastFrameFileID: g.last_frame_file_id,
     characterIDs: JSON.parse(g.character_ids) as string[],
     creditsReserved: g.credits_reserved,
     creditsFinal: g.credits_final,

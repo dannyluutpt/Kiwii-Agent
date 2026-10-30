@@ -6,6 +6,8 @@ import { app_config, credit_ledger, files, generation_images, generations, users
 import { enhancePrompt } from "../src/images/enhance"
 import { reapStaleGenerations } from "../src/images/generate"
 import { CreateGeneration, prepareGeneration } from "../src/images/prepare"
+import { cropBox } from "../src/images/glance"
+import { presentGeneration } from "../src/images/present"
 import { byteSpan } from "../src/images/r2"
 import { loadVideoModels, videoCreditCost, VIDEO_MODELS } from "../src/videos/models"
 import { CreateVideo, prepareVideo } from "../src/videos/prepare"
@@ -334,6 +336,82 @@ describe("a video run", () => {
       job_id: "job1",
     })
     expect(await balance(context.db, "u1")).toBe(100)
+  })
+})
+
+describe("a clip that ends on a picture", () => {
+  // A picture of the person's own, uploaded to work from.
+  async function picture(context: Awaited<ReturnType<typeof setup>>, id: string) {
+    await context.bucket.put(`u/u1/${id}.jpg`, new TextEncoder().encode(id).buffer, {
+      httpMetadata: { contentType: "image/jpeg" },
+    })
+    await context.db.insert(files).values({
+      id,
+      user_id: "u1",
+      r2_key: `u/u1/${id}.jpg`,
+      name: `${id}.jpg`,
+      mime: "image/jpeg",
+      size: 1,
+      kind: "reference",
+    })
+  }
+
+  test("sends both frames, says so to the rewrite, keeps the price and remembers the last frame", async () => {
+    const context = await setup()
+    await picture(context, "start")
+    await picture(context, "end")
+    const asked = openRouter()
+    const prepared = await prepareVideo({
+      ...context,
+      apiKey: "k",
+      request: request({ referenceFileIDs: ["start"], lastFrameFileID: "end" }),
+    })
+    expect(prepared.generation).toMatchObject({
+      reference_file_ids: JSON.stringify(["start"]),
+      last_frame_file_id: "end",
+      credits_reserved: 27,
+    })
+    expect(JSON.stringify(asked[0]!.body)).toContain("starts on the first picture they attached and ends on the second")
+    expect(presentGeneration(prepared.generation, [])).toMatchObject({
+      referenceFileIDs: ["start"],
+      lastFrameFileID: "end",
+    })
+
+    await startVideo({ db: context.db, apiKey: "k", ...prepared })
+    const submitted = asked.find((call) => call.url.endsWith("/videos"))!.body
+    expect(submitted).toMatchObject({
+      frame_images: [
+        { type: "image_url", image_url: { url: `data:image/jpeg;base64,${btoa("start")}` }, frame_type: "first_frame" },
+        { type: "image_url", image_url: { url: `data:image/jpeg;base64,${btoa("end")}` }, frame_type: "last_frame" },
+      ],
+    })
+  })
+
+  test("needs a first frame, and a picture of the person's own", async () => {
+    const context = await setup()
+    await picture(context, "end")
+    openRouter()
+    const alone = await prepareVideo({
+      ...context,
+      apiKey: "k",
+      request: request({ lastFrameFileID: "end" }),
+    }).catch((e: unknown) => e)
+    expect(alone).toMatchObject({ status: 400, code: "LAST_FRAME_NEEDS_FIRST" })
+    const missing = await prepareVideo({
+      ...context,
+      apiKey: "k",
+      request: request({ referenceFileIDs: ["end"], lastFrameFileID: "someone-else" }),
+    }).catch((e: unknown) => e)
+    expect(missing).toMatchObject({ status: 404, code: "FILE_NOT_FOUND" })
+    expect(await balance(context.db, "u1")).toBe(100)
+  })
+
+  test("both frames are cut to the clip's shape around their middle, never enlarged", () => {
+    expect(cropBox(4000, 3000, "16:9", 1920)).toEqual({ width: 1920, height: 1080 })
+    expect(cropBox(1000, 1000, "16:9", 1920)).toEqual({ width: 1000, height: 563 })
+    expect(cropBox(1080, 1920, "16:9", 1920)).toEqual({ width: 1080, height: 608 })
+    expect(cropBox(800, 600, "9:16", 1920)).toEqual({ width: 338, height: 600 })
+    expect(cropBox(4000, 1000, "1:1", 1920)).toEqual({ width: 1000, height: 1000 })
   })
 })
 
