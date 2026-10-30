@@ -3,7 +3,16 @@ import { createEffect, createSignal, Show } from "solid-js"
 import { useLanguage } from "@/context/language"
 import { prepareFile, savesThroughShare } from "@/lib/save"
 import { IconButton, iconButtonClass } from "@/ui/icon-button"
-import { IconChevronLeft, IconChevronRight, IconClose, IconDownload, IconPersonAdd, IconRefresh } from "./icons"
+import {
+  IconArrowRight,
+  IconChevronLeft,
+  IconChevronRight,
+  IconClose,
+  IconDownload,
+  IconImage,
+  IconPersonAdd,
+  IconRefresh,
+} from "./icons"
 import { useShareFile } from "./save"
 
 // `download` is the picture's download link; `name` is what it is saved as through the share sheet;
@@ -29,6 +38,8 @@ export function Lightbox(props: {
   onReuse?: (index: number) => void
   // Saves the open picture as a character.
   onCharacter?: (index: number) => void
+  // Starts the next clip from the open clip: from its last frame, or from the frame at `at` seconds.
+  onNextScene?: (index: number, at?: number) => void
 }) {
   const { t } = useLanguage()
   // Keep showing the last picture while the viewer animates out after `index` is cleared.
@@ -41,6 +52,7 @@ export function Lightbox(props: {
     const state = shown()
     return state ? state.items[state.index] : undefined
   }
+  let player: HTMLVideoElement | undefined
   const count = () => shown()?.items.length ?? 0
   const position = () => shown()?.index ?? 0
   const step = (delta: number) => {
@@ -114,6 +126,27 @@ export function Lightbox(props: {
                 circle
                 icon={<IconPersonAdd class="size-5" />}
                 onClick={() => props.onCharacter?.(position())}
+              />
+            </Show>
+            <Show when={props.onNextScene && item()?.video}>
+              <IconButton
+                label={t("video.useFrame")}
+                variant="overlay"
+                size="xl"
+                circle
+                icon={<IconImage class="size-5" />}
+                onClick={() => {
+                  player?.pause()
+                  props.onNextScene?.(position(), player?.currentTime ?? 0)
+                }}
+              />
+              <IconButton
+                label={t("video.nextScene")}
+                variant="overlay"
+                size="xl"
+                circle
+                icon={<IconArrowRight class="size-5" />}
+                onClick={() => props.onNextScene?.(position())}
               />
             </Show>
             <Show when={props.onReuse}>
@@ -192,6 +225,7 @@ export function Lightbox(props: {
                   }
                 >
                   <video
+                    ref={player}
                     src={current.src}
                     aria-label={current.alt}
                     controls

@@ -156,6 +156,10 @@ export default function Assets() {
           const asset = list.items[index]
           if (asset) reuse(asset)
         }}
+        onNextScene={(index) => {
+          const asset = list.items[index]
+          if (asset) navigate(`/?next=${asset.generationID}`)
+        }}
       />
     </Page>
   )

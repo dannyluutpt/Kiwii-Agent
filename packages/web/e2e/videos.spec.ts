@@ -71,7 +71,7 @@ test("a clip is made from the composer, plays in the gallery and the viewer, and
   await expect(tile).toContainText("Wan 3.0 · 720p · 16:9 · 5 giây · 27 credit")
   // A clip is no picture to make a character from.
   await tile.getByRole("button", { name: "Thao tác khác" }).click()
-  await expect(page.getByRole("menuitem")).toHaveText(["Sao chép prompt", "Xoá"])
+  await expect(page.getByRole("menuitem")).toHaveText(["Sao chép prompt", "Cảnh tiếp theo", "Xoá"])
   await page.keyboard.press("Escape")
 
   await play.click()
@@ -146,6 +146,64 @@ test("a clip can end on a picture too, at no extra cost, and keeps both frames",
   await tile.getByRole("button", { name: "Dùng lại prompt" }).click()
   await expect(frames(page).getByRole("img", { name: "Khung đầu" })).toBeVisible()
   await expect(frames(page).getByRole("img", { name: "Khung cuối" })).toBeVisible()
+})
+
+test("the next scene starts from a finished clip's last frame, from the gallery or the viewer", async ({ page }) => {
+  test.setTimeout(150_000)
+  const firstFrame = () => frames(page).getByRole("img", { name: "Khung đầu" })
+  const finished = async (text: string) => {
+    const tile = card(page, text)
+    await expect(tile.getByRole("button", { name: "Xem video" })).toBeVisible({ timeout: 30_000 })
+    return tile
+  }
+  const nextFromMenu = async (tile: ReturnType<typeof card>) => {
+    await tile.getByRole("button", { name: "Thao tác khác" }).click()
+    await page.getByRole("menuitem", { name: "Cảnh tiếp theo" }).click()
+    await expect(firstFrame()).toBeVisible({ timeout: 15_000 })
+  }
+  const make = async (text: string) => {
+    await prompt(page).fill(text)
+    const sent = page.waitForRequest((req) => req.url().endsWith("/api/videos/generations") && req.method() === "POST")
+    await makeButton(page, 27).click()
+    return (await sent).postDataJSON() as { referenceFileIDs: string[] }
+  }
+
+  await videoMode(page)
+  await make("Con thuyền rời bến lúc bình minh")
+  const first = await finished("Con thuyền rời bến lúc bình minh")
+
+  // From picture mode, the next scene comes back to video with the clip's settings and its last
+  // frame, a JPEG the size of the clip, as the first frame.
+  await page
+    .getByRole("radiogroup", { name: "Tạo ảnh hay video" })
+    .locator("label")
+    .filter({ hasText: /^Ảnh$/ })
+    .click()
+  await nextFromMenu(first)
+  await expect(prompt(page)).toHaveValue("")
+  const src = await firstFrame().getAttribute("src")
+  const size = await page.evaluate(async (url) => {
+    const image = new Image()
+    image.src = url ?? ""
+    await image.decode()
+    return [image.naturalWidth, image.naturalHeight]
+  }, src)
+  expect(size).toEqual([320, 180])
+
+  // The viewer offers it too.
+  await frames(page).getByRole("button", { name: "Bỏ khung đầu" }).click()
+  await first.getByRole("button", { name: "Xem video" }).click()
+  const viewer = page.getByRole("dialog")
+  await viewer.getByRole("button", { name: "Cảnh tiếp theo" }).click()
+  await expect(viewer).toBeHidden()
+  await expect(firstFrame()).toBeVisible({ timeout: 15_000 })
+  expect((await make("Thuyền ra tới giữa sông")).referenceFileIDs).toHaveLength(1)
+
+  // A third clip in a row is fine; continuing a fourth time suggests a fresh picture.
+  await nextFromMenu(await finished("Thuyền ra tới giữa sông"))
+  await make("Thuyền cập bến bên kia")
+  await nextFromMenu(await finished("Thuyền cập bến bên kia"))
+  await expect(page.getByText("Bạn đã nối 3 cảnh liền nhau")).toBeVisible()
 })
 
 test("a clip the model refuses fails in place and gives its credits back", async ({ page }) => {

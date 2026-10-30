@@ -1,5 +1,6 @@
 import { useNavigate, useParams, useSearchParams } from "@solidjs/router"
 import { createEffect, createSignal, on, onMount, Show } from "solid-js"
+import { api } from "@/api"
 import { BRAND_SLUG } from "@/brand"
 import { AssistantPanel } from "@/components/assistant-panel"
 import { CharacterDialog } from "@/components/character-dialog"
@@ -15,7 +16,9 @@ import { useLayout } from "@/context/layout"
 import { useProjects } from "@/context/projects"
 import { ALL, useStudio } from "@/context/studio"
 import { altFor, type Generation, type GenerationImage, type ModelsResponse } from "@/images"
+import { errorMessage } from "@/lib/errors"
 import { Skeleton } from "@/ui/skeleton"
+import { toast } from "@/ui/toast"
 
 // The workspace. On wide screens: the gallery of one project (or of everything) in the middle and
 // the image assistant on the right, the projects being in the sidebar. On phones: the gallery over a
@@ -29,7 +32,7 @@ export default function Studio() {
   const studio = useStudio()
   const characters = useCharacters()
   const params = useParams<{ projectId?: string }>()
-  const [search, setSearch] = useSearchParams<{ prompt?: string; model?: string; kind?: string }>()
+  const [search, setSearch] = useSearchParams<{ prompt?: string; model?: string; kind?: string; next?: string }>()
   const [viewer, setViewer] = createSignal<{ id: string; index: number }>()
   const [filter, setFilter] = createSignal<Filter>("all")
   let feed: HTMLDivElement | undefined
@@ -52,8 +55,15 @@ export default function Studio() {
     if (search.kind === "video") studio.setMode("video")
     if (search.model && search.kind === "video") studio.patchVideo({ model: search.model })
     if (search.model && search.kind !== "video") studio.patch({ model: search.model })
-    if (search.prompt || search.model)
-      setSearch({ prompt: undefined, model: undefined, kind: undefined }, { replace: true })
+    // …and its "next scene" with the clip to start from.
+    const next = search.next
+    if (next) {
+      void api<Generation>(`/images/generations/${next}`)
+        .then((g) => continueFrom(g))
+        .catch((error: unknown) => toast.error(errorMessage(error, t("error.network"))))
+    }
+    if (search.prompt || search.model || next)
+      setSearch({ prompt: undefined, model: undefined, kind: undefined, next: undefined }, { replace: true })
     // Credits and the trial may have changed since the studio was last on screen.
     if (studio.config.state === "ready") void studio.refreshConfig()
   })
@@ -90,6 +100,15 @@ export default function Studio() {
     // The gallery is the scroller here, not the window; bring the prompt into view and focus it.
     if (layout.phone()) feed?.scrollTo({ top: 0, behavior: "smooth" })
     requestAnimationFrame(() => document.querySelector<HTMLTextAreaElement>("[data-studio-prompt]")?.focus())
+  }
+
+  // The next clip starts from this one's last frame (or the frame `at` seconds in); the person then
+  // writes what happens next.
+  const continueFrom = (g: Generation, at?: number) => {
+    setViewer(undefined)
+    if (layout.phone()) feed?.scrollTo({ top: 0, behavior: "smooth" })
+    requestAnimationFrame(() => document.querySelector<HTMLTextAreaElement>("[data-studio-prompt]")?.focus())
+    void studio.continueFrom(g, at)
   }
 
   // A character is saved from pictures the account made; the dialog shows them, to keep or take off.
@@ -135,6 +154,7 @@ export default function Studio() {
     onReferences: studio.setReferences,
     lastFrame: studio.lastFrame(),
     onLastFrame: studio.setLastFrame,
+    framing: studio.framing(),
     cost: studio.cost(),
     busy: studio.busy(),
     locked: studio.mode() === "video" ? studio.videoLocked() : studio.locked(),
@@ -164,6 +184,7 @@ export default function Studio() {
             onRetry={(g) => void studio.generate(g.projectID ?? undefined, g)}
             onDelete={(g) => void studio.remove(g)}
             onCharacter={(g) => characters.compose(sorted(g).map(photo))}
+            onNextScene={(g) => continueFrom(g)}
           />
         }
       >
@@ -221,6 +242,10 @@ export default function Studio() {
           if (!image) return
           setViewer(undefined)
           characters.compose([photo(image)])
+        }}
+        onNextScene={(_index, at) => {
+          const g = opened()
+          if (g) continueFrom(g, at)
         }}
       />
       <CharacterDialog max={maxCharacters()} />
