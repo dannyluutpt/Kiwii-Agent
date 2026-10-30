@@ -155,7 +155,15 @@ describe("prepareVideo", () => {
     // The owner found the clips' skin glossy and the frames too sharp: real life on film is softer.
     expect(system).toContain("In a real-life scene, people have real skin")
     expect(system).toContain("a real-life scene looks shot on 35mm film")
-    expect(system).toContain("say plainly where each one is, whether they stand or sit")
+    expect(system).toContain("say plainly where each one is, whether they stand or sit, which way they face")
+    // From a guide to video prompts: the clip's goal first, then beats in whole seconds to an end state,
+    // one continuous shot unless cuts are asked for, and spoken lines with their language and moment.
+    expect(system).toContain("Open with one sentence on what the clip shows")
+    expect(system).toContain("give each beat its whole seconds (0–2 s, 2–5 s)")
+    expect(system).toContain("Keep every event they asked for")
+    expect(system).toContain("say it is one continuous shot")
+    expect(system).toContain("Dialogue language: Vietnamese")
+    expect(system).toContain("No other words are spoken")
     expect(generation).toMatchObject({
       kind: "video",
       status: "running",
@@ -196,6 +204,8 @@ describe("prepareVideo", () => {
     })
     expect(prepared.generation).toMatchObject({ reference_file_ids: JSON.stringify(["p"]), credits_reserved: 34 })
     expect(JSON.stringify(asked[0]!.body)).toContain("The clip starts from the picture they attached")
+    // The frame already sets the framing; the rewrite names only the camera's move from there.
+    expect(JSON.stringify(asked[0]!.body)).toContain("The picture sets the opening framing: do not name another")
     // The frame is read back from the run when the job is submitted.
     await startVideo({ db, bucket, apiKey: "k", ...prepared })
     expect(asked.find((call) => call.url.endsWith("/videos"))!.body).toMatchObject({
@@ -421,6 +431,7 @@ describe("a clip that ends on a picture", () => {
       credits_reserved: 27,
     })
     expect(JSON.stringify(asked[0]!.body)).toContain("starts on the first picture they attached and ends on the second")
+    expect(JSON.stringify(asked[0]!.body)).toContain("The pictures set the framing: do not name another")
     expect(presentGeneration(prepared.generation, [])).toMatchObject({
       referenceFileIDs: ["start"],
       lastFrameFileID: "end",
