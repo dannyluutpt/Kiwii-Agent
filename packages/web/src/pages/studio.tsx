@@ -1,18 +1,19 @@
 import { useNavigate, useParams, useSearchParams } from "@solidjs/router"
-import { createEffect, createSignal, on, onMount, Show } from "solid-js"
+import { createEffect, createSignal, Match, on, onMount, Show, Switch } from "solid-js"
 import { api } from "@/api"
 import { BRAND_SLUG } from "@/brand"
 import { AssistantPanel } from "@/components/assistant-panel"
-import { CharacterDialog } from "@/components/character-dialog"
-import { CharacterGallery } from "@/components/characters"
 import { FilterChips, type Filter } from "@/components/filter-chips"
 import { Gallery } from "@/components/gallery"
 import { Lightbox, type LightboxItem } from "@/components/lightbox"
+import { SavedGallery } from "@/components/saved"
+import { SavedDialog } from "@/components/saved-dialog"
 import { StudioPromptBar } from "@/components/studio-prompt-bar"
 import { TopBar } from "@/components/top-bar"
 import { useCharacters } from "@/context/characters"
 import { useLanguage } from "@/context/language"
 import { useLayout } from "@/context/layout"
+import { useLocations } from "@/context/locations"
 import { useProjects } from "@/context/projects"
 import { ALL, useStudio } from "@/context/studio"
 import { altFor, type Generation, type GenerationImage, type ModelsResponse } from "@/images"
@@ -31,6 +32,7 @@ export default function Studio() {
   const projects = useProjects()
   const studio = useStudio()
   const characters = useCharacters()
+  const locations = useLocations()
   const params = useParams<{ projectId?: string }>()
   const [search, setSearch] = useSearchParams<{ prompt?: string; model?: string; kind?: string; next?: string }>()
   const [viewer, setViewer] = createSignal<{ id: string; index: number }>()
@@ -111,7 +113,8 @@ export default function Studio() {
     void studio.continueFrom(g, at)
   }
 
-  // A character is saved from pictures the account made; the dialog shows them, to keep or take off.
+  // A character or a location is saved from pictures the account made; the dialog shows them, to keep
+  // or take off.
   const maxCharacters = () => studio.config.latest?.maxCharacters ?? 2
   const sorted = (g: Generation) => g.images.slice().sort((a, b) => a.position - b.position)
   const photo = (image: GenerationImage) => ({
@@ -163,8 +166,7 @@ export default function Studio() {
 
   const gallery = (
     <div ref={feed} data-scroller class="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-      <Show
-        when={filter() === "characters"}
+      <Switch
         fallback={
           <Gallery
             items={items()}
@@ -184,12 +186,18 @@ export default function Studio() {
             onRetry={(g) => void studio.generate(g.projectID ?? undefined, g)}
             onDelete={(g) => void studio.remove(g)}
             onCharacter={(g) => characters.compose(sorted(g).map(photo))}
+            onLocation={(g) => locations.compose(sorted(g).map(photo))}
             onNextScene={(g) => continueFrom(g)}
           />
         }
       >
-        <CharacterGallery max={maxCharacters()} />
-      </Show>
+        <Match when={filter() === "characters"}>
+          <SavedGallery store={characters} max={maxCharacters()} />
+        </Match>
+        <Match when={filter() === "locations"}>
+          <SavedGallery store={locations} max={1} />
+        </Match>
+      </Switch>
     </div>
   )
 
@@ -243,12 +251,19 @@ export default function Studio() {
           setViewer(undefined)
           characters.compose([photo(image)])
         }}
+        onLocation={(index) => {
+          const image = opened() && sorted(opened()!)[index]
+          if (!image) return
+          setViewer(undefined)
+          locations.compose([photo(image)])
+        }}
         onNextScene={(_index, at) => {
           const g = opened()
           if (g) continueFrom(g, at)
         }}
       />
-      <CharacterDialog max={maxCharacters()} />
+      <SavedDialog store={characters} max={maxCharacters()} />
+      <SavedDialog store={locations} max={1} />
     </div>
   )
 }

@@ -60,6 +60,8 @@ export type Generation = {
   // The picture a clip ends on; its first frame is referenceFileIDs.
   lastFrameFileID: string | null
   characterIDs: string[]
+  // The saved location the run is set in.
+  locationID: string | null
   creditsReserved: number
   creditsFinal: number | null
   error: string | null
@@ -83,6 +85,7 @@ export type MessagePart =
   | { type: "text"; text: string }
   | { type: "image"; fileID: string }
   | { type: "character"; id: string; name: string }
+  | { type: "location"; id: string; name: string }
   | { type: "generation"; id: string }
   | { type: "notice"; code: string; message: string }
 export type Message = {
@@ -99,7 +102,8 @@ export type Message = {
 export type Reference = { id: string; url: string; name: string; edge: number }
 
 // A person (or a mascot) saved from one to four photos, for every project; the first photo is its face.
-export type Character = { id: string; name: string; images: Array<{ fileID: string; url: string }>; createdAt: number }
+// A saved character or location: a name and one to four photos, the first being the one shown for it.
+export type Saved = { id: string; name: string; images: Array<{ fileID: string; url: string }>; createdAt: number }
 
 export const aspectStyle = (ratio: string) => ({ "aspect-ratio": ratio.replace(":", " / ") })
 

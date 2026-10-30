@@ -2,10 +2,11 @@ import { A } from "@solidjs/router"
 import { For, Show } from "solid-js"
 import { useCharacters } from "@/context/characters"
 import { useLanguage } from "@/context/language"
+import { useLocations } from "@/context/locations"
 import { useStudio } from "@/context/studio"
 import { altFor, aspectStyle, type Generation, type Message, type MessagePart } from "@/images"
 import { Spinner } from "@/ui/spinner"
-import { CharacterFace } from "./characters"
+import { SavedThumb } from "./saved"
 
 // One turn of the conversation. The person's words sit in a bubble on the right with the pictures
 // they attached; the assistant answers on the left with a strip of the runs it started, shimmering
@@ -14,14 +15,20 @@ export function AssistantMessage(props: { message: Message; onOpen: (g: Generati
   const { t } = useLanguage()
   const studio = useStudio()
   const characters = useCharacters()
+  const locations = useLocations()
   const text = () =>
     props.message.parts
       .flatMap((part) => (part.type === "text" ? [part.text] : []))
       .join("\n")
       .trim()
   const attached = () => props.message.parts.flatMap((part) => (part.type === "image" ? [part.fileID] : []))
+  // The characters and the location the person picked, each with its store to find its photo in.
   const cast = () =>
-    props.message.parts.filter((part): part is Extract<MessagePart, { type: "character" }> => part.type === "character")
+    props.message.parts.flatMap((part) => {
+      if (part.type === "character") return [{ id: part.id, name: part.name, store: characters }]
+      if (part.type === "location") return [{ id: part.id, name: part.name, store: locations }]
+      return []
+    })
   const runs = () =>
     props.message.parts.flatMap((part) => {
       const g = part.type === "generation" ? studio.run(part.id) : undefined
@@ -49,12 +56,12 @@ export function AssistantMessage(props: { message: Message; onOpen: (g: Generati
           <Show when={cast().length > 0}>
             <ul class="flex flex-wrap justify-end gap-1.5" aria-label={t("characters.inUse")}>
               <For each={cast()}>
-                {(part) => (
+                {(entry) => (
                   <li class="flex h-7 items-center gap-1.5 rounded-full bg-accent-soft pr-2.5 pl-0.5 text-footnote font-medium text-label">
-                    <Show when={characters.find(part.id)} fallback={<span class="size-6" />}>
-                      {(character) => <CharacterFace character={character()} />}
+                    <Show when={entry.store.find(entry.id)} fallback={<span class="size-6" />}>
+                      {(saved) => <SavedThumb saved={saved()} kind={entry.store.kind} />}
                     </Show>
-                    {part.name}
+                    {entry.name}
                   </li>
                 )}
               </For>

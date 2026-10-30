@@ -4,6 +4,7 @@ import { createSimpleContext } from "@kiwii/ui/context/helper"
 import { api, ApiError, apiStream } from "@/api"
 import { useCharacters } from "@/context/characters"
 import { useLanguage } from "@/context/language"
+import { useLocations } from "@/context/locations"
 import { useProjects } from "@/context/projects"
 import { ALL, useStudio } from "@/context/studio"
 import type { Generation, Message, MessagePart } from "@/images"
@@ -22,6 +23,7 @@ export const { use: useAssistant, provider: AssistantProvider } = createSimpleCo
     const projects = useProjects()
     const studio = useStudio()
     const characters = useCharacters()
+    const locations = useLocations()
     const [state, setState] = createStore<{ threads: Record<string, Thread> }>({ threads: {} })
 
     const thread = (projectID: string | undefined) => (projectID ? state.threads[projectID] : undefined)
@@ -58,11 +60,15 @@ export const { use: useAssistant, provider: AssistantProvider } = createSimpleCo
       const target = projectID ?? (await projects.create())?.id
       if (!target) return
       const references = studio.references()
-      // Picked characters stay picked for the next message.
+      // Picked characters and the picked location stay picked for the next message.
       const cast = characters.picked().flatMap((id) => {
         const character = characters.find(id)
         return character ? [{ id, name: character.name }] : []
       })
+      const place = locations.picked().flatMap((id) => {
+        const saved = locations.find(id)
+        return saved ? [{ id, name: saved.name }] : []
+      })[0]
       const asked = `pending-${Date.now()}`
       let reply = `${asked}-reply`
       let started = false
@@ -76,6 +82,7 @@ export const { use: useAssistant, provider: AssistantProvider } = createSimpleCo
               { type: "text", text },
               ...references.map((ref): MessagePart => ({ type: "image", fileID: ref.id })),
               ...cast.map((character): MessagePart => ({ type: "character", ...character })),
+              ...(place ? [{ type: "location" as const, ...place }] : []),
             ],
             createdAt: Date.now(),
           },
@@ -95,6 +102,7 @@ export const { use: useAssistant, provider: AssistantProvider } = createSimpleCo
           settings: { ...studio.settings },
           referenceFileIDs: references.map((ref) => ref.id),
           characterIDs: cast.map((character) => character.id),
+          locationID: place?.id,
         })) {
           if (event.event === "start") {
             const ids = event.data as { messageID: string; userMessageID: string }

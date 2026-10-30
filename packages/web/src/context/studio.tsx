@@ -7,6 +7,7 @@ import { BRAND_SLUG } from "@/brand"
 import { useAuth } from "@/context/auth"
 import { useCharacters } from "@/context/characters"
 import { useLanguage } from "@/context/language"
+import { useLocations } from "@/context/locations"
 import { useProjects } from "@/context/projects"
 import type {
   Generation,
@@ -87,6 +88,7 @@ export const { use: useStudio, provider: StudioProvider } = createSimpleContext(
     const { t } = useLanguage()
     const auth = useAuth()
     const characters = useCharacters()
+    const locations = useLocations()
     const projects = useProjects()
     const navigate = useNavigate()
     const [config, { refetch: refreshConfig }] = createResource(() => api<ModelsResponse>("/images/models"))
@@ -160,8 +162,8 @@ export const { use: useStudio, provider: StudioProvider } = createSimpleContext(
       const model = cfg?.models.find((m) => m.id === settings.model)
       const option = model?.options.find((o) => o.id === settings.option)
       if (!model || !option) return undefined
-      // The characters' photos are read as reference pictures too.
-      const read = references().length + characters.picked().length
+      // The characters' and the location's photos are read as reference pictures too.
+      const read = references().length + characters.picked().length + locations.picked().length
       return option.credits * settings.n + (read > 0 ? model.referenceSurcharge : 0)
     })
     const clipModel = () => videoConfig()?.models.find((m) => m.id === video.model)
@@ -338,6 +340,7 @@ export const { use: useStudio, provider: StudioProvider } = createSimpleContext(
             prompt: from.prompt,
             referenceFileIDs: from.referenceFileIDs,
             characterIDs: from.characterIDs,
+            locationID: from.locationID ?? undefined,
             // The server reuses the prompt it already screened and rewrote for this run.
             retryOf: from.id,
             projectID: from.projectID ?? undefined,
@@ -350,6 +353,7 @@ export const { use: useStudio, provider: StudioProvider } = createSimpleContext(
             prompt: prompt().trim(),
             referenceFileIDs: references().map((r) => r.id),
             characterIDs: characters.picked(),
+            locationID: locations.picked()[0],
             projectID,
           }
       const into = body.projectID ? [ALL, body.projectID] : [ALL]
@@ -364,6 +368,7 @@ export const { use: useStudio, provider: StudioProvider } = createSimpleContext(
             kind: "image",
             duration: null,
             lastFrameFileID: null,
+            locationID: body.locationID ?? null,
             status: "running",
             projectID: body.projectID ?? null,
             creditsReserved: imageCost() ?? 0,
@@ -456,6 +461,7 @@ export const { use: useStudio, provider: StudioProvider } = createSimpleContext(
             status: "running",
             n: 1,
             characterIDs: [],
+            locationID: null,
             projectID: body.projectID ?? null,
             creditsReserved: videoCost() ?? 0,
             creditsFinal: null,

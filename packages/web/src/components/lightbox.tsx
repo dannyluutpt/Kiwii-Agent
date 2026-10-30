@@ -11,6 +11,7 @@ import {
   IconDownload,
   IconImage,
   IconPersonAdd,
+  IconPlaceAdd,
   IconRefresh,
 } from "./icons"
 import { useShareFile } from "./save"
@@ -36,8 +37,9 @@ export function Lightbox(props: {
   onIndex: (index: number) => void
   onClose: () => void
   onReuse?: (index: number) => void
-  // Saves the open picture as a character.
+  // Saves the open picture as a character, or as a location.
   onCharacter?: (index: number) => void
+  onLocation?: (index: number) => void
   // Starts the next clip from the open clip: from its last frame, or from the frame at `at` seconds.
   onNextScene?: (index: number, at?: number) => void
 }) {
@@ -126,6 +128,16 @@ export function Lightbox(props: {
                 circle
                 icon={<IconPersonAdd class="size-5" />}
                 onClick={() => props.onCharacter?.(position())}
+              />
+            </Show>
+            <Show when={props.onLocation && !item()?.video}>
+              <IconButton
+                label={t("locations.saveAs")}
+                variant="overlay"
+                size="xl"
+                circle
+                icon={<IconPlaceAdd class="size-5" />}
+                onClick={() => props.onLocation?.(position())}
               />
             </Show>
             <Show when={props.onNextScene && item()?.video}>

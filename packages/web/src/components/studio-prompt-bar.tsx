@@ -1,6 +1,8 @@
 import { A } from "@solidjs/router"
 import { createSignal, Show } from "solid-js"
+import { useCharacters } from "@/context/characters"
 import { useLanguage } from "@/context/language"
+import { useLocations } from "@/context/locations"
 import type {
   ImageModel,
   ModelsResponse,
@@ -14,10 +16,10 @@ import type {
 import { Button, buttonClass } from "@/ui/button"
 import { IconButton } from "@/ui/icon-button"
 import { Sheet } from "@/ui/sheet"
-import { CastStrip, CharacterOptions } from "./characters"
 import { createLastFrameUploads, FrameSlots } from "./frame-slots"
 import { IconImage, IconSliders, IconSparkles } from "./icons"
 import { createReferenceUploads, ReferenceStrip } from "./references"
+import { PickedStrip, SavedOptions } from "./saved"
 import { StudioOptions } from "./studio-options"
 import { fitVideoModel, ModeSwitch, VideoStudioOptions } from "./video-options"
 
@@ -50,6 +52,8 @@ export function StudioPromptBar(props: {
   onGenerate: () => void
 }) {
   const { t } = useLanguage()
+  const characters = useCharacters()
+  const locations = useLocations()
   const [sheet, setSheet] = createSignal(false)
   let fileInput: HTMLInputElement | undefined
 
@@ -145,7 +149,7 @@ export function StudioPromptBar(props: {
         />
       </Show>
       <Show when={!clip()}>
-        <CastStrip class="px-3 pt-3" />
+        <PickedStrip class="px-3 pt-3" />
       </Show>
 
       <textarea
@@ -233,7 +237,16 @@ export function StudioPromptBar(props: {
                       onSettings={props.onSettings}
                       onPickModel={pick}
                       cost={props.cost}
-                      extra={<CharacterOptions max={props.config.maxCharacters} onCreate={() => setSheet(false)} />}
+                      extra={
+                        <>
+                          <SavedOptions
+                            store={characters}
+                            max={props.config.maxCharacters}
+                            onCreate={() => setSheet(false)}
+                          />
+                          <SavedOptions store={locations} max={1} onCreate={() => setSheet(false)} />
+                        </>
+                      }
                     />
                   )}
                 </Show>
