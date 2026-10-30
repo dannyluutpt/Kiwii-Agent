@@ -148,6 +148,9 @@ describe("prepareVideo", () => {
     // A real-life scene looks filmed by a person, and nobody is given words the person did not write:
     // Seedance's grandmother got a line of Vietnamese no one asked for.
     expect(system).toContain("the camera is handheld")
+    // A move the person names is kept as it is: a dolly back through a classroom came out swaying,
+    // because the rewrite also called that camera handheld.
+    expect(system).toContain("use exactly that move and keep it smooth and steady")
     expect(system).toContain("Never make up words for anyone to say")
     // The owner found the clips' skin glossy and the frames too sharp: real life on film is softer.
     expect(system).toContain("In a real-life scene, people have real skin")
