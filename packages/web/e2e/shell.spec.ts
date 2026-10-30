@@ -6,8 +6,8 @@ test.describe("phone", () => {
   test("the tab bar moves between the studio, the library and the account", async ({ page }) => {
     await page.goto("/")
     const tabs = page.getByRole("navigation", { name: "Điều hướng chính" })
-    await expect(tabs.getByRole("link")).toHaveText(["Tạo ảnh", "Thư viện", "Tài khoản"])
-    await expect(tabs.getByRole("link", { name: "Tạo ảnh" })).toHaveClass(/text-accent/)
+    await expect(tabs.getByRole("link")).toHaveText(["Studio", "Thư viện", "Tài khoản"])
+    await expect(tabs.getByRole("link", { name: "Studio" })).toHaveClass(/text-accent/)
     await tabs.getByRole("link", { name: "Thư viện" }).click()
     await expect(page).toHaveURL(/\/library$/)
     await expect(page.getByRole("heading", { level: 1, name: "Thư viện" })).toBeVisible()

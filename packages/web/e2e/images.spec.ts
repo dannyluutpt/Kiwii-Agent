@@ -407,7 +407,7 @@ test.describe("free account", () => {
 
   test("the studio explains the upgrade instead of offering a dead composer", async ({ page }) => {
     await page.goto("/")
-    await expect(page.getByRole("heading", { name: "Tạo ảnh dành cho gói trả phí" })).toBeVisible()
+    await expect(page.getByRole("heading", { name: "Tạo ảnh và video dành cho gói trả phí" })).toBeVisible()
     await expect(prompt(page)).toBeDisabled()
     await expect(page.getByRole("link", { name: "Xem bảng giá" })).toHaveCount(2)
   })

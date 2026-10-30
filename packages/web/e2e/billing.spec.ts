@@ -38,8 +38,8 @@ test.describe("paid account", () => {
     })
     expect(paid.ok()).toBe(true)
     await expect(page.getByRole("heading", { name: "Đã cộng 200 credit" })).toBeVisible({ timeout: 10_000 })
-    // The sidebar and the tab bar have a "Tạo ảnh" link too.
-    await page.getByRole("main").getByRole("link", { name: "Tạo ảnh" }).click()
+    // The tab bar has a "Studio" link too.
+    await page.getByRole("main").getByRole("link", { name: "Vào Studio" }).click()
     await expect(page).toHaveURL(/^[^?#]*:\d+\/$/)
   })
 })
