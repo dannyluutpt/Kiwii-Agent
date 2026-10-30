@@ -1,5 +1,6 @@
 import { A } from "@solidjs/router"
 import type { ParentProps } from "solid-js"
+import { LanguageSwitch } from "@/components/language-switch"
 import { useLanguage } from "@/context/language"
 
 // Scrolls on its own: the app root is fixed to the viewport, and on small phones the form plus the
@@ -7,7 +8,10 @@ import { useLanguage } from "@/context/language"
 export function AuthLayout(props: ParentProps) {
   const { t } = useLanguage()
   return (
-    <div class="h-full overflow-y-auto overscroll-contain bg-ambient">
+    <div class="relative h-full overflow-y-auto overscroll-contain bg-ambient">
+      <div class="absolute top-[max(0.75rem,env(safe-area-inset-top))] right-3 z-10">
+        <LanguageSwitch />
+      </div>
       <main class="flex min-h-full flex-col items-center justify-center px-4 pt-[max(1.5rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))]">
         <div class="w-full max-w-[400px]">
           {/* Back to the website. */}

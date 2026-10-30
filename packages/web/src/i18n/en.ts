@@ -348,6 +348,8 @@ export const dict: Record<I18nKey, string> = {
   "site.signin": "Sign in",
   "site.start": "Try it free",
   "site.startShort": "Try free",
+  "language.label": "Language",
+  "language.current": "Language: {{name}}",
   "site.footer.tagline": "An AI assistant that makes and edits pictures from plain words.",
   "site.footer.product": "Product",
   "site.footer.account": "Account",

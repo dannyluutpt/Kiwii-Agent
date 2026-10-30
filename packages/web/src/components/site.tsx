@@ -3,6 +3,7 @@ import { For, type ParentProps } from "solid-js"
 import { useLanguage } from "@/context/language"
 import type { I18nKey } from "@/i18n/vi"
 import { buttonClass } from "@/ui/button"
+import { LanguageSwitch } from "./language-switch"
 
 const NAV: Array<{ href: string; label: I18nKey }> = [
   { href: "/#tinh-nang", label: "site.nav.features" },
@@ -30,10 +31,11 @@ function SiteHeader() {
   const { t } = useLanguage()
   return (
     <header class="glass sticky top-0 z-(--z-topbar) pt-safe shadow-[inset_0_-0.5px_0_var(--k-separator-strong)]">
-      <div class="mx-auto flex h-16 w-full max-w-6xl items-center gap-2 px-4 md:px-6">
+      <div class="mx-auto flex h-16 w-full max-w-6xl items-center gap-1.5 px-4 sm:gap-2 md:px-6">
         <A href="/" class="flex shrink-0 items-center gap-2 rounded-[10px] py-1 pr-1.5">
           <img src="/logo.svg" alt="" class="size-8 rounded-[9px] shadow-[0_0_18px_-2px_rgb(255_214_10/0.6)]" />
-          <span class="text-headline text-label">{t("app.name")}</span>
+          {/* The narrowest phones keep the logo alone, so the buttons fit beside it. */}
+          <span class="text-headline text-label max-[379px]:sr-only">{t("app.name")}</span>
         </A>
         <nav aria-label={t("site.nav.label")} class="ml-6 hidden items-center gap-1 lg:flex">
           <For each={NAV}>
@@ -47,7 +49,9 @@ function SiteHeader() {
             )}
           </For>
         </nav>
-        <span class="flex-1" />
+        <span class="ml-auto">
+          <LanguageSwitch />
+        </span>
         <A href="/login" class={buttonClass("ghost", "sm")}>
           {t("site.signin")}
         </A>
