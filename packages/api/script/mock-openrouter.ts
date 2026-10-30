@@ -75,14 +75,16 @@ async function images(body: Record<string, unknown>) {
   }
   const [w, h] = size(String(body.aspect_ratio ?? "1:1"))
   const seed = calls
+  const n = Number(body.n ?? 1)
   if (!body.stream) {
     return Response.json({
       created: Date.now(),
-      data: [{ b64_json: png(w, h, seed), media_type: "image/png" }],
-      usage: { cost: 0.014 },
+      data: Array.from({ length: n }, (_, i) => ({ b64_json: png(w, h, seed + i), media_type: "image/png" })),
+      usage: { cost: 0.014 * n },
     })
   }
-  const n = Number(body.n ?? 1)
+  // As OpenRouter does: a stream carries one picture.
+  if (n > 1) return Response.json({ error: { message: "Streaming is not supported with n > 1" } }, { status: 400 })
   return sse(async (send) => {
     for (const i of Array.from({ length: n }, (_, k) => k)) {
       send({ type: "image_generation.partial_image", partial_image_index: i, b64_json: png(64, 64, seed + i) })
