@@ -58,8 +58,8 @@ export const sessions = sqliteTable(
 )
 
 // "attachment" and "generated" are files of the retired chat; their rows and objects remain.
-// "character" files are a character's own copies of its photos.
-export const FileKind = ["attachment", "generated", "reference", "image", "character", "video"] as const
+// "character" and "location" files are a saved character's or location's own copies of its photos.
+export const FileKind = ["attachment", "generated", "reference", "image", "character", "video", "location"] as const
 
 export const files = sqliteTable(
   "files",
@@ -236,6 +236,8 @@ export const generations = sqliteTable(
     job_id: text(),
     // Videos only: files.id of the picture the clip ends on; its first frame is reference_file_ids.
     last_frame_file_id: text(),
+    // The saved location the run is set in; its photos follow the characters'.
+    location_id: text(),
     ...Timestamps,
   },
   (t) => [
@@ -273,6 +275,21 @@ export const characters = sqliteTable(
     ...Timestamps,
   },
   (t) => [index("characters_user").on(t.user_id, t.created_at)],
+)
+
+// A place saved from one to four photos, shared by every project of the account, the way a character
+// is. Kept apart from characters, so a place is never read as a face to keep. `file_ids` lists files
+// of kind "location": copies made when it was saved.
+export const locations = sqliteTable(
+  "locations",
+  {
+    id: text().primaryKey(),
+    user_id: text().notNull(),
+    name: text().notNull(),
+    file_ids: text().notNull().default("[]"),
+    ...Timestamps,
+  },
+  (t) => [index("locations_user").on(t.user_id, t.created_at)],
 )
 
 export const MessageRole = ["user", "assistant"] as const

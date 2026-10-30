@@ -10,6 +10,7 @@ import { auth } from "./routes/auth"
 import { billing } from "./routes/billing"
 import { characters } from "./routes/characters"
 import { images } from "./routes/images"
+import { locations } from "./routes/locations"
 import { projects } from "./routes/projects"
 import { videos } from "./routes/videos"
 
@@ -45,6 +46,7 @@ app.route("/api/account", account)
 app.route("/api/images", images)
 app.route("/api/projects", projects)
 app.route("/api/characters", characters)
+app.route("/api/locations", locations)
 app.route("/api/videos", videos)
 
 // Reports which optional settings are present (never their values) so a misplaced secret is

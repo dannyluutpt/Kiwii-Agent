@@ -8,6 +8,7 @@ import { TRIAL_MODELS, TRIAL_OPTIONS } from "../credits/trial"
 import type { Database } from "../db/client"
 import { files, generations } from "../db/schema"
 import { languageModels } from "../llm/models"
+import { ownLocation } from "../locations/store"
 import { loadPlan } from "../plans"
 import { ownProject, touchProject } from "../projects/store"
 import { castLegend, enhancePrompt, reusableRewrite } from "./enhance"
@@ -16,6 +17,7 @@ import { glance } from "./glance"
 import { imageCreditCost, ImageModelID, loadImageModels, MAX_IMAGES_PER_RUN, MAX_REFERENCES } from "./models"
 import type { ImageReference } from "./openrouter-images"
 import { IMAGE_MIMES, toDataURL } from "./r2"
+import { photosOf } from "./saved"
 
 export const CreateGeneration = z.object({
   model: z.enum(ImageModelID),
@@ -27,6 +29,8 @@ export const CreateGeneration = z.object({
   referenceFileIDs: z.array(z.string().min(1).max(40)).max(MAX_REFERENCES).default([]),
   // Saved characters in the picture; their photos lead the references.
   characterIDs: z.array(z.string().min(1).max(40)).max(MAX_CHARACTERS_PER_RUN).default([]),
+  // A saved location the picture is set in; its photos follow the characters'.
+  locationID: z.string().min(1).max(40).optional(),
   // The failed run this one retries; its rewritten prompt is reused when it still applies.
   retryOf: z.string().min(1).max(40).optional(),
   // The project the run belongs to; without one it shows only under "all".
@@ -79,14 +83,17 @@ export async function prepareGeneration(input: {
   if (!option || option.credits === null) throw new ApiError(400, "INVALID_OPTION", "Tuỳ chọn chất lượng không hợp lệ")
   if (!model.aspectRatios.includes(body.aspectRatio))
     throw new ApiError(400, "INVALID_ASPECT", "Tỷ lệ khung không hợp lệ")
-  // The model reads the characters' photos first, then the pictures the run works from, within its
-  // limit: each character keeps one photo at least, and takes more while there is room.
+  // The model reads the characters' photos first, then the location's, then the pictures the run
+  // works from, within its limit. Each character and the location keep one photo at least; then come
+  // the pictures to work from, then more photos of the characters, then of the location.
   const room = Math.min(model.maxReferences, MAX_REFERENCES)
   const cast = await ownCharacters(db, input.user.id, [...new Set(body.characterIDs)])
+  const place = body.locationID ? await ownLocation(db, input.user.id, body.locationID) : undefined
   const own = [...new Set(body.referenceFileIDs)]
-  const photos = castPhotos(cast, room - own.length)
-  const referenceIDs = own.slice(0, Math.max(0, room - photos.flat().length))
-  const sent = [...photos.flat(), ...referenceIDs]
+  const photos = castPhotos(cast, room - own.length - (place ? 1 : 0))
+  const placePhotos = place ? photosOf(place).slice(0, Math.max(1, room - own.length - photos.flat().length)) : []
+  const referenceIDs = own.slice(0, Math.max(0, room - photos.flat().length - placePhotos.length))
+  const sent = [...photos.flat(), ...placePhotos, ...referenceIDs]
   const cost = imageCreditCost(models, {
     model: body.model,
     option: body.option,
@@ -122,6 +129,7 @@ export async function prepareGeneration(input: {
     references.push({ type: "image_url", image_url: { url } })
   }
   const members = cast.map((character, index) => ({ name: character.name, images: photos[index]?.length ?? 0 }))
+  const setting = place ? { name: place.name, images: placePhotos.length } : undefined
 
   // Moderation runs before any credit moves so a blocked prompt costs nothing. A retry of a failed
   // run skips it and reuses that run's screened, rewritten prompt.
@@ -137,10 +145,12 @@ export async function prepareGeneration(input: {
     model: body.model,
     referenceIDs,
     characterIDs: cast.map((character) => character.id),
+    locationID: place?.id ?? null,
     enhance: body.enhance,
   })
   // The screening and rewrite looks at the pictures the run works from; the legend names the
-  // characters' photos. Without small copies it is told only how many pictures there are.
+  // characters' and the location's photos. Without small copies it is told only how many pictures
+  // there are.
   const images = input.images
   const pictures =
     reused || !images
@@ -162,6 +172,7 @@ export async function prepareGeneration(input: {
         aspectRatio: body.aspectRatio,
         references: referenceIDs.length,
         cast: members,
+        place: setting,
         pictures,
         languageModel: (await languageModels(db, input.user.id)).rewrite,
       })
@@ -191,6 +202,7 @@ export async function prepareGeneration(input: {
     cost_usd: enhanced.costUsd,
     reference_file_ids: JSON.stringify(referenceIDs),
     character_ids: JSON.stringify(cast.map((character) => character.id)),
+    location_id: place?.id ?? null,
     credits_reserved: cost,
     project_id: project?.id ?? null,
     created_at: now,
@@ -202,6 +214,6 @@ export async function prepareGeneration(input: {
     model,
     perImageCredits: option.credits,
     references,
-    legend: castLegend(members, referenceIDs.length),
+    legend: castLegend(members, referenceIDs.length, setting),
   }
 }

@@ -2,38 +2,14 @@ import { and, desc, eq, inArray, sql } from "drizzle-orm"
 import { ulid } from "ulid"
 import { ApiError } from "../app"
 import type { Database } from "../db/client"
-import { characters, files } from "../db/schema"
-import { fileURL } from "../images/present"
-import { IMAGE_MIMES, objectKey } from "../images/r2"
+import { characters } from "../db/schema"
+import { copyPhotos, deletePhotos, MAX_SAVED_PHOTOS, photosOf } from "../images/saved"
 
 export type Character = typeof characters.$inferSelect
 
 export const MAX_CHARACTERS = 50
-export const MAX_CHARACTER_PHOTOS = 4
-export const MAX_CHARACTER_NAME = 40
 // Characters one run may feature.
 export const MAX_CHARACTERS_PER_RUN = 2
-
-export const photosOf = (character: Character) => JSON.parse(character.file_ids) as string[]
-
-// What the browser sees of a character: its name and its photos, the first being its face.
-export function presentCharacter(character: Character) {
-  return {
-    id: character.id,
-    name: character.name,
-    images: photosOf(character).map((fileID) => ({ fileID, url: fileURL(fileID) })),
-    createdAt: character.created_at,
-  }
-}
-
-// A name goes into prompts, so it stays one plain line.
-export function cleanName(name: string) {
-  return name
-    .replace(/["“”\p{Cc}]/gu, " ")
-    .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, MAX_CHARACTER_NAME)
-}
 
 export function listCharacters(db: Database, userID: string) {
   return db.select().from(characters).where(eq(characters.user_id, userID)).orderBy(desc(characters.created_at))
@@ -61,8 +37,8 @@ export async function ownCharacters(db: Database, userID: string, ids: string[])
   return found
 }
 
-// Saves a character from pictures of the account: uploads or generated pictures. Each photo is copied,
-// so deleting the run it came from, or the cleanup of an unused upload, leaves the character whole.
+// Saves a character from pictures of the account: uploads or generated pictures, of which it keeps
+// its own copies.
 export async function createCharacter(
   db: Database,
   bucket: R2Bucket,
@@ -76,38 +52,15 @@ export async function createCharacter(
   if ((saved?.count ?? 0) >= MAX_CHARACTERS) {
     throw new ApiError(409, "CHARACTER_LIMIT", `Mỗi tài khoản lưu được tối đa ${MAX_CHARACTERS} nhân vật`)
   }
-  const ids = [...new Set(input.fileIDs)].slice(0, MAX_CHARACTER_PHOTOS)
-  const sources = await db
-    .select()
-    .from(files)
-    .where(and(eq(files.user_id, input.userID), inArray(files.id, ids)))
-  const copies: Array<typeof files.$inferInsert> = []
-  for (const id of ids) {
-    const source = sources.find((file) => file.id === id)
-    if (source && !IMAGE_MIMES.has(source.mime)) throw new ApiError(400, "NOT_A_PICTURE", "Nhân vật chỉ dùng được ảnh")
-    const object = source && (await bucket.get(source.r2_key))
-    if (!source || !object) throw new ApiError(404, "FILE_NOT_FOUND", "Không tìm thấy ảnh")
-    const key = objectKey(input.userID, source.mime)
-    await bucket.put(key, await object.arrayBuffer(), { httpMetadata: { contentType: source.mime } })
-    copies.push({
-      id: ulid(),
-      user_id: input.userID,
-      r2_key: key,
-      name: source.name,
-      mime: source.mime,
-      size: source.size,
-      kind: "character",
-    })
-  }
+  // The copies first: a character never lists photos that are not there.
+  const fileIDs = await copyPhotos(db, bucket, { userID: input.userID, fileIDs: input.fileIDs, kind: "character" })
   const row = {
     id: ulid(),
     user_id: input.userID,
     name: input.name,
-    file_ids: JSON.stringify(copies.map((copy) => copy.id)),
+    file_ids: JSON.stringify(fileIDs),
     created_at: Date.now(),
   }
-  // The copies first: a character never lists photos that are not there.
-  await db.insert(files).values(copies)
   await db.insert(characters).values(row)
   return row
 }
@@ -119,12 +72,8 @@ export async function renameCharacter(db: Database, character: Character, name: 
 
 // The character and its copies of the photos go. Runs that featured it keep their pictures.
 export async function deleteCharacter(db: Database, bucket: R2Bucket, character: Character) {
-  const own = and(eq(files.user_id, character.user_id), inArray(files.id, photosOf(character)))
-  const owned = await db.select({ r2_key: files.r2_key }).from(files).where(own)
   await db.delete(characters).where(eq(characters.id, character.id))
-  await db.delete(files).where(own)
-  // An object left behind by a failure here has no row any more, and the daily sweep removes it.
-  if (owned.length) await bucket.delete(owned.map((file) => file.r2_key))
+  await deletePhotos(db, bucket, character.user_id, photosOf(character))
 }
 
 // The photos each character brings to a run: one each at least, then more in turn while the run has
@@ -133,7 +82,7 @@ export function castPhotos(cast: Character[], room: number) {
   const photos = cast.map(photosOf)
   const counts = photos.map(() => 0)
   let left = Math.max(cast.length, room)
-  for (let round = 0; round < MAX_CHARACTER_PHOTOS; round++) {
+  for (let round = 0; round < MAX_SAVED_PHOTOS; round++) {
     for (const [index, list] of photos.entries()) {
       if (left === 0 || !list[round]) continue
       counts[index] = (counts[index] ?? 0) + 1

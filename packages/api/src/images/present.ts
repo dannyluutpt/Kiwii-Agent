@@ -24,6 +24,7 @@ export function presentGeneration(
     // A clip's last frame; its first is referenceFileIDs.
     lastFrameFileID: g.last_frame_file_id,
     characterIDs: JSON.parse(g.character_ids) as string[],
+    locationID: g.location_id,
     creditsReserved: g.credits_reserved,
     creditsFinal: g.credits_final,
     // Seconds, for a video.

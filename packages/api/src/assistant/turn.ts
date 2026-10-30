@@ -12,6 +12,7 @@ import { accessAllows, CreateGeneration, imageAccess, prepareGeneration } from "
 import { presentGeneration } from "../images/present"
 import { languageModels } from "../llm/models"
 import { streamChat, type ChatMessage, type ToolCall } from "../llm/openrouter"
+import { ownLocation } from "../locations/store"
 import { consumeWindow } from "../middleware/ratelimit"
 import { loadPlan } from "../plans"
 import { touchProject, type Project } from "../projects/store"
@@ -46,6 +47,8 @@ export const AssistantRequest = z.object({
   referenceFileIDs: z.array(z.string().min(1).max(40)).max(MAX_REFERENCES).default([]),
   // Characters picked in the composer: they are in every picture of the reply.
   characterIDs: z.array(z.string().min(1).max(40)).max(MAX_CHARACTERS_PER_RUN).default([]),
+  // The location picked in the composer: every picture of the reply is set there.
+  locationID: z.string().min(1).max(40).optional(),
 })
 
 const GenerateArgs = z.object({
@@ -85,11 +88,12 @@ export async function checkAssistant(db: Database, user: User, request: z.infer<
     throw new ApiError(403, "IMAGE_REQUIRES_PAID", "Dùng thử chỉ tạo được ảnh FLUX 3 Klein 1K. Hãy nâng cấp gói.")
   }
   await ownCharacters(db, user.id, request.characterIDs)
+  if (request.locationID) await ownLocation(db, user.id, request.locationID)
   const cost = imageCreditCost(await loadImageModels(db), {
     model: request.settings.model,
     option: request.settings.option,
     n: request.settings.n,
-    references: request.referenceFileIDs.length + request.characterIDs.length,
+    references: request.referenceFileIDs.length + request.characterIDs.length + (request.locationID ? 1 : 0),
   })
   if (cost === undefined) throw new ApiError(400, "INVALID_INPUT", "Cài đặt không hợp lệ")
   if (credits < cost) throw new ApiError(402, "INSUFFICIENT_CREDITS", "Không đủ credit, hãy nâng gói hoặc mua thêm")
@@ -134,10 +138,12 @@ export async function runAssistantTurn(input: {
   const roster: Cast[] = [...picked, ...saved.filter((character) => !picked.includes(character))]
     .slice(0, ROSTER)
     .map((character, index) => ({ label: `C${index + 1}`, id: character.id, name: character.name }))
+  const place = body.locationID ? await ownLocation(db, input.user.id, body.locationID) : undefined
   const userParts: MessagePart[] = [
     { type: "text", text: body.text },
     ...body.referenceFileIDs.map((fileID): MessagePart => ({ type: "image", fileID })),
     ...picked.map((character): MessagePart => ({ type: "character", id: character.id, name: character.name })),
+    ...(place ? [{ type: "location" as const, id: place.id, name: place.name }] : []),
   ]
   await db.insert(project_messages).values({
     id: userMessageID,
@@ -223,6 +229,7 @@ export async function runAssistantTurn(input: {
         attached: attached.map((a) => a.label),
         characters: roster,
         picked: roster.slice(0, picked.length).map((c) => c.label),
+        place: place?.name,
       }),
     },
     ...historyMessages(history, earlier),
@@ -289,6 +296,7 @@ export async function runAssistantTurn(input: {
         prompt: args.data.prompt,
         referenceFileIDs: references,
         characterIDs,
+        locationID: place?.id,
         projectID: input.project.id,
       }),
     }).catch((error: unknown) => {

@@ -42,38 +42,61 @@ const STYLE_HINTS: Record<ImageModelID, string> = {
     "Write natural sentences. Words that should appear in the picture go in double quotes, exactly as given, with where they sit.",
 }
 
-// A character in a run, and how many of its photos the run sends.
+// A character or the location in a run, and how many of its photos the run sends.
 export type CastMember = { name: string; images: number }
 
 const imagesLabel = (first: number, count: number) =>
   count === 1 ? `Reference image ${first}` : `Reference images ${first}–${first + count - 1}`
 
-// The opening lines of the prompt of a run with characters. The image model gets each character's
-// photos first, then the pictures the run works from; the legend ties each name to its photos.
-export function castLegend(cast: CastMember[], references: number) {
-  if (cast.length === 0) return ""
+// The opening lines of the prompt of a run with characters or a location. The image model gets each
+// character's photos first, then the location's, then the pictures the run works from; the legend
+// ties each name to its photos.
+export function castLegend(cast: CastMember[], references: number, place?: CastMember) {
+  if (cast.length === 0 && !place) return ""
   let next = 1
-  const lines = cast.map((member) => {
-    const line = `${imagesLabel(next, member.images)}: ${member.name}.`
+  const named = (member: CastMember, what: string) => {
+    const line = `${imagesLabel(next, member.images)}: ${what}.`
     next += member.images
     return line
-  })
+  }
+  const lines = [
+    ...cast.map((member) => named(member, member.name)),
+    ...(place ? [named(place, `${place.name}, the place where the scene is set`)] : []),
+  ]
   if (references > 0)
     lines.push(`${imagesLabel(next, references)}: the picture${references > 1 ? "s" : ""} to work from.`)
   // Photos used whole made the person pose as in them, usually facing the camera: they are for the
   // identity alone, and the prompt sets the pose and the gaze.
   const whose = cast.length === 1 ? `${cast[0]!.name}'s reference images` : "each character's reference images"
-  lines.push(
-    `Use ${whose} only for who they are: keep their face, facial features, skin tone, hairstyle and build, and their clothes unless the prompt below changes them. Do not copy the pose, head angle, gaze, expression, framing, background or light of those photos.`,
-  )
+  if (cast.length)
+    lines.push(
+      `Use ${whose} only for who they are: keep their face, facial features, skin tone, hairstyle and build, and their clothes unless the prompt below changes them. Do not copy the pose, head angle, gaze, expression, framing, background or light of those photos.`,
+    )
+  // A place is kept the way it is built and lit, not the way it was photographed: the scene may see
+  // it from anywhere, and the people who happened to be there are not part of it.
+  if (place)
+    lines.push(
+      `Use the reference images of ${place.name} only for the place: keep its layout, architecture, materials, colors and light unless the prompt below changes them, and leave out any people in them. The camera may see it from another angle or distance.`,
+    )
   return lines.join("\n")
 }
 
 // The rewrite translates and clarifies; it must not stage the picture. Embellished prompts ("a
 // subtle smile", "50mm lens", "shallow depth of field", a change of clothes) made people pose and
 // look at the camera, which reads as a stock photo, and drifted edits away from the reference.
-function rewriteRules(model: ImageModelID, aspectRatio: string, references: number, cast: CastMember[], seen: boolean) {
+function rewriteRules(
+  model: ImageModelID,
+  aspectRatio: string,
+  references: number,
+  cast: CastMember[],
+  place: CastMember | undefined,
+  seen: boolean,
+) {
   const names = cast.map((member) => `"${member.name}"`).join(" and ")
+  // What the image model gets before the person's own pictures.
+  const before = [cast.length ? "the characters' photos" : "", place ? "the location's photos" : ""]
+    .filter(Boolean)
+    .join(" and ")
   return [
     `When allowed, rewrite the prompt in English for ${model} as a faithful, clear translation:`,
     "- Keep everything the person asked for: subjects, actions, poses, expressions, clothing, counts, named styles and quoted text. Translate the meaning faithfully and no stronger: a faint smile stays faint.",
@@ -82,8 +105,11 @@ function rewriteRules(model: ImageModelID, aspectRatio: string, references: numb
     cast.length
       ? `- The picture features ${names}, ${cast.length === 1 ? "a saved character" : "saved characters"} whose photos the image model gets with a note saying which is which. Call each one by that name, and do not describe their face, hair, body or clothes unless the person asks to change them: the photos show them. Say what each one is doing, where they are in the frame and what they are looking at, which is not the camera unless the person asks for a posed shot.`
       : "",
+    place
+      ? `- The scene is set in "${place.name}", a saved location whose photos the image model gets with a note. Call it by that name, and do not describe how it looks unless the person asks to change it: the photos show it.`
+      : "",
     references > 0
-      ? pictureRules(references, cast.length > 0, seen)
+      ? pictureRules(references, before, seen)
       : "- Fill in only what the picture needs and they left open (setting, light, framing), briefly and plainly.",
     `- The picture is ${aspectRatio}, ${orientation(aspectRatio)}: compose for that frame, without writing the ratio.`,
     `- At most 100 words, no preamble. ${STYLE_HINTS[model]}`,
@@ -132,11 +158,11 @@ function frameRule(lastFrame: boolean, seen: boolean) {
 // What the person's own pictures are for. Read as edits to keep "exactly as they are", a portrait
 // attached to put someone in a new scene passed on its framing, head angle and gaze: the man cooked
 // while staring into the camera.
-function pictureRules(references: number, afterCast: boolean, seen: boolean) {
-  const attached = afterCast
-    ? `They also attached ${references} picture(s) to work from, numbered after the characters' photos`
+function pictureRules(references: number, after: string, seen: boolean) {
+  const attached = after
+    ? `They also attached ${references} picture(s) to work from, numbered after ${after}`
     : `They attached ${references} reference image(s)`
-  const name = afterCast ? '"the picture to work from"' : '"the reference image"'
+  const name = after ? '"the picture to work from"' : '"the reference image"'
   return [
     seen
       ? `- ${attached}, shown after their words with those numbers. From their words and what each picture shows, decide what it is for:`
@@ -169,15 +195,29 @@ const orientation = (ratio: string) => {
 
 type Previous = Pick<
   typeof generations.$inferSelect,
-  "status" | "prompt_raw" | "prompt_enhanced" | "model" | "reference_file_ids" | "character_ids" | "enhance"
+  | "status"
+  | "prompt_raw"
+  | "prompt_enhanced"
+  | "model"
+  | "reference_file_ids"
+  | "character_ids"
+  | "location_id"
+  | "enhance"
 >
 
 // Retrying a failed run sends the image model the prompt that run was given: it passed the
-// screening and was rewritten for the same words, model and references, so a second call would only
-// add a wait and its cost. Anything else gets screened and rewritten afresh.
+// screening and was rewritten for the same words, model, references, characters and location, so a
+// second call would only add a wait and its cost. Anything else gets screened and rewritten afresh.
 export function reusableRewrite(
   previous: Previous | undefined,
-  request: { prompt: string; model: string; referenceIDs: string[]; characterIDs: string[]; enhance: boolean },
+  request: {
+    prompt: string
+    model: string
+    referenceIDs: string[]
+    characterIDs: string[]
+    locationID: string | null
+    enhance: boolean
+  },
 ) {
   if (previous?.status !== "failed" || !previous.prompt_enhanced) return undefined
   const same =
@@ -185,6 +225,7 @@ export function reusableRewrite(
     previous.model === request.model &&
     previous.reference_file_ids === JSON.stringify(request.referenceIDs) &&
     previous.character_ids === JSON.stringify(request.characterIDs) &&
+    previous.location_id === request.locationID &&
     previous.enhance === (request.enhance ? 1 : 0)
   return same ? previous.prompt_enhanced : undefined
 }
@@ -199,9 +240,11 @@ export async function enhancePrompt(input: {
   prompt: string
   rewrite: boolean
   aspectRatio: string
-  // The pictures the run works from, besides the photos of its characters.
+  // The pictures the run works from, besides the photos of its characters and its location.
   references: number
   cast?: CastMember[]
+  // The saved location the picture is set in.
+  place?: CastMember
   // Small copies of those pictures (data URLs, in order) for the screening and rewrite to look at.
   // Without them it only knows how many there are.
   pictures?: string[]
@@ -221,7 +264,7 @@ export async function enhancePrompt(input: {
     !input.rewrite
       ? "When allowed, return the user's prompt unchanged in prompt (translate to English only if it is not already English; keep quoted text exactly)."
       : isImageModel(input.model)
-        ? rewriteRules(input.model, input.aspectRatio, input.references, cast, pictures.length > 0)
+        ? rewriteRules(input.model, input.aspectRatio, input.references, cast, input.place, pictures.length > 0)
         : videoRules(
             input.model,
             input.aspectRatio,
@@ -232,8 +275,10 @@ export async function enhancePrompt(input: {
   ]
     .filter(Boolean)
     .join("\n")
-  // The person's pictures come after the characters' photos in what the image model gets.
-  const firstPicture = 1 + cast.reduce((sum, member) => sum + member.images, 0)
+  // The person's pictures come after the characters' and the location's photos in what the image
+  // model gets.
+  const firstPicture =
+    1 + [...cast, ...(input.place ? [input.place] : [])].reduce((sum, member) => sum + member.images, 0)
   const ask = (model: string) =>
     completeJSON({
       apiKey: input.apiKey,

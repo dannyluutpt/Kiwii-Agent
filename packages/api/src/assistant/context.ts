@@ -23,6 +23,8 @@ export function systemPrompt(input: {
   characters: Cast[]
   // Labels of the characters the person picked for this message; they are in every picture of it.
   picked: string[]
+  // The name of the location the person picked for this message: every picture of it is set there.
+  place?: string
 }) {
   const quality = input.model.param === "quality" ? "quality" : "resolution"
   return [
@@ -54,6 +56,11 @@ export function systemPrompt(input: {
       : []),
     ...(input.picked.length
       ? [`The person picked ${input.picked.join(" and ")} for this message: they are in every picture of it.`]
+      : []),
+    ...(input.place
+      ? [
+          `The person picked the saved location "${input.place}" for this message: every picture of it is set there, and the image model gets its photos, so do not describe how the place looks.`,
+        ]
       : []),
   ]
     .filter((line, index, lines) => line !== "" || lines[index - 1] !== "")
@@ -124,6 +131,7 @@ export function historyMessages(
         if (part.type === "text") return [clip(part.text, 4000)]
         if (part.type === "image" && row.role === "user") return ["[attached a picture]"]
         if (part.type === "character" && row.role === "user") return [`[picked the character "${part.name}"]`]
+        if (part.type === "location" && row.role === "user") return [`[picked the location "${part.name}"]`]
         return []
       })
       .join("\n")
