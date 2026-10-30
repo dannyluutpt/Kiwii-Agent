@@ -118,6 +118,9 @@ test("the price follows the model, the resolution, the length and a first frame"
   await pick(page, isMobile, "Model", "Seedance 2.5")
   await done(page, isMobile)
   await expect(makeButton(page, 122)).toBeEnabled()
+  // A model still being tried out runs only when asked for by name; the studio does not offer it.
+  const offered = (await (await page.request.get("/api/videos/models")).json()) as { models: Array<{ id: string }> }
+  expect(offered.models.map((model) => model.id)).toEqual(["wan-3.0", "minimax-h3", "seedance-2.5"])
 })
 
 test("a clip can end on a picture too, at no extra cost, and keeps both frames", async ({ page }) => {
