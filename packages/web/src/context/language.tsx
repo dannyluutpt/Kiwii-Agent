@@ -20,6 +20,8 @@ export const { use: useLanguage, provider: LanguageProvider } = createSimpleCont
   name: "Language",
   init: () => {
     const [locale, setLocale] = createSignal<Locale>(initialLocale())
+    // The page says which language it is in from the start, so screen readers and translators know.
+    document.documentElement.lang = locale()
     return {
       locale,
       setLocale: (next: Locale) => {

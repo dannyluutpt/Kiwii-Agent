@@ -17,24 +17,26 @@ videos.get("/models", async (c) => {
   const plan = await loadPlan(db, user)
   return c.json({
     canGenerate: plan.parallel_limit > 0,
-    models: (await loadVideoModels(db)).map((model) => ({
-      id: model.id,
-      name: model.name,
-      tagline: en ? model.tagline_en : model.tagline_vi,
-      options: model.options.map((option) => ({
-        id: option.id,
-        label: en ? option.label_en : option.label_vi,
-        credits: option.credits,
+    models: (await loadVideoModels(db))
+      .filter((model) => !model.hidden)
+      .map((model) => ({
+        id: model.id,
+        name: model.name,
+        tagline: en ? model.tagline_en : model.tagline_vi,
+        options: model.options.map((option) => ({
+          id: option.id,
+          label: en ? option.label_en : option.label_vi,
+          credits: option.credits,
+        })),
+        durations: model.durations,
+        aspectRatios: model.aspectRatios,
+        sound: model.sound,
+        maxReferences: model.maxReferences,
+        maxReferenceEdge: model.maxReferenceEdge,
+        firstFrameCredits: model.firstFrameCredits,
+        lastFrame: model.lastFrame,
+        castNote: (en ? model.castNote_en : model.castNote_vi) ?? null,
       })),
-      durations: model.durations,
-      aspectRatios: model.aspectRatios,
-      sound: model.sound,
-      maxReferences: model.maxReferences,
-      maxReferenceEdge: model.maxReferenceEdge,
-      firstFrameCredits: model.firstFrameCredits,
-      lastFrame: model.lastFrame,
-      castNote: (en ? model.castNote_en : model.castNote_vi) ?? null,
-    })),
   })
 })
 

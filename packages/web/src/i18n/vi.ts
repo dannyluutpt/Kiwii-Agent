@@ -347,6 +347,8 @@ export const dict = {
   "site.signin": "Đăng nhập",
   "site.start": "Dùng thử miễn phí",
   "site.startShort": "Dùng thử",
+  "language.label": "Ngôn ngữ",
+  "language.current": "Ngôn ngữ: {{name}}",
   "site.footer.tagline": "Trợ lý tạo và sửa ảnh bằng AI, nói tiếng Việt.",
   "site.footer.product": "Sản phẩm",
   "site.footer.account": "Tài khoản",

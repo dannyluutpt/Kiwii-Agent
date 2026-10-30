@@ -110,6 +110,8 @@ describe("video prices", () => {
     expect(videoCreditCost(VIDEO_MODELS, { model: "wan-3.0", option: "1080p", duration: 10 })).toBe(105)
     expect(videoCreditCost(VIDEO_MODELS, { model: "minimax-h3", option: "2K", duration: 5 })).toBe(34)
     expect(videoCreditCost(VIDEO_MODELS, { model: "seedance-2.5", option: "720p", duration: 10 })).toBe(122)
+    expect(videoCreditCost(VIDEO_MODELS, { model: "kling-3.0-std", option: "720p", duration: 5 })).toBe(33)
+    expect(videoCreditCost(VIDEO_MODELS, { model: "kling-3.0-std", option: "720p", duration: 10 })).toBe(66)
     expect(videoCreditCost(VIDEO_MODELS, { model: "wan-3.0", option: "720p", duration: 7 })).toBeUndefined()
     expect(videoCreditCost(VIDEO_MODELS, { model: "minimax-h3", option: "1080p", duration: 5 })).toBeUndefined()
     // No model bills the one picture a clip starts from (MiniMax's first five are free); a model that
@@ -143,6 +145,17 @@ describe("prepareVideo", () => {
     expect(system).toContain("AI video generator")
     expect(system).toContain("a 5-second video clip")
     expect(system).toContain("The clip has sound")
+    // A real-life scene looks filmed by a person, and nobody is given words the person did not write:
+    // Seedance's grandmother got a line of Vietnamese no one asked for.
+    expect(system).toContain("the camera is handheld")
+    // A move the person names is kept as it is: a dolly back through a classroom came out swaying,
+    // because the rewrite also called that camera handheld.
+    expect(system).toContain("use exactly that move and keep it smooth and steady")
+    expect(system).toContain("Never make up words for anyone to say")
+    // The owner found the clips' skin glossy and the frames too sharp: real life on film is softer.
+    expect(system).toContain("In a real-life scene, people have real skin")
+    expect(system).toContain("a real-life scene looks shot on 35mm film")
+    expect(system).toContain("say plainly where each one is, whether they stand or sit")
     expect(generation).toMatchObject({
       kind: "video",
       status: "running",
@@ -254,6 +267,25 @@ describe("a video run", () => {
     })
     expect(created).toEqual([{ id: generation.id, params: { generationID: generation.id } }])
     expect((await db.select().from(generations).get())!.job_id).toBe("job1")
+  })
+
+  test("a model still being tried out runs when asked for by name, at its own price", async () => {
+    const context = await setup()
+    const asked = openRouter()
+    const prepared = await prepareVideo({ ...context, apiKey: "k", request: request({ model: "kling-3.0-std" }) })
+    await startVideo({
+      db: context.db,
+      bucket: context.bucket,
+      apiKey: "k",
+      ...prepared,
+      workflow: fakeWorkflow().workflow,
+    })
+    expect(asked.find((call) => call.url.endsWith("/videos"))!.body).toMatchObject({
+      model: "kwaivgi/kling-v3.0-std",
+      resolution: "720p",
+      generate_audio: true,
+    })
+    expect(prepared.generation.credits_reserved).toBe(33)
   })
 
   test("a job still in progress, or in a state not known yet, leaves the run waiting", async () => {

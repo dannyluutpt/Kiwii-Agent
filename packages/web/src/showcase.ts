@@ -186,8 +186,9 @@ const SAMPLES: Sample[] = [
     model: "nano-banana-2.1",
     prompt:
       "Xoá toàn bộ người trong ảnh. Giữ nguyên kiến trúc, mặt đường, ánh sáng, màu sắc, góc chụp và mọi chi tiết khác; lấp phần trống tự nhiên như ảnh chụp lúc phố vắng",
+    // Cropped from the top to the Louvre's shape, so the two comparisons stand the same height.
     width: 1280,
-    height: 859,
+    height: 714,
     small: 640,
   },
   {

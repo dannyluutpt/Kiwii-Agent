@@ -53,12 +53,14 @@ const FEATURES: Array<{ key: string; icon: () => JSX.Element; title: I18nKey; le
   },
 ]
 
-const MODELS: Array<{ key: string; model: Sample["model"]; lead: I18nKey; points: I18nKey[] }> = [
+const MODELS: Array<{ key: string; model: Sample["model"]; lead: I18nKey; points: I18nKey[]; crop?: string }> = [
   {
     key: "poster",
     model: "gpt-image-2.5",
     lead: "landing.models.gpt.lead",
     points: ["landing.models.gpt.point1", "landing.models.gpt.point2"],
+    // The card shows the top of the tall poster, where its lettering is: lettering is this model's point.
+    crop: "object-top",
   },
   {
     key: "meo-mua",
@@ -273,7 +275,7 @@ export default function Landing() {
             {(item) => (
               <li class="rim relative flex flex-col overflow-hidden rounded-card bg-surface bg-sheen shadow-raised">
                 <div class="aspect-[4/3] overflow-hidden">
-                  <Picture sample={sample(item.key)} sizes="(min-width: 768px) 360px, 92vw" cover />
+                  <Picture sample={sample(item.key)} sizes="(min-width: 768px) 360px, 92vw" cover class={item.crop} />
                 </div>
                 <div class="flex flex-col gap-2 p-5">
                   <h3 class="text-title-3 text-label">{MODEL_NAMES[item.model]}</h3>

@@ -65,3 +65,22 @@ test("prices are public, and choosing a plan asks to sign up first", async ({ pa
   await page.getByRole("article", { name: "Plus" }).getByRole("button", { name: "Chọn gói" }).click()
   await expect(page).toHaveURL(/\/signup\?next=%2Fpricing$/)
 })
+
+test("a visitor switches the website to English, and the choice stays", async ({ page }) => {
+  await page.goto("/")
+  await expect(page.locator("html")).toHaveAttribute("lang", "vi")
+  const header = page.getByRole("banner")
+  await header.getByRole("button", { name: "Ngôn ngữ: Tiếng Việt" }).click()
+  await page.getByRole("menuitemradio", { name: "English" }).click()
+  await expect(page.locator("html")).toHaveAttribute("lang", "en")
+  await expect(header.getByRole("link", { name: "Sign in" })).toBeVisible()
+  // It is remembered, and the sign-in screen has the picker too.
+  await page.reload()
+  await expect(header.getByRole("button", { name: "Language: English" })).toBeVisible()
+  await header.getByRole("link", { name: "Sign in" }).click()
+  await expect(page.getByRole("heading", { name: "Log in to Amberpix" })).toBeVisible()
+  await page.getByRole("button", { name: "Language: English" }).click()
+  await page.getByRole("menuitemradio", { name: "Tiếng Việt" }).click()
+  await expect(page.getByRole("heading", { name: "Đăng nhập Amberpix" })).toBeVisible()
+  await expect(page.locator("html")).toHaveAttribute("lang", "vi")
+})

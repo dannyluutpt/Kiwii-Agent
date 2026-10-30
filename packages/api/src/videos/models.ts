@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm"
 import type { Database } from "../db/client"
 import { app_config } from "../db/schema"
 
-export const VideoModelID = ["wan-3.0", "minimax-h3", "seedance-2.5"] as const
+export const VideoModelID = ["wan-3.0", "minimax-h3", "seedance-2.5", "kling-3.0-std"] as const
 export type VideoModelID = (typeof VideoModelID)[number]
 
 // Photos of a clip's characters and location sent as references (input_references), each scaled to
@@ -40,13 +40,17 @@ export type VideoModel = {
   // way worth knowing beforehand.
   castNote_vi?: string
   castNote_en?: string
+  // Runs when asked for by name, but the studio does not offer it: a model being tried out before it
+  // is offered to everyone.
+  hidden?: boolean
 }
 
 // Credits = ceil(OpenRouter price for the clip × 25,460 đ/USD ÷ (1,083 đ × 0.45)): at least a 55%
 // gross margin on the cheapest credit, Ultra's. Prices from GET /api/v1/videos/models on
 // 2026-10-29: Wan 3.0 0.10 USD/s at 720p and 0.20 at 1080p; MiniMax H3 0.13 USD/s at 2K, its first
 // five reference pictures free; Seedance 2.5 0.0000107 USD a video token, with (width × height ×
-// seconds × 24) / 1024 tokens, so 0.233 USD/s at 720p in its largest frame (1112×834).
+// seconds × 24) / 1024 tokens, so 0.233 USD/s at 720p in its largest frame (1112×834). Kling 3.0
+// Standard, on 2026-10-30: 0.126 USD/s with sound, at 720p only.
 export const VIDEO_MODELS: VideoModel[] = [
   {
     id: "wan-3.0",
@@ -100,6 +104,22 @@ export const VIDEO_MODELS: VideoModel[] = [
     maxReferenceEdge: 1920,
     firstFrameCredits: 0,
     lastFrame: true,
+  },
+  {
+    id: "kling-3.0-std",
+    slug: "kwaivgi/kling-v3.0-std",
+    name: "Kling 3.0 Standard",
+    tagline_vi: "Kling của Kuaishou, 720p, có âm thanh",
+    tagline_en: "Kuaishou's Kling at 720p, with sound",
+    options: [{ id: "720p", label_vi: "720p", label_en: "720p", credits: { 5: 33, 10: 66 } }],
+    durations: [5, 10],
+    aspectRatios: ["16:9", "9:16", "1:1"],
+    sound: true,
+    maxReferences: 1,
+    maxReferenceEdge: 1920,
+    firstFrameCredits: 0,
+    lastFrame: true,
+    hidden: true,
   },
 ]
 

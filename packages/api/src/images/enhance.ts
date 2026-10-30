@@ -81,9 +81,27 @@ export function castLegend(cast: CastMember[], references: number, place?: CastM
   return lines.join("\n")
 }
 
+// Names a translation tends to swap: on production "cành đào" (a peach branch, pink) came out as an
+// apricot branch, which in Vietnamese is hoa mai (yellow).
+const EXACT_NAMES =
+  "- Name Vietnamese things exactly: cành đào or hoa đào is a pink peach blossom branch, hoa mai a yellow apricot blossom."
+
+// Left to themselves, image and video models give people glossy, poreless skin and razor-sharp,
+// shiny frames: the owner found today's clips "too AI". Real skin and, for a clip, the softer look of
+// film stock read as filmed by a person.
+const REAL_SKIN =
+  "real skin: matte, with visible pores, fine lines and uneven tone, never glossy, waxy, plastic or airbrushed"
+
+// Where people are has to be said, not implied: "seen past a waiting customer, looking across the
+// counter" became a barista sitting at a café table like a customer.
+const PLACES =
+  "- When people or things have places in the scene, say plainly where each one is, whether they stand or sit, and what is between them (for example: the barista stands behind a tall counter, the customer stands in front of it)."
+
 // The rewrite translates and clarifies; it must not stage the picture. Embellished prompts ("a
 // subtle smile", "50mm lens", "shallow depth of field", a change of clothes) made people pose and
 // look at the camera, which reads as a stock photo, and drifted edits away from the reference.
+// What does make a picture believable is plain detail about what is already there: where its light
+// comes from, the texture of its surfaces, and, for an everyday photo, how a person took it.
 function rewriteRules(
   model: ImageModelID,
   aspectRatio: string,
@@ -99,21 +117,27 @@ function rewriteRules(
   return [
     `When allowed, rewrite the prompt in English for ${model} as a faithful, clear translation:`,
     "- Keep everything the person asked for: subjects, actions, poses, expressions, clothing, counts, named styles and quoted text. Translate the meaning faithfully and no stronger: a faint smile stays faint.",
-    "- Add nothing they did not ask for: no new people, objects, clothes, expressions or gestures, and no camera, lens, depth-of-field or quality words (8k, masterpiece, ultra-detailed, cinematic).",
+    EXACT_NAMES,
+    PLACES,
+    "- Add nothing they did not ask for: no new people, objects, clothes, expressions or gestures, and no camera models, lens, depth-of-field or quality words (8k, masterpiece, ultra-detailed, cinematic).",
     "- Photographs should look natural and believable. Unless they ask for a posed shot such as a portrait or a selfie, a photo shows an ordinary, candid moment: people carry on with what they are doing and do not look at the camera, in the light the place really has.",
+    "- For a photograph, say where its light comes from (daylight through a window, a street lamp, a ceiling light, a camera flash only if they ask for one) and name the real texture of what is already there (skin, fabric, worn wood, wet ground) in a few plain words. When they want an everyday, real-life photo, say how a person took it: a phone snapshot, at eye level or slightly tilted, with ordinary framing.",
+    `- In a photograph, people have ${REAL_SKIN}. Keep the photograph true to life: natural colors and contrast, no HDR glow, no over-sharpening.`,
     ...savedRules(cast, place, "picture"),
     references > 0
       ? pictureRules(references, before, seen)
-      : `- Fill in only what the picture needs and they left open (${place ? "light, framing" : "setting, light, framing"}), briefly and plainly.`,
+      : `- Fill in only what the picture needs and they left open (${place ? "light, framing, mood" : "setting, light, framing, mood"}), briefly and plainly.`,
     `- The picture is ${aspectRatio}, ${orientation(aspectRatio)}: compose for that frame, without writing the ratio.`,
-    `- At most 100 words, no preamble. ${STYLE_HINTS[model]}`,
+    `- At most 110 words, no preamble. ${STYLE_HINTS[model]}`,
   ]
     .filter(Boolean)
     .join("\n")
 }
 
 // A clip is read as it plays: what moves, in what order, and what it sounds like. The same faithful
-// translation as for pictures, so nothing the person did not ask for gets staged.
+// translation as for pictures, so nothing the person did not ask for gets staged. A real-life scene
+// looks filmed by a person when the camera behaves like one: it sways a little, follows the action,
+// refocuses and lets the exposure catch up with the light, where a machine glides evenly.
 function videoRules(
   model: VideoModelID,
   aspectRatio: string,
@@ -126,18 +150,22 @@ function videoRules(
   return [
     `When allowed, rewrite the prompt in English for ${model} as a faithful, clear description of a ${clip.seconds}-second video clip:`,
     "- Keep everything the person asked for: subjects, actions, expressions, clothing, counts, named styles and quoted text. Translate the meaning faithfully and no stronger.",
+    EXACT_NAMES,
+    PLACES,
     `- Say what happens during the clip, in order: who or what moves and how. Keep to what fits in ${clip.seconds} seconds.`,
-    "- Add nothing they did not ask for: no new people or objects, and no quality words (8k, masterpiece, cinematic). Name a camera movement only when they ask for one or the scene plainly needs it, in plain words (a static shot, a slow push-in, a pan to the left).",
-    "- Unless they ask for a posed shot, people carry on with what they are doing and do not look at the camera, in the light the place really has.",
+    "- Add nothing they did not ask for: no new people or objects, and no quality words (8k, masterpiece, cinematic).",
+    "- Say how the camera moves, in plain words and at most two moves. When they name a move (a dolly, a pan, a tilt, a zoom, a crane or drone shot, a static shot), use exactly that move and keep it smooth and steady: never call that camera handheld or let it sway. When they name none, for a real-life scene of people (everyday life, family, street, a vlog, a documentary) the camera is handheld, moved as the person holding it would, with a slight natural sway, and does what the scene needs of these: follows the action, refocuses from one subject to another, lets its exposure adjust when the light changes, swings quickly toward something sudden. For a staged, product or animated scene, one steady move (a static shot, a slow push-in, a pan to the left).",
+    `- In a real-life scene, people have ${REAL_SKIN}. Unless they ask for another look (a phone video, a crisp commercial, animation), a real-life scene looks shot on 35mm film: a little soft rather than razor-sharp, with fine natural grain, muted true-to-life colors and highlights that roll off gently.`,
+    "- Unless they ask for a posed shot, people carry on with what they are doing and do not look at the camera, in the light the place really has. Say where that light comes from and name the textures that move or catch it (hair, fabric, steam, water, dust) in a few plain words.",
     clip.sound
-      ? "- The clip has sound: name the sounds that belong to the scene in a few words. Put words someone says in double quotes, exactly as given, and say who says them and in which language."
+      ? "- The clip has sound: name the sounds that belong to the scene in a few words. Put words someone says in double quotes, exactly as given, and say who says them and in which language. Never make up words for anyone to say: people chatting or laughing stays a sound."
       : "",
     ...savedRules(cast, place, "clip"),
     references > 0
       ? frameRule(clip.lastFrame === true, seen)
-      : `- Fill in only what the clip needs and they left open (${place ? "light" : "setting, light"}), briefly and plainly.`,
+      : `- Fill in only what the clip needs and they left open (${place ? "light, mood" : "setting, light, mood"}), briefly and plainly.`,
     `- The video is ${aspectRatio}, ${orientation(aspectRatio)}: compose for that frame, without writing the ratio.`,
-    "- At most 90 words, no preamble. Write plain sentences.",
+    "- At most 120 words, no preamble. Write plain sentences.",
   ]
     .filter(Boolean)
     .join("\n")
