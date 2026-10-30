@@ -410,6 +410,46 @@ describe("runGeneration", () => {
     expect(events).toEqual(["image", "image", "done"])
   })
 
+  test("several pictures on the streaming model are asked for at once, without streaming", async () => {
+    // OpenRouter refuses stream=true for more than one picture: "Streaming is not supported with n > 1".
+    const db = await testDatabase()
+    const generation = await seed(db, { model: "gpt-image-2.5", option: "high", n: 4, credits: 16 })
+    const { bucket } = fakeBucket()
+    const bodies: ImageBody[] = []
+    const restore = mockFetch((body) => {
+      bodies.push(body)
+      if (body.stream && body.n > 1)
+        return new Response(JSON.stringify({ error: { message: "Streaming is not supported with n > 1" } }), {
+          status: 400,
+        })
+      return Response.json({
+        data: Array.from({ length: body.n }, () => ({ b64_json: PIXEL, media_type: "image/jpeg" })),
+        usage: { cost: 0.3 },
+      })
+    })
+    const events: string[] = []
+    try {
+      await runGeneration({
+        db,
+        bucket,
+        apiKey: "k",
+        generation,
+        model: IMAGE_MODELS[2]!,
+        perImageCredits: 4,
+        references: [],
+        emit: (event) => {
+          events.push(event.type)
+        },
+      })
+    } finally {
+      restore()
+    }
+    expect(bodies).toEqual([expect.objectContaining({ stream: false, n: 4 })])
+    expect(events).toEqual(["image", "image", "image", "image", "done"])
+    const row = (await db.select().from(generations).where(eq(generations.id, generation.id)).get())!
+    expect(row).toMatchObject({ status: "done", credits_final: 16 })
+  })
+
   test("total failure marks failed and refunds everything", async () => {
     const db = await testDatabase()
     const generation = await seed(db, { model: "nano-banana-2.1", option: "1K", n: 2, credits: 4, costUsd: 0.0001 })

@@ -92,9 +92,10 @@ export async function runGeneration(input: RunInput) {
 
   try {
     if (model.multiImage) {
-      // Previews stream for a fresh picture only: OpenRouter refuses stream=true for an edit
-      // ("Streaming is not supported for image-to-image (edit) requests").
-      if (model.streaming && input.references.length === 0) {
+      // Previews stream for one fresh picture only: OpenRouter refuses stream=true for an edit
+      // ("Streaming is not supported for image-to-image (edit) requests") and for several pictures
+      // at once ("Streaming is not supported with n > 1").
+      if (model.streaming && input.references.length === 0 && generation.n === 1) {
         for await (const event of streamImages({ ...base, n: generation.n })) {
           if (event.type === "partial") await input.emit(event)
           if (event.type === "error") throw event.error
