@@ -38,11 +38,15 @@ const clip = Bun.file(new URL("./mock-video.mp4", import.meta.url))
 async function videos(req: Request, url: URL) {
   calls++
   if (req.method === "POST") {
-    const body: { model?: string; prompt?: string; frame_images?: unknown[] } = await req.json()
+    const body: { model?: string; prompt?: string; frame_images?: unknown[]; input_references?: unknown[] } =
+      await req.json()
     const id = `mockvideo${calls}`
     jobs.set(id, { looks: 0, fails: String(body.prompt).includes("FAIL") })
     const frames = body.frame_images?.length ?? 0
-    console.log(`[mock] #${calls} video job ${id} model=${String(body.model)} first frames=${frames}`)
+    const references = body.input_references?.length ?? 0
+    console.log(
+      `[mock] #${calls} video job ${id} model=${String(body.model)} frames=${frames} references=${references}`,
+    )
     return Response.json({ id, polling_url: `${url.origin}/videos/${id}`, status: "pending" }, { status: 202 })
   }
   const [, id, content] = /\/videos\/([^/]+)(\/content)?/.exec(url.pathname) ?? []

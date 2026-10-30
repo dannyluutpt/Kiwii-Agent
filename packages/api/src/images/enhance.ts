@@ -92,7 +92,6 @@ function rewriteRules(
   place: CastMember | undefined,
   seen: boolean,
 ) {
-  const names = cast.map((member) => `"${member.name}"`).join(" and ")
   // What the image model gets before the person's own pictures.
   const before = [cast.length ? "the characters' photos" : "", place ? "the location's photos" : ""]
     .filter(Boolean)
@@ -102,15 +101,10 @@ function rewriteRules(
     "- Keep everything the person asked for: subjects, actions, poses, expressions, clothing, counts, named styles and quoted text. Translate the meaning faithfully and no stronger: a faint smile stays faint.",
     "- Add nothing they did not ask for: no new people, objects, clothes, expressions or gestures, and no camera, lens, depth-of-field or quality words (8k, masterpiece, ultra-detailed, cinematic).",
     "- Photographs should look natural and believable. Unless they ask for a posed shot such as a portrait or a selfie, a photo shows an ordinary, candid moment: people carry on with what they are doing and do not look at the camera, in the light the place really has.",
-    cast.length
-      ? `- The picture features ${names}, ${cast.length === 1 ? "a saved character" : "saved characters"} whose photos the image model gets with a note saying which is which. Call each one by that name, and do not describe their face, hair, body or clothes unless the person asks to change them: the photos show them. Say what each one is doing, where they are in the frame and what they are looking at, which is not the camera unless the person asks for a posed shot.`
-      : "",
-    place
-      ? `- The scene is set in "${place.name}", a saved location whose photos the image model gets with a note. Call it by that name, and do not describe how it looks unless the person asks to change it: the photos show it.`
-      : "",
+    ...savedRules(cast, place, "picture"),
     references > 0
       ? pictureRules(references, before, seen)
-      : "- Fill in only what the picture needs and they left open (setting, light, framing), briefly and plainly.",
+      : `- Fill in only what the picture needs and they left open (${place ? "light, framing" : "setting, light, framing"}), briefly and plainly.`,
     `- The picture is ${aspectRatio}, ${orientation(aspectRatio)}: compose for that frame, without writing the ratio.`,
     `- At most 100 words, no preamble. ${STYLE_HINTS[model]}`,
   ]
@@ -125,6 +119,8 @@ function videoRules(
   aspectRatio: string,
   clip: { seconds: number; sound: boolean; lastFrame?: boolean },
   references: number,
+  cast: CastMember[],
+  place: CastMember | undefined,
   seen: boolean,
 ) {
   return [
@@ -136,14 +132,30 @@ function videoRules(
     clip.sound
       ? "- The clip has sound: name the sounds that belong to the scene in a few words. Put words someone says in double quotes, exactly as given, and say who says them and in which language."
       : "",
+    ...savedRules(cast, place, "clip"),
     references > 0
       ? frameRule(clip.lastFrame === true, seen)
-      : "- Fill in only what the clip needs and they left open (setting, light), briefly and plainly.",
+      : `- Fill in only what the clip needs and they left open (${place ? "light" : "setting, light"}), briefly and plainly.`,
     `- The video is ${aspectRatio}, ${orientation(aspectRatio)}: compose for that frame, without writing the ratio.`,
     "- At most 90 words, no preamble. Write plain sentences.",
   ]
     .filter(Boolean)
     .join("\n")
+}
+
+// The saved characters and location a picture or a clip features: the model gets their photos, so the
+// rewrite calls them by name and does not describe them.
+function savedRules(cast: CastMember[], place: CastMember | undefined, made: "picture" | "clip") {
+  const reader = made === "clip" ? "video model" : "image model"
+  const names = cast.map((member) => `"${member.name}"`).join(" and ")
+  return [
+    cast.length
+      ? `- The ${made} features ${names}, ${cast.length === 1 ? "a saved character" : "saved characters"} whose photos the ${reader} gets with a note saying which is which. Call each one by that name, and do not describe their face, hair, body or clothes unless the person asks to change them: the photos show them. Say what each one is doing, where they are in the frame and what they are looking at, which is not the camera unless the person asks for a posed shot.`
+      : "",
+    place
+      ? `- The scene is set in "${place.name}", a saved location whose photos the ${reader} gets with a note. Call it by that name, and do not describe how it looks unless the person asks to change it: the photos show it.`
+      : "",
+  ]
 }
 
 // The pictures a clip starts from and, with a last frame, ends on: the model sees them, so the rewrite
@@ -243,7 +255,7 @@ export async function enhancePrompt(input: {
   // The pictures the run works from, besides the photos of its characters and its location.
   references: number
   cast?: CastMember[]
-  // The saved location the picture is set in.
+  // The saved location the picture or the clip is set in.
   place?: CastMember
   // Small copies of those pictures (data URLs, in order) for the screening and rewrite to look at.
   // Without them it only knows how many there are.
@@ -270,6 +282,8 @@ export async function enhancePrompt(input: {
             input.aspectRatio,
             input.clip ?? { seconds: 5, sound: false },
             input.references,
+            cast,
+            input.place,
             pictures.length > 0,
           ),
   ]

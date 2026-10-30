@@ -5,6 +5,10 @@ import { app_config } from "../db/schema"
 export const VideoModelID = ["wan-3.0", "minimax-h3", "seedance-2.5"] as const
 export type VideoModelID = (typeof VideoModelID)[number]
 
+// Photos of a clip's characters and location sent as references (input_references), each scaled to
+// the model's edge so the Worker never holds more than a few megabytes of them.
+export const MAX_VIDEO_REFERENCES = 4
+
 export type VideoOption = {
   // The resolution sent to OpenRouter.
   id: string
@@ -32,6 +36,10 @@ export type VideoModel = {
   firstFrameCredits: number
   // Whether the clip can also end on a picture (OpenRouter's last_frame).
   lastFrame: boolean
+  // Shown next to the characters picked for a clip of this model, when it treats their photos in a
+  // way worth knowing beforehand.
+  castNote_vi?: string
+  castNote_en?: string
 }
 
 // Credits = ceil(OpenRouter price for the clip × 25,460 đ/USD ÷ (1,083 đ × 0.45)): at least a 55%
@@ -79,6 +87,8 @@ export const VIDEO_MODELS: VideoModel[] = [
     name: "Seedance 2.5",
     tagline_vi: "Chuyển động tự nhiên, hợp kể chuyện, có âm thanh",
     tagline_en: "Natural motion for storytelling, with sound",
+    castNote_vi: "Seedance có thể từ chối ảnh mặt người thật; nếu bị từ chối, credit được hoàn tự động.",
+    castNote_en: "Seedance may refuse photos of real faces; if it does, your credits come back on their own.",
     options: [{ id: "720p", label_vi: "720p", label_en: "720p", credits: { 5: 61, 10: 122 } }],
     durations: [5, 10],
     aspectRatios: ["16:9", "9:16", "1:1", "4:3", "3:4", "21:9"],

@@ -2,17 +2,20 @@ import { and, eq, sql } from "drizzle-orm"
 import { ulid } from "ulid"
 import { z } from "zod"
 import { ApiError, type User } from "../app"
+import { MAX_CHARACTERS_PER_RUN, ownCharacters } from "../characters/store"
 import { reserve } from "../credits/ledger"
 import type { Database } from "../db/client"
 import { files, generations } from "../db/schema"
 import { enhancePrompt } from "../images/enhance"
 import { reapStaleGenerations } from "../images/generate"
-import { framed, glance } from "../images/glance"
-import { IMAGE_MIMES, toDataURL } from "../images/r2"
+import { glance } from "../images/glance"
+import { savedPhotos } from "../images/prepare"
+import { IMAGE_MIMES } from "../images/r2"
 import { languageModels } from "../llm/models"
+import { ownLocation } from "../locations/store"
 import { loadPlan } from "../plans"
 import { ownProject, touchProject } from "../projects/store"
-import { loadVideoModels, VideoModelID, videoCreditCost } from "./models"
+import { loadVideoModels, MAX_VIDEO_REFERENCES, VideoModelID, videoCreditCost } from "./models"
 
 export const CreateVideo = z.object({
   model: z.enum(VideoModelID),
@@ -25,11 +28,16 @@ export const CreateVideo = z.object({
   referenceFileIDs: z.array(z.string().min(1).max(40)).max(1).default([]),
   // The picture the clip ends on; only with a first frame.
   lastFrameFileID: z.string().min(1).max(40).optional(),
+  // Saved characters in the clip and the location it is set in, whose photos the model gets as
+  // references. OpenRouter drops references sent next to frames, so a clip takes one or the other.
+  characterIDs: z.array(z.string().min(1).max(40)).max(MAX_CHARACTERS_PER_RUN).default([]),
+  locationID: z.string().min(1).max(40).optional(),
   projectID: z.string().min(1).max(40).optional(),
 })
 
-// Everything before a video job is submitted: paid plans only, the price, the frames, the screening
-// and rewrite, the credit hold and the row. Nothing is charged before every check passed.
+// Everything before a video job is submitted: paid plans only, the price, the frames or the cast, the
+// screening and rewrite, the credit hold and the row. Nothing is charged before every check passed.
+// What the job is sent is read back from the row when it is submitted (see startVideo).
 export async function prepareVideo(input: {
   db: Database
   bucket: R2Bucket
@@ -63,6 +71,15 @@ export async function prepareVideo(input: {
     throw new ApiError(400, "LAST_FRAME_NEEDS_FIRST", "Hãy thêm khung hình đầu trước khung hình cuối")
   }
   if (lastID && !model.lastFrame) throw new ApiError(400, "INVALID_OPTION", "Model này không nhận khung hình cuối")
+  if ((body.characterIDs.length || body.locationID) && (body.referenceFileIDs.length || lastID)) {
+    throw new ApiError(
+      400,
+      "FRAMES_OR_CAST",
+      "Video dùng khung hình hoặc nhân vật và bối cảnh, không dùng cùng lúc. Hãy bỏ một trong hai.",
+    )
+  }
+  const cast = await ownCharacters(db, input.user.id, [...new Set(body.characterIDs)])
+  const place = body.locationID ? await ownLocation(db, input.user.id, body.locationID) : undefined
 
   await reapStaleGenerations(db)
   const running = await db
@@ -76,23 +93,14 @@ export async function prepareVideo(input: {
     })
   }
 
-  // The model gets each frame at most 1,920 px on its long edge (its videos are no larger). A clip
-  // that ends on a picture gets both cut to its own shape, so the two frames match. The screening
-  // and rewrite look at small copies, both or none, so their numbers stay right.
+  // The screening and rewrite look at small copies of the frames, both or none, so their numbers stay
+  // right. It is told the cast by name only, the way a picture's rewrite is.
   const fileID = body.referenceFileIDs[0]
   const first = await ownPicture(db, input.user.id, fileID)
   const last = await ownPicture(db, input.user.id, lastID)
   const images = input.images
-  const frame = (key: string) => {
-    if (!images) return toDataURL(input.bucket, key)
-    const copy = last
-      ? framed(images, input.bucket, key, body.aspectRatio, model.maxReferenceEdge)
-      : glance(images, input.bucket, key, model.maxReferenceEdge)
-    return copy.catch(() => toDataURL(input.bucket, key))
-  }
-  const firstFrame = first ? await frame(first.r2_key) : undefined
-  const lastFrame = last ? await frame(last.r2_key) : undefined
   const frames = [first, last].flatMap((row) => (row ? [row] : []))
+  const chosen = savedPhotos(cast, place, MAX_VIDEO_REFERENCES)
   const glanced = images
     ? await Promise.all(frames.map((row) => glance(images, input.bucket, row.r2_key).catch(() => undefined)))
     : []
@@ -107,6 +115,8 @@ export async function prepareVideo(input: {
     rewrite: body.enhance,
     aspectRatio: body.aspectRatio,
     references: frames.length,
+    cast: cast.map((character, index) => ({ name: character.name, images: chosen.photos[index]?.length ?? 0 })),
+    place: place ? { name: place.name, images: chosen.placePhotos.length } : undefined,
     pictures: pictures.length === frames.length ? pictures : [],
     languageModel: (await languageModels(db, input.user.id)).rewrite,
   })
@@ -137,13 +147,15 @@ export async function prepareVideo(input: {
     cost_usd: enhanced.costUsd,
     reference_file_ids: JSON.stringify(fileID ? [fileID] : []),
     last_frame_file_id: lastID ?? null,
+    character_ids: JSON.stringify(cast.map((character) => character.id)),
+    location_id: place?.id ?? null,
     credits_reserved: cost,
     project_id: project?.id ?? null,
     created_at: now,
   })
   if (project) await touchProject(db, project, body.prompt, now)
   const generation = (await db.select().from(generations).where(eq(generations.id, id)).get())!
-  return { generation, model, firstFrame, lastFrame }
+  return { generation, model }
 }
 
 // A picture of the person's own by its file id, or none for no id: a file of someone else's, or one

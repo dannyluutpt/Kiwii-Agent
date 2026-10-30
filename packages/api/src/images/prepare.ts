@@ -2,13 +2,13 @@ import { and, eq, inArray, sql } from "drizzle-orm"
 import { ulid } from "ulid"
 import { z } from "zod"
 import { ApiError, type User } from "../app"
-import { castPhotos, MAX_CHARACTERS_PER_RUN, ownCharacters } from "../characters/store"
+import { castPhotos, MAX_CHARACTERS_PER_RUN, ownCharacters, type Character } from "../characters/store"
 import { balance, reserve } from "../credits/ledger"
 import { TRIAL_MODELS, TRIAL_OPTIONS } from "../credits/trial"
 import type { Database } from "../db/client"
 import { files, generations } from "../db/schema"
 import { languageModels } from "../llm/models"
-import { ownLocation } from "../locations/store"
+import { ownLocation, type Location } from "../locations/store"
 import { loadPlan } from "../plans"
 import { ownProject, touchProject } from "../projects/store"
 import { castLegend, enhancePrompt, reusableRewrite } from "./enhance"
@@ -36,6 +36,14 @@ export const CreateGeneration = z.object({
   // The project the run belongs to; without one it shows only under "all".
   projectID: z.string().min(1).max(40).optional(),
 })
+
+// The photos a run sends of its characters and its location, within the `room` the pictures it works
+// from leave: one each at least, then more of the characters in turn, then more of the location.
+export function savedPhotos(cast: Character[], place: Location | undefined, room: number) {
+  const photos = castPhotos(cast, room - (place ? 1 : 0))
+  const placePhotos = place ? photosOf(place).slice(0, Math.max(1, room - photos.flat().length)) : []
+  return { photos, placePhotos }
+}
 
 // Paid plans use their plan limit and every model. A free account with leftover trial (or
 // top-up) credits may run one generation at a time, on the trial model at its lowest setting.
@@ -90,10 +98,9 @@ export async function prepareGeneration(input: {
   const cast = await ownCharacters(db, input.user.id, [...new Set(body.characterIDs)])
   const place = body.locationID ? await ownLocation(db, input.user.id, body.locationID) : undefined
   const own = [...new Set(body.referenceFileIDs)]
-  const photos = castPhotos(cast, room - own.length - (place ? 1 : 0))
-  const placePhotos = place ? photosOf(place).slice(0, Math.max(1, room - own.length - photos.flat().length)) : []
-  const referenceIDs = own.slice(0, Math.max(0, room - photos.flat().length - placePhotos.length))
-  const sent = [...photos.flat(), ...placePhotos, ...referenceIDs]
+  const chosen = savedPhotos(cast, place, room - own.length)
+  const referenceIDs = own.slice(0, Math.max(0, room - chosen.photos.flat().length - chosen.placePhotos.length))
+  const sent = [...chosen.photos.flat(), ...chosen.placePhotos, ...referenceIDs]
   const cost = imageCreditCost(models, {
     model: body.model,
     option: body.option,
@@ -128,8 +135,11 @@ export async function prepareGeneration(input: {
     if (!url) throw new ApiError(404, "FILE_NOT_FOUND", "Ảnh tham chiếu không tồn tại")
     references.push({ type: "image_url", image_url: { url } })
   }
-  const members = cast.map((character, index) => ({ name: character.name, images: photos[index]?.length ?? 0 }))
-  const setting = place ? { name: place.name, images: placePhotos.length } : undefined
+  const members = cast.map((character, index) => ({
+    name: character.name,
+    images: chosen.photos[index]?.length ?? 0,
+  }))
+  const setting = place ? { name: place.name, images: chosen.placePhotos.length } : undefined
 
   // Moderation runs before any credit moves so a blocked prompt costs nothing. A retry of a failed
   // run skips it and reuses that run's screened, rewritten prompt.

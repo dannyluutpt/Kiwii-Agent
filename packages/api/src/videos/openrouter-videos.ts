@@ -53,6 +53,8 @@ export async function submitVideo(
     // Pictures the clip starts from and ends on, as data URLs; a last frame comes with a first.
     firstFrame?: string
     lastFrame?: string
+    // Photos of who and where the clip shows, as data URLs. OpenRouter ignores them next to frames.
+    references?: string[]
   },
 ) {
   const frames = [
@@ -72,6 +74,9 @@ export async function submitVideo(
       aspect_ratio: input.aspectRatio,
       generate_audio: input.sound,
       frame_images: frames.length ? frames : undefined,
+      input_references: input.references?.length
+        ? input.references.map((url) => ({ type: "image_url", image_url: { url } }))
+        : undefined,
     }),
   })
   const body = Submitted.safeParse(await res.json().catch(() => undefined)).data
