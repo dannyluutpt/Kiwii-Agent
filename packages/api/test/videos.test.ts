@@ -93,9 +93,11 @@ describe("video prices", () => {
     expect(videoCreditCost(VIDEO_MODELS, { model: "seedance-2.5", option: "720p", duration: 10 })).toBe(122)
     expect(videoCreditCost(VIDEO_MODELS, { model: "wan-3.0", option: "720p", duration: 7 })).toBeUndefined()
     expect(videoCreditCost(VIDEO_MODELS, { model: "minimax-h3", option: "1080p", duration: 5 })).toBeUndefined()
-    // MiniMax bills the picture a clip starts from; the others do not.
-    expect(videoCreditCost(VIDEO_MODELS, { model: "minimax-h3", option: "2K", duration: 5, firstFrame: true })).toBe(37)
-    expect(videoCreditCost(VIDEO_MODELS, { model: "wan-3.0", option: "720p", duration: 5, firstFrame: true })).toBe(27)
+    // No model bills the one picture a clip starts from (MiniMax's first five are free); a model that
+    // did would add its surcharge.
+    expect(videoCreditCost(VIDEO_MODELS, { model: "minimax-h3", option: "2K", duration: 5, firstFrame: true })).toBe(34)
+    const billed = VIDEO_MODELS.map((m) => (m.id === "wan-3.0" ? { ...m, firstFrameCredits: 2 } : m))
+    expect(videoCreditCost(billed, { model: "wan-3.0", option: "720p", duration: 5, firstFrame: true })).toBe(29)
 
     const db = await testDatabase()
     await db.insert(app_config).values({ key: "video_models", value: '{"wan-3.0":{"720p":{"5":30}}}', updated_at: 0 })
@@ -159,7 +161,7 @@ describe("prepareVideo", () => {
       request: request({ model: "minimax-h3", option: "2K", referenceFileIDs: ["p"] }),
     })
     expect(firstFrame).toBe(`data:image/jpeg;base64,${btoa("p")}`)
-    expect(generation).toMatchObject({ reference_file_ids: JSON.stringify(["p"]), credits_reserved: 37 })
+    expect(generation).toMatchObject({ reference_file_ids: JSON.stringify(["p"]), credits_reserved: 34 })
     expect(JSON.stringify(asked[0]!.body)).toContain("The clip starts from the picture they attached")
 
     const error = await prepareVideo({ db, bucket, apiKey: "k", user, request: request({ duration: 7 }) }).catch(
