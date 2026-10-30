@@ -10,6 +10,7 @@ import { IconButton } from "@/ui/icon-button"
 import { Popover, PopoverContent } from "@/ui/popover"
 import { AspectIcon } from "./aspect-icon"
 import { createLastFrameUploads, FrameSlots } from "./frame-slots"
+import { createMentions } from "./mentions"
 import { IconArrowUp, IconChevronDown, IconImage, IconPerson, IconPlace } from "./icons"
 import { createReferenceUploads, ReferenceStrip } from "./references"
 import { PickedStrip, SavedOptions } from "./saved"
@@ -44,10 +45,17 @@ export function AssistantComposer(props: {
   const locations = useLocations()
   const place = () => locations.picked().flatMap((id) => locations.find(id) ?? [])[0]
   let fileInput: HTMLInputElement | undefined
+  let promptInput: HTMLTextAreaElement | undefined
   const video = () => studio.mode() === "video"
   // A clip starts from frames or features the picked cast, never both.
   const framed = () => video() && studio.references().length > 0
   const casting = () => video() && (cast().length > 0 || place() !== undefined)
+  const mentions = createMentions({
+    textarea: () => promptInput,
+    onText: studio.setPrompt,
+    maxCharacters: () => props.config.maxCharacters,
+    off: framed,
+  })
   const model = () => props.config.models.find((m) => m.id === studio.settings.model)
   const clipModel = () => studio.videoConfig.latest?.models.find((m) => m.id === studio.video.model)
   const maxReferences = () =>
@@ -95,7 +103,7 @@ export function AssistantComposer(props: {
 
   return (
     <form
-      class="mx-3 mb-3 flex shrink-0 flex-col rounded-[20px] bg-surface-2 bg-sheen shadow-raised transition-shadow duration-(--motion-standard) focus-within:shadow-[var(--k-shadow-raised),var(--k-shadow-focus)]"
+      class="relative mx-3 mb-3 flex shrink-0 flex-col rounded-[20px] bg-surface-2 bg-sheen shadow-raised transition-shadow duration-(--motion-standard) focus-within:shadow-[var(--k-shadow-raised),var(--k-shadow-focus)]"
       aria-label={t("assistant.composer")}
       onSubmit={(event) => {
         event.preventDefault()
@@ -144,8 +152,11 @@ export function AssistantComposer(props: {
       <Show when={casting() && !framed() && clipModel()?.castNote}>
         {(note) => <p class="px-3.5 pt-1 text-footnote text-label-2">{note()}</p>}
       </Show>
+      <mentions.List />
       <textarea
+        ref={promptInput}
         data-studio-prompt
+        {...mentions.aria()}
         class="max-h-48 min-h-16 w-full resize-none bg-transparent px-3.5 pt-3 pb-1 text-callout text-label outline-none placeholder:text-label-3 disabled:cursor-not-allowed [field-sizing:content]"
         aria-label={video() ? t("video.placeholder") : t("images.placeholder")}
         aria-description={t("assistant.enterHint")}
@@ -154,7 +165,13 @@ export function AssistantComposer(props: {
         placeholder={video() ? (locked() ? t("video.locked") : t("video.placeholder")) : t("images.placeholder")}
         value={studio.prompt()}
         disabled={locked()}
-        onInput={(event) => studio.setPrompt(event.currentTarget.value)}
+        onInput={(event) => {
+          studio.setPrompt(event.currentTarget.value)
+          mentions.look()
+        }}
+        onClick={mentions.look}
+        onKeyUp={(event) => !mentions.keys.includes(event.key) && mentions.look()}
+        onBlur={mentions.close}
         onPaste={(event) => {
           const files = Array.from(event.clipboardData?.files ?? []).filter((file) => file.type.startsWith("image/"))
           if (files.length === 0) return
@@ -162,6 +179,7 @@ export function AssistantComposer(props: {
           void uploads.upload(files)
         }}
         onKeyDown={(event) => {
+          if (mentions.onKeyDown(event)) return
           if (event.key === "Enter" && !event.shiftKey && !event.isComposing) {
             event.preventDefault()
             send()
