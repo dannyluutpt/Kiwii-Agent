@@ -17,6 +17,7 @@ import { Button, buttonClass } from "@/ui/button"
 import { IconButton } from "@/ui/icon-button"
 import { Sheet } from "@/ui/sheet"
 import { createLastFrameUploads, FrameSlots } from "./frame-slots"
+import { createMentions } from "./mentions"
 import { IconImage, IconSliders, IconSparkles } from "./icons"
 import { createReferenceUploads, ReferenceStrip } from "./references"
 import { PickedStrip, SavedOptions } from "./saved"
@@ -56,6 +57,7 @@ export function StudioPromptBar(props: {
   const locations = useLocations()
   const [sheet, setSheet] = createSignal(false)
   let fileInput: HTMLInputElement | undefined
+  let promptInput: HTMLTextAreaElement | undefined
 
   const clip = () => props.mode === "video"
   const model = () => props.config.models.find((m) => m.id === props.settings.model)
@@ -63,6 +65,12 @@ export function StudioPromptBar(props: {
   // A clip starts from frames or features the picked cast, never both.
   const framed = () => clip() && props.references.length > 0
   const casting = () => clip() && (characters.picked().length > 0 || locations.picked().length > 0)
+  const mentions = createMentions({
+    textarea: () => promptInput,
+    onText: props.onPrompt,
+    maxCharacters: () => props.config.maxCharacters,
+    off: framed,
+  })
   const maxReferences = () =>
     clip() ? (clipModel()?.maxReferences ?? 1) : (model()?.maxReferences ?? props.config.maxReferences)
   const maxEdge = () => (clip() ? clipModel()?.maxReferenceEdge : model()?.maxReferenceEdge) ?? 2048
@@ -110,7 +118,7 @@ export function StudioPromptBar(props: {
 
   return (
     <form
-      class="mx-auto flex w-full max-w-3xl flex-col rounded-panel bg-surface bg-sheen shadow-floating transition-shadow duration-(--motion-standard) focus-within:shadow-[var(--k-shadow-floating),var(--k-shadow-focus)]"
+      class="relative mx-auto flex w-full max-w-3xl flex-col rounded-panel bg-surface bg-sheen shadow-floating transition-shadow duration-(--motion-standard) focus-within:shadow-[var(--k-shadow-floating),var(--k-shadow-focus)]"
       onSubmit={(event) => {
         event.preventDefault()
         if (canGenerate()) props.onGenerate()
@@ -159,9 +167,12 @@ export function StudioPromptBar(props: {
         {(note) => <p class="px-4 pt-1 text-footnote text-label-2">{note()}</p>}
       </Show>
 
+      <mentions.List />
       <textarea
+        ref={promptInput}
         data-component="studio-textarea"
         data-studio-prompt
+        {...mentions.aria()}
         class="min-h-12 w-full resize-none bg-transparent px-4 pt-3 pb-1 text-body text-label outline-none placeholder:text-label-3 disabled:cursor-not-allowed"
         aria-label={clip() ? t("video.placeholder") : t("images.placeholder")}
         enterkeyhint="go"
@@ -169,7 +180,13 @@ export function StudioPromptBar(props: {
         placeholder={clip() ? (props.locked ? t("video.locked") : t("video.placeholder")) : t("images.placeholder")}
         value={props.prompt}
         disabled={props.locked}
-        onInput={(event) => props.onPrompt(event.currentTarget.value)}
+        onInput={(event) => {
+          props.onPrompt(event.currentTarget.value)
+          mentions.look()
+        }}
+        onClick={mentions.look}
+        onKeyUp={(event) => !mentions.keys.includes(event.key) && mentions.look()}
+        onBlur={mentions.close}
         onPaste={(event) => {
           const files = Array.from(event.clipboardData?.files ?? []).filter((file) => file.type.startsWith("image/"))
           if (files.length === 0) return
@@ -177,6 +194,7 @@ export function StudioPromptBar(props: {
           void uploads.upload(files)
         }}
         onKeyDown={(event) => {
+          if (mentions.onKeyDown(event)) return
           if (event.key === "Enter" && !event.shiftKey && !event.isComposing) {
             event.preventDefault()
             if (canGenerate()) props.onGenerate()

@@ -103,7 +103,8 @@ export const dict = {
   "characters.saveAs": "Lưu thành nhân vật",
   "characters.limit": "Mỗi lượt tạo dùng tối đa {{n}} nhân vật",
   "characters.picker": "Nhân vật",
-  "characters.pickerHint": "Nhân vật đã chọn có mặt trong mọi ảnh tiếp theo, giữ đúng gương mặt và trang phục.",
+  "characters.pickerHint":
+    "Nhân vật đã chọn có mặt trong mọi ảnh tiếp theo, giữ đúng gương mặt và trang phục. Gõ @ trong ô mô tả để chọn nhanh.",
   "characters.pickNone": "Chọn nhân vật",
   "characters.actions": "Tuỳ chọn nhân vật",
   "locations.title": "Bối cảnh",
@@ -129,8 +130,9 @@ export const dict = {
   "locations.limit": "Mỗi lượt tạo dùng tối đa {{n}} bối cảnh",
   "locations.picker": "Bối cảnh",
   "locations.pickerHint":
-    "Mọi ảnh tiếp theo diễn ra ở bối cảnh đã chọn, giữ đúng bố cục và ánh sáng; góc máy có thể khác.",
+    "Mọi ảnh tiếp theo diễn ra ở bối cảnh đã chọn, giữ đúng bố cục và ánh sáng; góc máy có thể khác. Gõ @ trong ô mô tả để chọn nhanh.",
   "locations.actions": "Tuỳ chọn bối cảnh",
+  "mentions.label": "Nhân vật và bối cảnh đã lưu",
   "assistant.title": "Trợ lý sáng tạo",
   "assistant.greeting": "Xin chào, bạn muốn tạo gì?",
   "assistant.lead": "Mô tả bức ảnh: trợ lý tạo ngay theo cài đặt bên dưới, và sửa tiếp khi bạn muốn.",

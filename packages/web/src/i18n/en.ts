@@ -106,7 +106,8 @@ export const dict: Record<I18nKey, string> = {
   "characters.saveAs": "Save as character",
   "characters.limit": "Up to {{n}} characters per run",
   "characters.picker": "Characters",
-  "characters.pickerHint": "Picked characters appear in every next picture, with their face and outfit kept.",
+  "characters.pickerHint":
+    "Picked characters appear in every next picture, with their face and outfit kept. Type @ in the prompt to pick one quickly.",
   "characters.pickNone": "Pick characters",
   "characters.actions": "Character options",
   "locations.title": "Locations",
@@ -133,8 +134,9 @@ export const dict: Record<I18nKey, string> = {
   "locations.limit": "Up to {{n}} location per run",
   "locations.picker": "Location",
   "locations.pickerHint":
-    "Every next picture is set in the picked location, with its layout and light kept; the camera angle may change.",
+    "Every next picture is set in the picked location, with its layout and light kept; the camera angle may change. Type @ in the prompt to pick one quickly.",
   "locations.actions": "Location options",
+  "mentions.label": "Saved characters and locations",
   "assistant.title": "Creative assistant",
   "assistant.greeting": "Hi, what would you like to make?",
   "assistant.lead": "Describe a picture: the assistant makes it with the settings below, and changes it when you ask.",
