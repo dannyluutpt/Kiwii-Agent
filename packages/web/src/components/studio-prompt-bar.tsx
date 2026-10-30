@@ -15,6 +15,7 @@ import { Button, buttonClass } from "@/ui/button"
 import { IconButton } from "@/ui/icon-button"
 import { Sheet } from "@/ui/sheet"
 import { CastStrip, CharacterOptions } from "./characters"
+import { createLastFrameUploads, FrameSlots } from "./frame-slots"
 import { IconImage, IconSliders, IconSparkles } from "./icons"
 import { createReferenceUploads, ReferenceStrip } from "./references"
 import { StudioOptions } from "./studio-options"
@@ -25,7 +26,7 @@ const CHIP =
 
 // The phone composer, docked under the gallery: pictures or a clip, references, the prompt, then one
 // chip that opens every option in a bottom sheet, and the generate button showing what the run will
-// cost. A clip takes at most one picture, its first frame.
+// cost. A clip takes the picture it starts from and, after that, one it ends on.
 export function StudioPromptBar(props: {
   config: ModelsResponse
   settings: StudioSettings
@@ -39,6 +40,8 @@ export function StudioPromptBar(props: {
   onPrompt: (value: string) => void
   references: Reference[]
   onReferences: (next: Reference[]) => void
+  lastFrame: Reference | undefined
+  onLastFrame: (next: Reference | undefined) => void
   cost: number | undefined
   busy: boolean
   locked: boolean
@@ -66,6 +69,7 @@ export function StudioPromptBar(props: {
     maxCount: maxReferences,
     maxEdge,
   })
+  const lastUploads = createLastFrameUploads({ last: () => props.lastFrame, onLast: props.onLastFrame, maxEdge })
   const addLabel = () => {
     const extra = clip() ? (clipModel()?.firstFrameCredits ?? 0) : (model()?.referenceSurcharge ?? 0)
     if (clip()) return extra ? t("video.firstFrameExtra", { extra }) : t("video.firstFrame")
@@ -74,6 +78,7 @@ export function StudioPromptBar(props: {
   const pickClip = (next: VideoModel) => {
     props.onVideo(fitVideoModel(next, props.video))
     void uploads.refit(next.maxReferenceEdge)
+    void lastUploads.refit(next.maxReferenceEdge)
   }
 
   const pick = (next: ImageModel) => {
@@ -87,7 +92,12 @@ export function StudioPromptBar(props: {
   }
 
   const canGenerate = () =>
-    !props.busy && !props.locked && !uploads.uploading() && props.prompt.trim().length > 0 && props.cost !== undefined
+    !props.busy &&
+    !props.locked &&
+    !uploads.uploading() &&
+    !lastUploads.uploading() &&
+    props.prompt.trim().length > 0 &&
+    props.cost !== undefined
 
   return (
     <form
@@ -103,14 +113,35 @@ export function StudioPromptBar(props: {
         onChange={(mode) => {
           props.onMode(mode)
           void uploads.refit(maxEdge())
+          void lastUploads.refit(maxEdge())
         }}
       />
-      <ReferenceStrip
-        class="px-3 pt-3"
-        references={props.references}
-        uploading={uploads.uploading()}
-        onRemove={(ref) => props.onReferences(props.references.filter((r) => r.id !== ref.id))}
-      />
+      <Show
+        when={clip()}
+        fallback={
+          <ReferenceStrip
+            class="px-3 pt-3"
+            references={props.references}
+            uploading={uploads.uploading()}
+            onRemove={(ref) => props.onReferences(props.references.filter((r) => r.id !== ref.id))}
+          />
+        }
+      >
+        <FrameSlots
+          class="px-3 pt-3"
+          first={props.references[0]}
+          firstUploading={uploads.uploading()}
+          onRemoveFirst={() => {
+            props.onReferences([])
+            props.onLastFrame(undefined)
+          }}
+          last={props.lastFrame}
+          lastUploads={lastUploads}
+          onRemoveLast={() => props.onLastFrame(undefined)}
+          canEnd={clipModel()?.lastFrame ?? false}
+          disabled={props.locked}
+        />
+      </Show>
       <Show when={!clip()}>
         <CastStrip class="px-3 pt-3" />
       </Show>
@@ -147,6 +178,7 @@ export function StudioPromptBar(props: {
           accept="image/jpeg,image/png,image/webp"
           multiple={!clip()}
           class="hidden"
+          data-input="references"
           onChange={(event) => event.currentTarget.files && void uploads.upload(event.currentTarget.files)}
         />
         <IconButton

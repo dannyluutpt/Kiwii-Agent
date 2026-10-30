@@ -95,6 +95,8 @@ export const { use: useStudio, provider: StudioProvider } = createSimpleContext(
     const [mode, setModeSignal] = createSignal<StudioMode>(loadMode())
     const [prompt, setPrompt] = createSignal("")
     const [references, setReferences] = createSignal<Reference[]>([])
+    // The picture a clip ends on, next to its first frame (the first reference).
+    const [lastFrame, setLastFrame] = createSignal<Reference>()
     const [state, setState] = createStore<{ runs: Record<string, Generation>; galleries: Record<string, Gallery> }>({
       runs: {},
       galleries: {},
@@ -153,8 +155,9 @@ export const { use: useStudio, provider: StudioProvider } = createSimpleContext(
       const read = references().length + characters.picked().length
       return option.credits * settings.n + (read > 0 ? model.referenceSurcharge : 0)
     })
+    const clipModel = () => videoConfig()?.models.find((m) => m.id === video.model)
     const videoCost = createMemo(() => {
-      const model = videoConfig()?.models.find((m) => m.id === video.model)
+      const model = clipModel()
       const credits = model?.options.find((o) => o.id === video.option)?.credits[String(video.duration)]
       if (!model || credits === undefined) return undefined
       return credits + (references().length > 0 ? model.firstFrameCredits : 0)
@@ -351,6 +354,7 @@ export const { use: useStudio, provider: StudioProvider } = createSimpleContext(
             id: pending,
             kind: "image",
             duration: null,
+            lastFrameFileID: null,
             status: "running",
             projectID: body.projectID ?? null,
             creditsReserved: imageCost() ?? 0,
@@ -413,6 +417,7 @@ export const { use: useStudio, provider: StudioProvider } = createSimpleContext(
             duration: from.duration ?? 5,
             prompt: from.prompt,
             referenceFileIDs: from.referenceFileIDs,
+            lastFrameFileID: from.lastFrameFileID ?? undefined,
             projectID: from.projectID ?? undefined,
           }
         : {
@@ -424,6 +429,8 @@ export const { use: useStudio, provider: StudioProvider } = createSimpleContext(
             referenceFileIDs: references()
               .slice(0, 1)
               .map((r) => r.id),
+            // Only with a first frame, and for a model that ends on a picture.
+            lastFrameFileID: references().length > 0 && clipModel()?.lastFrame ? lastFrame()?.id : undefined,
             projectID,
           }
       const into = body.projectID ? [ALL, body.projectID] : [ALL]
@@ -436,6 +443,7 @@ export const { use: useStudio, provider: StudioProvider } = createSimpleContext(
             ...body,
             id: pending,
             kind: "video",
+            lastFrameFileID: body.lastFrameFileID ?? null,
             status: "running",
             n: 1,
             characterIDs: [],
@@ -511,6 +519,8 @@ export const { use: useStudio, provider: StudioProvider } = createSimpleContext(
       setPrompt,
       references,
       setReferences,
+      lastFrame,
+      setLastFrame,
       cost,
       gallery,
       items,

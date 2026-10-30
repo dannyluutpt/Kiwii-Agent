@@ -9,6 +9,7 @@ import { IconButton } from "@/ui/icon-button"
 import { Popover, PopoverContent } from "@/ui/popover"
 import { AspectIcon } from "./aspect-icon"
 import { CastStrip, CharacterOptions } from "./characters"
+import { createLastFrameUploads, FrameSlots } from "./frame-slots"
 import { IconArrowUp, IconChevronDown, IconImage, IconPerson } from "./icons"
 import { createReferenceUploads, ReferenceStrip } from "./references"
 import { AspectOptions, CountOptions, ModelOptions, QualityOptions } from "./studio-options"
@@ -26,8 +27,8 @@ const CHIP =
 
 // Where the person talks to the assistant: the words, the pictures to work from, and the settings
 // every run of the reply uses, each in its own popover. The send button shows the cheapest a reply
-// can cost. In video mode the same box makes a clip directly: its settings, its price, and at most
-// one picture, the clip's first frame.
+// can cost. In video mode the same box makes a clip directly: its settings, its price, and the
+// pictures it starts from and ends on.
 export function AssistantComposer(props: {
   config: ModelsResponse
   busy: boolean
@@ -52,6 +53,7 @@ export function AssistantComposer(props: {
     maxCount: maxReferences,
     maxEdge,
   })
+  const lastUploads = createLastFrameUploads({ last: studio.lastFrame, onLast: studio.setLastFrame, maxEdge })
   const busy = () => (video() ? studio.busy() : props.busy)
   const locked = () => (video() ? studio.videoLocked() : props.locked)
   const addLabel = () => {
@@ -62,6 +64,7 @@ export function AssistantComposer(props: {
   const pickClip = (next: VideoModel) => {
     studio.patchVideo(fitVideoModel(next, studio.video))
     void uploads.refit(next.maxReferenceEdge)
+    void lastUploads.refit(next.maxReferenceEdge)
   }
 
   const pick = (next: ImageModel) => {
@@ -76,7 +79,12 @@ export function AssistantComposer(props: {
   }
 
   const canSend = () =>
-    !busy() && !locked() && !uploads.uploading() && studio.prompt().trim().length > 0 && studio.cost() !== undefined
+    !busy() &&
+    !locked() &&
+    !uploads.uploading() &&
+    !lastUploads.uploading() &&
+    studio.prompt().trim().length > 0 &&
+    studio.cost() !== undefined
   const send = () => canSend() && (video() ? props.onMakeVideo() : props.onSend())
 
   return (
@@ -94,14 +102,35 @@ export function AssistantComposer(props: {
         onChange={(mode) => {
           studio.setMode(mode)
           void uploads.refit(maxEdge())
+          void lastUploads.refit(maxEdge())
         }}
       />
-      <ReferenceStrip
-        class="px-3 pt-3"
-        references={studio.references()}
-        uploading={uploads.uploading()}
-        onRemove={(ref) => studio.setReferences(studio.references().filter((r) => r.id !== ref.id))}
-      />
+      <Show
+        when={video()}
+        fallback={
+          <ReferenceStrip
+            class="px-3 pt-3"
+            references={studio.references()}
+            uploading={uploads.uploading()}
+            onRemove={(ref) => studio.setReferences(studio.references().filter((r) => r.id !== ref.id))}
+          />
+        }
+      >
+        <FrameSlots
+          class="px-3 pt-3"
+          first={studio.references()[0]}
+          firstUploading={uploads.uploading()}
+          onRemoveFirst={() => {
+            studio.setReferences([])
+            studio.setLastFrame(undefined)
+          }}
+          last={studio.lastFrame()}
+          lastUploads={lastUploads}
+          onRemoveLast={() => studio.setLastFrame(undefined)}
+          canEnd={clipModel()?.lastFrame ?? false}
+          disabled={locked()}
+        />
+      </Show>
       <Show when={!video()}>
         <CastStrip class="px-3 pt-3" />
       </Show>
@@ -136,6 +165,7 @@ export function AssistantComposer(props: {
           accept="image/jpeg,image/png,image/webp"
           multiple={!video()}
           class="hidden"
+          data-input="references"
           onChange={(event) => event.currentTarget.files && void uploads.upload(event.currentTarget.files)}
         />
         <IconButton
