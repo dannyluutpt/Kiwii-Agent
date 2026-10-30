@@ -140,7 +140,7 @@ export function SavedGallery(props: { store: SavedStore; max: number; onUse?: ()
                 <IconPlaceAdd class="size-6" />
               </Show>
             </span>
-            <span class="text-subhead font-semibold">{t(`${props.store.kind}.create`)}</span>
+            <span class="text-subhead font-semibold">{t(`${props.store.kind}.upload`)}</span>
           </button>
         </li>
         <Show when={props.store.list.loading && !props.store.list.latest}>

@@ -43,6 +43,8 @@ export const CreateSaved = z.object({
   fileIDs: z.array(z.string().min(1).max(40)).min(1).max(MAX_SAVED_PHOTOS),
 })
 export const RenameSaved = z.object({ name: Name })
+// A sheet picture the account made, to be cut into the photos it is saved with.
+export const SaveFromSheet = z.object({ name: Name, fileID: z.string().min(1).max(40) })
 
 // Copies pictures of the account (uploads or generated pictures) into files of `kind`, in the order
 // given, and returns their ids. Deleting the run a photo came from, or the cleanup of an unused

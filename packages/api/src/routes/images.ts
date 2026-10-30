@@ -1,18 +1,19 @@
-import { and, desc, eq, inArray, lt } from "drizzle-orm"
+import { and, desc, eq, inArray, isNull, lt } from "drizzle-orm"
 import type { Context } from "hono"
-import { streamSSE } from "hono/streaming"
 import { ulid } from "ulid"
 import { z } from "zod"
 import { ApiError, createApp, type AppEnv } from "../app"
+import { CHARACTER_SHEET } from "../characters/sheet"
 import { MAX_CHARACTERS_PER_RUN } from "../characters/store"
 import { loadPlan } from "../plans"
 import { balance } from "../credits/ledger"
-import { files, generation_images, GenerationKind, generations } from "../db/schema"
-import { reapStaleGenerations, runGeneration, type GenerationEvent } from "../images/generate"
-import { loadImageModels, MAX_IMAGES_PER_RUN, MAX_REFERENCES } from "../images/models"
+import { files, generation_images, GenerationKind, generations, SheetKind } from "../db/schema"
+import { reapStaleGenerations } from "../images/generate"
+import { imageCreditCost, loadImageModels, MAX_IMAGES_PER_RUN, MAX_REFERENCES } from "../images/models"
 import { CreateGeneration, imageAccess, prepareGeneration } from "../images/prepare"
 import { fileURL, presentGeneration } from "../images/present"
 import { byteSpan, IMAGE_MIMES, MAX_UPLOAD_BYTES, objectKey, putObject } from "../images/r2"
+import { streamGeneration } from "../images/stream"
 import { requireAuth } from "../middleware/auth"
 
 const ListQuery = z.object({
@@ -20,10 +21,12 @@ const ListQuery = z.object({
   limit: z.coerce.number().int().min(1).max(60).default(24),
 })
 
-// One project's runs, or every run when absent; only pictures or only clips when `kind` is set.
+// One project's runs, or every run when absent; only pictures or only clips when `kind` is set. Sheet
+// runs list only when `sheet` asks for them, never among the studio's.
 const GenerationsQuery = ListQuery.extend({
   project: z.string().min(1).max(40).optional(),
   kind: z.enum(GenerationKind).optional(),
+  sheet: z.enum(SheetKind).optional(),
 })
 
 export const images = createApp()
@@ -36,9 +39,8 @@ images.get("/models", async (c) => {
   const plan = await loadPlan(db, user)
   const credits = await balance(db, user.id)
   const access = imageAccess(plan.parallel_limit, credits)
-  const models = (await loadImageModels(db)).filter(
-    (model) => access.models === null || access.models.includes(model.id),
-  )
+  const all = await loadImageModels(db)
+  const models = all.filter((model) => access.models === null || access.models.includes(model.id))
   return c.json({
     canGenerate: access.parallelLimit > 0,
     trial: access.trial,
@@ -47,6 +49,18 @@ images.get("/models", async (c) => {
     maxReferences: MAX_REFERENCES,
     maxCharacters: MAX_CHARACTERS_PER_RUN,
     credits,
+    // What a character sheet costs; null where the plan does not make them.
+    sheets: {
+      character:
+        plan.parallel_limit > 0
+          ? (imageCreditCost(all, {
+              model: CHARACTER_SHEET.model,
+              option: CHARACTER_SHEET.option,
+              n: 1,
+              references: 0,
+            }) ?? null)
+          : null,
+    },
     models: models.map((model) => ({
       id: model.id,
       name: model.name,
@@ -126,31 +140,7 @@ images.post("/generations", async (c) => {
     user: c.get("user"),
     request,
   })
-
-  return streamSSE(c, async (stream) => {
-    let closed = false
-    stream.onAbort(() => {
-      closed = true
-    })
-    const emit = async (event: GenerationEvent) => {
-      if (closed) return
-      await stream.writeSSE({ event: event.type, data: JSON.stringify(event) }).catch(() => {
-        closed = true
-      })
-    }
-    await emit({ type: "start", ...presentGeneration(prepared.generation, []) } as never)
-    const job = runGeneration({
-      ...prepared,
-      db,
-      bucket: c.env.BUCKET,
-      apiKey,
-      baseURL: c.env.OPENROUTER_BASE_URL,
-      emit,
-    })
-    // Keeps the settle/refund alive for a short while if the browser leaves mid-generation.
-    c.executionCtx.waitUntil(job)
-    await job
-  })
+  return streamGeneration(c, prepared, apiKey)
 })
 
 images.get("/generations", async (c) => {
@@ -166,6 +156,7 @@ images.get("/generations", async (c) => {
         eq(generations.user_id, user.id),
         query.project ? eq(generations.project_id, query.project) : undefined,
         query.kind ? eq(generations.kind, query.kind) : undefined,
+        query.sheet ? eq(generations.sheet, query.sheet) : isNull(generations.sheet),
         query.cursor ? lt(generations.id, query.cursor) : undefined,
       ),
     )
@@ -237,6 +228,8 @@ images.get("/assets", async (c) => {
       // Seconds, for a video.
       duration: generations.duration,
       prompt: generations.prompt_raw,
+      // A sheet's picture saves as a character with its panels cut out.
+      sheet: generations.sheet,
     })
     .from(generation_images)
     .innerJoin(generations, eq(generations.id, generation_images.generation_id))

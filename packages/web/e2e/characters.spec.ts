@@ -42,7 +42,7 @@ test("characters have a page of their own, and using one there goes to the studi
   await expect(page).toHaveURL(/\/characters$/)
   await expect(page.getByRole("heading", { level: 1, name: "Nhân vật" })).toBeVisible()
 
-  await page.getByRole("button", { name: "Tạo nhân vật" }).click()
+  await page.getByRole("button", { name: "Tải ảnh lên" }).click()
   const dialog = page.getByRole("dialog", { name: "Tạo nhân vật" })
   await dialog.locator('input[type="file"]').setInputFiles(await photo(page))
   await dialog.getByRole("textbox", { name: "Tên nhân vật" }).fill(name)
@@ -103,7 +103,7 @@ test("a character saved from an uploaded photo can be renamed and deleted", asyn
   const name = unique("Minh", testInfo.project.name)
   await page.goto("/")
   await showCharacters(page)
-  await page.getByRole("button", { name: "Tạo nhân vật" }).first().click()
+  await page.getByRole("button", { name: "Tải ảnh lên" }).first().click()
   const dialog = page.getByRole("dialog", { name: "Tạo nhân vật" })
   await expect(dialog.getByText("Chỉ dùng ảnh của bạn hoặc ảnh bạn có quyền sử dụng.")).toBeVisible()
   await dialog.locator('input[type="file"]').setInputFiles(await photo(page))
@@ -125,4 +125,68 @@ test("a character saved from an uploaded photo can be renamed and deleted", asyn
   await page.getByRole("menuitem", { name: "Xoá" }).click()
   await page.getByRole("dialog", { name: "Xoá nhân vật này?" }).getByRole("button", { name: "Xoá" }).click()
   await expect(characterCard(page, `${name} mới`)).toHaveCount(0)
+})
+
+test("a character made from a description is drawn as one sheet, kept out of the studio and saved with its cut photos", async ({
+  page,
+}, testInfo) => {
+  const name = unique("Ngọc", testInfo.project.name)
+  const description = `${name}: cô gái tóc ngắn, áo dài trắng`
+  await page.goto("/characters")
+  const maker = page.getByRole("region", { name: "Tạo nhân vật từ mô tả" })
+  await maker.getByRole("textbox", { name: "Tên nhân vật" }).fill(name)
+  await maker.getByRole("textbox", { name: "Mô tả" }).fill(description)
+  // The radio input is visually hidden; its label is what a person taps.
+  await maker
+    .getByRole("radiogroup", { name: "Phong cách" })
+    .locator("label")
+    .filter({ hasText: "Hoạt hình 3D" })
+    .click()
+  // A Nano Banana 2K picture: 3 credits.
+  await maker.getByRole("button", { name: "Tạo · 3 credit" }).click()
+
+  const draft = page.getByRole("list", { name: "Bản nháp" }).getByRole("listitem").filter({ hasText: name })
+  await expect(draft.getByRole("img", { name: `Bảng nhân vật ${name}` })).toBeVisible({ timeout: 15_000 })
+  const sheets: { generations: Array<{ prompt: string; sheet: string | null; option: string }> } = await (
+    await page.request.get("/api/images/generations?sheet=character&limit=24")
+  ).json()
+  expect(sheets.generations.find((g) => g.prompt === description)).toMatchObject({ sheet: "character", option: "2K" })
+  const studio: { generations: Array<{ prompt: string }> } = await (
+    await page.request.get("/api/images/generations?limit=24")
+  ).json()
+  expect(studio.generations.some((g) => g.prompt === description)).toBe(false)
+
+  await draft.getByRole("button", { name: "Lưu nhân vật" }).click()
+  await expect(draft).toBeHidden()
+  // The face and the front view cut from the sheet, then the sheet itself.
+  await expect(characterCard(page, name)).toContainText("3 ảnh")
+})
+
+test("a sheet left in the Library saves as a character from there", async ({ page }, testInfo) => {
+  const name = unique("Bảo", testInfo.project.name)
+  const description = `${name}: chàng trai đeo kính, áo sơ mi kẻ`
+  await page.goto("/characters")
+  const maker = page.getByRole("region", { name: "Tạo nhân vật từ mô tả" })
+  await maker.getByRole("textbox", { name: "Tên nhân vật" }).fill(name)
+  await maker.getByRole("textbox", { name: "Mô tả" }).fill(description)
+  await maker.getByRole("button", { name: "Tạo · 3 credit" }).click()
+  const draft = page.getByRole("list", { name: "Bản nháp" }).getByRole("listitem").filter({ hasText: name })
+  await expect(draft.getByRole("img", { name: `Bảng nhân vật ${name}` })).toBeVisible({ timeout: 15_000 })
+  await draft.getByRole("button", { name: "Bỏ bản này" }).click()
+  await expect(draft).toBeHidden()
+
+  await page.goto("/library")
+  await page
+    .getByRole("button", { name: new RegExp(name) })
+    .first()
+    .click()
+  const viewer = page.getByRole("dialog")
+  await viewer.getByRole("button", { name: "Lưu thành nhân vật" }).click()
+  const ask = page.getByRole("dialog", { name: "Tạo nhân vật" })
+  await ask.getByRole("textbox", { name: "Tên nhân vật" }).fill(name)
+  await ask.getByRole("button", { name: "Lưu", exact: true }).click()
+  await expect(page.getByText(`Đã lưu nhân vật ${name}`)).toBeVisible()
+
+  await page.goto("/characters")
+  await expect(characterCard(page, name)).toContainText("3 ảnh")
 })

@@ -44,21 +44,31 @@ export async function createCharacter(
   bucket: R2Bucket,
   input: { userID: string; name: string; fileIDs: string[] },
 ) {
+  await ensureCharacterRoom(db, input.userID)
+  // The copies first: a character never lists photos that are not there.
+  const fileIDs = await copyPhotos(db, bucket, { userID: input.userID, fileIDs: input.fileIDs, kind: "character" })
+  return insertCharacter(db, { userID: input.userID, name: input.name, fileIDs })
+}
+
+// Throws while the account holds as many characters as it may.
+export async function ensureCharacterRoom(db: Database, userID: string) {
   const saved = await db
     .select({ count: sql<number>`count(*)` })
     .from(characters)
-    .where(eq(characters.user_id, input.userID))
+    .where(eq(characters.user_id, userID))
     .get()
   if ((saved?.count ?? 0) >= MAX_CHARACTERS) {
     throw new ApiError(409, "CHARACTER_LIMIT", `Mỗi tài khoản lưu được tối đa ${MAX_CHARACTERS} nhân vật`)
   }
-  // The copies first: a character never lists photos that are not there.
-  const fileIDs = await copyPhotos(db, bucket, { userID: input.userID, fileIDs: input.fileIDs, kind: "character" })
+}
+
+// The character's row, once its photos are files of kind "character" of the account.
+export async function insertCharacter(db: Database, input: { userID: string; name: string; fileIDs: string[] }) {
   const row = {
     id: ulid(),
     user_id: input.userID,
     name: input.name,
-    file_ids: JSON.stringify(fileIDs),
+    file_ids: JSON.stringify(input.fileIDs),
     created_at: Date.now(),
   }
   await db.insert(characters).values(row)

@@ -202,6 +202,7 @@ export const credit_ledger = sqliteTable(
 
 export const GenerationStatus = ["running", "done", "failed"] as const
 export const GenerationKind = ["image", "video"] as const
+export const SheetKind = ["character"] as const
 
 export const generations = sqliteTable(
   "generations",
@@ -238,6 +239,9 @@ export const generations = sqliteTable(
     last_frame_file_id: text(),
     // The saved location the run is set in; its photos follow the characters'.
     location_id: text(),
+    // A sheet run: one picture in panels, cut into the photos a character is saved with. Sheets show
+    // in the Library, not in the studio's gallery.
+    sheet: text({ enum: SheetKind }),
     ...Timestamps,
   },
   (t) => [

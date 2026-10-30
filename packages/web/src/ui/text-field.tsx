@@ -7,6 +7,8 @@ import { Show, splitProps, type ComponentProps } from "solid-js"
 const INPUT_BASE =
   "w-full rounded-control bg-well px-3.5 text-label shadow-well transition-[background-color,box-shadow] duration-(--motion-micro) placeholder:text-label-3 hover:bg-black/40 focus:shadow-[var(--k-shadow-well),0_0_24px_-4px_rgb(255_214_10/0.45)] data-[invalid]:shadow-[var(--k-shadow-well),inset_0_0_0_1.5px_var(--k-danger)] disabled:opacity-50"
 export const inputClass = `${INPUT_BASE} h-11 text-body`
+// Several lines: a description or a note.
+export const textareaClass = `${INPUT_BASE} min-h-24 resize-none py-2.5 text-body`
 // One-time codes: large spaced digits that read at a glance.
 export const codeInputClass = `${INPUT_BASE} h-14 text-center text-title-2 font-semibold tracking-[0.5em] tabular-nums`
 
