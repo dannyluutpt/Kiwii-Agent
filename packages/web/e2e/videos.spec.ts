@@ -78,6 +78,7 @@ test("a clip is made from the composer, plays in the gallery and the viewer, and
   const viewer = page.getByRole("dialog")
   await expect(viewer.locator("video[controls]")).toHaveAttribute("src", /^\/api\/images\/files\/\w+$/)
   await expect(viewer.getByRole("button", { name: "Lưu thành nhân vật" })).toHaveCount(0)
+  await expect(viewer.getByRole("button", { name: "Lưu thành bối cảnh" })).toHaveCount(0)
   // iPhones save through the share sheet; elsewhere the clip downloads as a file.
   if (!isMobile) await expect(viewer.getByRole("link", { name: "Tải về" })).toHaveAttribute("href", /\?download$/)
   await viewer.getByRole("button", { name: "Đóng" }).click()
