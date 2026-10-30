@@ -164,6 +164,8 @@ describe("prepareVideo", () => {
     expect(system).toContain("say it is one continuous shot")
     expect(system).toContain("Dialogue language: Vietnamese")
     expect(system).toContain("No other words are spoken")
+    // A five-second clip is told in at most 120 words; a ten-second one, with twice the beats, in 180.
+    expect(system).toContain("At most 120 words")
     expect(generation).toMatchObject({
       kind: "video",
       status: "running",
@@ -206,6 +208,8 @@ describe("prepareVideo", () => {
     expect(JSON.stringify(asked[0]!.body)).toContain("The clip starts from the picture they attached")
     // The frame already sets the framing; the rewrite names only the camera's move from there.
     expect(JSON.stringify(asked[0]!.body)).toContain("The picture sets the opening framing: do not name another")
+    // Cuts the person asks for keep their own framing: only the first shot is the picture's.
+    expect(JSON.stringify(asked[0]!.body)).toContain("give any later shot they ask for its own framing")
     // The frame is read back from the run when the job is submitted.
     await startVideo({ db, bucket, apiKey: "k", ...prepared })
     expect(asked.find((call) => call.url.endsWith("/videos"))!.body).toMatchObject({
@@ -235,6 +239,7 @@ test("a clip from a silent model names no sounds", async () => {
   const system = JSON.stringify(asked[0]!.body)
   expect(system).toContain("a 10-second video clip")
   expect(system).not.toContain("The clip has sound")
+  expect(system).toContain("At most 180 words")
 })
 
 describe("a video run", () => {
