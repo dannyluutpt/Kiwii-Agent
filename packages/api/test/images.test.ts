@@ -515,4 +515,13 @@ describe("friendly", () => {
     expect(friendly("502: upstream exploded")).toBe("Không tạo được ảnh, credit đã được hoàn")
     expect(friendly("data policy: ZDR")).not.toContain("OpenRouter")
   })
+
+  test("says a model refused a photo that looks like a real person, not that the model is down", () => {
+    // What Seedance answered on production for a character's photorealistic portrait.
+    const realPerson =
+      '400: HTTP 400: {"error":{"code":"InputImageSensitiveContentDetected.PrivacyInformation","message":"The request failed because the input image \'content[1]\' may contain real person.","param":"content[1]","type":"BadRequest"}}'
+    expect(friendly(realPerson, "video")).toBe(
+      "Model này từ chối ảnh trông như người thật. Hãy chọn model khác, hoặc dùng nhân vật hoạt hình. Credit đã được hoàn",
+    )
+  })
 })
