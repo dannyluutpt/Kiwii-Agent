@@ -46,10 +46,11 @@
   // replaces them with the `vars` below. Only values that belong in git live here.
   "keep_vars": true,
   "vars": {
-    "APP_URL": "https://kiwiiagent.com",
+    "APP_URL": "https://amberpix.com",
     // Hostnames the app moved from, space-separated: their pages redirect to APP_URL, their /api
     // keeps answering for payment webhooks and pages opened before the move.
     "MOVED_FROM": "kiwiiagent.com www.kiwiiagent.com",
+    // Stays on kiwiiagent.com until amberpix.com is onboarded in Email Service → Email Sending.
     "EMAIL_FROM": "Amberpix <no-reply@kiwiiagent.com>",
     // Receiving account shown on every VietQR; public by nature, so it lives here.
     "SEPAY_BANK_CODE": "ACB",
