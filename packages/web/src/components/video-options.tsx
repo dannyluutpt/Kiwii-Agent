@@ -1,4 +1,4 @@
-import { Show } from "solid-js"
+import { Show, type JSX } from "solid-js"
 import { useLanguage } from "@/context/language"
 import type { StudioMode, VideoModel, VideoModelsResponse, VideoSettings } from "@/images"
 import { Segmented } from "@/ui/segmented"
@@ -35,6 +35,8 @@ export function VideoStudioOptions(
     onPickModel: (model: VideoModel) => void
     cost: number | undefined
     balance: number
+    // The characters and the location of the clip, shown above its price.
+    extra?: JSX.Element
   },
 ) {
   const { t, locale } = useLanguage()
@@ -47,6 +49,7 @@ export function VideoStudioOptions(
       <VideoResolutionOptions {...props} />
       <DurationOptions {...props} />
       <VideoAspectOptions {...props} />
+      {props.extra}
       <p class="border-t border-separator pt-3 text-footnote text-label-2" aria-live="polite">
         {props.cost === undefined
           ? t("images.costUnknown")

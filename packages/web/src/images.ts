@@ -40,6 +40,8 @@ export type VideoModel = {
   firstFrameCredits: number
   // Whether a clip can also end on a picture.
   lastFrame: boolean
+  // Shown next to the characters picked for a clip of this model.
+  castNote: string | null
 }
 export type VideoModelsResponse = { canGenerate: boolean; models: VideoModel[] }
 

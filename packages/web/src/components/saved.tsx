@@ -68,7 +68,7 @@ export function PickedStrip(props: { class?: string }) {
 
 // Every saved character or location as a row to pick or take off, then a row that saves a new one:
 // the composer's popover and the phone's options sheet. `onCreate` closes whatever holds the list.
-export function SavedOptions(props: { store: SavedStore; max: number; onCreate?: () => void }) {
+export function SavedOptions(props: { store: SavedStore; max: number; onCreate?: () => void; disabled?: boolean }) {
   const { t } = useLanguage()
   const row =
     "flex min-h-12 w-full items-center gap-3 px-3.5 py-2 text-left transition-[background-color] duration-(--motion-micro) hover:bg-fill-2 active:bg-fill-2"
@@ -82,8 +82,9 @@ export function SavedOptions(props: { store: SavedStore; max: number; onCreate?:
             return (
               <button
                 type="button"
-                class={row}
+                class={`${row} disabled:opacity-50`}
                 aria-pressed={on()}
+                disabled={props.disabled}
                 onClick={() => props.store.pick(item.id, props.max)}
               >
                 <SavedThumb saved={item} kind={props.store.kind} class="size-8" />

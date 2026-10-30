@@ -149,6 +149,53 @@ test("a clip can end on a picture too, at no extra cost, and keeps both frames",
   await expect(frames(page).getByRole("img", { name: "Khung cuối" })).toBeVisible()
 })
 
+test("a clip can feature a saved character instead of frames, never both", async ({ page, isMobile }, info) => {
+  test.setTimeout(60_000)
+  // A character saved through the API from an uploaded photo. Desktop and phone share the account.
+  const name = `Lan ${info.project.name.slice(0, 1)}${Date.now() % 100_000}`
+  const photo: { id: string } = await (
+    await page.request.post("/api/images/references", { multipart: { file: png("face.png") } })
+  ).json()
+  const character: { id: string } = await (
+    await page.request.post("/api/characters", { data: { name, fileIDs: [photo.id] } })
+  ).json()
+
+  await videoMode(page)
+  // Phones pick in the options sheet, wide screens in the characters chip.
+  if (isMobile) await page.getByRole("button", { name: /^Tuỳ chọn:/ }).click()
+  if (!isMobile) await page.getByRole("button", { name: "Nhân vật: Nhân vật" }).click()
+  const picker = page.getByRole("dialog", { name: isMobile ? "Tuỳ chọn" : "Nhân vật" })
+  await picker.getByRole("button", { name }).click()
+  await expect(picker.getByRole("button", { name })).toHaveAttribute("aria-pressed", "true")
+  if (isMobile) await done(page, isMobile)
+  if (!isMobile) await page.keyboard.press("Escape")
+  await expect(page.getByRole("list", { name: "Đang dùng" })).toContainText(name)
+  await expect(page.getByText("Video dùng khung hình hoặc nhân vật và bối cảnh, không dùng cùng lúc.")).toBeVisible()
+  // A picked character holds the frames off: OpenRouter drops references sent next to frames.
+  await expect(page.getByRole("button", { name: "Thêm ảnh làm khung hình đầu" })).toBeDisabled()
+  // Seedance says up front what it may do with a real face.
+  await pick(page, isMobile, "Model", "Seedance 2.5")
+  await done(page, isMobile)
+  await expect(page.getByText("Seedance có thể từ chối ảnh mặt người thật")).toBeVisible()
+  await pick(page, isMobile, "Model", "Wan 3.0")
+  await done(page, isMobile)
+
+  await prompt(page).fill(`${name} vẫy tay chào`)
+  const sent = page.waitForRequest((req) => req.url().endsWith("/api/videos/generations") && req.method() === "POST")
+  // The clip's price alone: the character's photo costs nothing more.
+  await makeButton(page, 27).click()
+  const body = (await sent).postDataJSON() as { referenceFileIDs: string[]; characterIDs: string[] }
+  expect(body.characterIDs).toEqual([character.id])
+  expect(body.referenceFileIDs).toEqual([])
+  await expect(card(page, `${name} vẫy tay chào`).getByRole("button", { name: "Xem video" })).toBeVisible({
+    timeout: 30_000,
+  })
+
+  // Taking the character off lets a frame in again.
+  await page.getByRole("button", { name: `Bỏ chọn ${name}` }).click()
+  await expect(page.getByRole("button", { name: "Thêm ảnh làm khung hình đầu" })).toBeEnabled()
+})
+
 test("the next scene starts from a finished clip's last frame, from the gallery or the viewer", async ({ page }) => {
   test.setTimeout(150_000)
   const firstFrame = () => frames(page).getByRole("img", { name: "Khung đầu" })
