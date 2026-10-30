@@ -168,7 +168,7 @@ function videoRules(
       ? frameRule(clip.lastFrame === true, seen)
       : `- Fill in only what the clip needs and they left open (${place ? "light, mood" : "setting, light, mood"}), briefly and plainly.`,
     `- The video is ${aspectRatio}, ${orientation(aspectRatio)}: compose for that frame, without writing the ratio.`,
-    "- At most 120 words, no preamble. Write plain sentences. When words run short, trim the look and the textures, never an event, a second, the camera or a spoken word.",
+    `- At most ${clip.seconds > 5 ? 180 : 120} words, no preamble. Write plain sentences. When words run short, trim the look and the textures, never an event, a second, the camera or a spoken word.`,
   ]
     .filter(Boolean)
     .join("\n")
@@ -195,7 +195,7 @@ function frameRule(lastFrame: boolean, seen: boolean) {
   if (lastFrame) {
     return `- The clip starts on the first picture they attached and ends on the second${seen ? ", both shown after their words" : ", which you cannot see"}. Do not describe them again: say how the scene moves and changes from the first frame to the last, and that the people, things and setting in them stay as they are unless they ask otherwise. The pictures set the framing: do not name another; say only how the camera moves between them.`
   }
-  return `- The clip starts from the picture they attached${seen ? ", shown after their words" : ", which you cannot see"}. Do not describe it again: say what moves and changes from that first frame, and that the people, things and setting in it stay as they are unless they ask otherwise. The picture sets the opening framing: do not name another; say only how the camera moves from that view.`
+  return `- The clip starts from the picture they attached${seen ? ", shown after their words" : ", which you cannot see"}. Do not describe it again: say what moves and changes from that first frame, and that the people, things and setting in it stay as they are unless they ask otherwise. The picture sets the opening framing: do not name another for that first shot; say how the camera moves from that view, and give any later shot they ask for its own framing.`
 }
 
 // What the person's own pictures are for. Read as edits to keep "exactly as they are", a portrait
