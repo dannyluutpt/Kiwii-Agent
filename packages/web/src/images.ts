@@ -25,7 +25,7 @@ export type ModelsResponse = {
   models: ImageModel[]
 }
 
-// A clip's price is per length in seconds; MiniMax adds a little when it starts from a picture.
+// A clip's price is per length in seconds, plus `firstFrameCredits` where a model bills its first frame.
 export type VideoOption = { id: string; label: string; credits: Record<string, number> }
 export type VideoModel = {
   id: string
@@ -38,6 +38,8 @@ export type VideoModel = {
   maxReferences: number
   maxReferenceEdge: number
   firstFrameCredits: number
+  // Whether a clip can also end on a picture.
+  lastFrame: boolean
 }
 export type VideoModelsResponse = { canGenerate: boolean; models: VideoModel[] }
 
@@ -55,6 +57,8 @@ export type Generation = {
   duration: number | null
   prompt: string
   referenceFileIDs: string[]
+  // The picture a clip ends on; its first frame is referenceFileIDs.
+  lastFrameFileID: string | null
   characterIDs: string[]
   creditsReserved: number
   creditsFinal: number | null

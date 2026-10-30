@@ -10,8 +10,9 @@ function batches<T>(items: T[]) {
   return Array.from({ length: Math.ceil(items.length / BATCH) }, (_, i) => items.slice(i * BATCH, (i + 1) * BATCH))
 }
 
-// A reference picture nobody uses any more: a week after its upload, no run took it and no
-// conversation shows it. A picture kept in the composer that long without a run goes too.
+// A reference picture nobody uses any more: a week after its upload, no run took it (as a reference
+// or as a clip's last frame) and no conversation shows it. A picture kept in the composer that long
+// without a run goes too.
 export async function removeUnusedReferences(db: Database, bucket: R2Bucket, now = Date.now()) {
   const rows = await db
     .select({ id: files.id, key: files.r2_key })
@@ -20,7 +21,7 @@ export async function removeUnusedReferences(db: Database, bucket: R2Bucket, now
       and(
         eq(files.kind, "reference"),
         lt(files.created_at, now - 7 * DAY),
-        sql`not exists (select 1 from generations g where g.user_id = ${files.user_id} and g.reference_file_ids like '%' || ${files.id} || '%')`,
+        sql`not exists (select 1 from generations g where g.user_id = ${files.user_id} and (g.reference_file_ids like '%' || ${files.id} || '%' or g.last_frame_file_id = ${files.id}))`,
         sql`not exists (select 1 from project_messages m where m.user_id = ${files.user_id} and m.parts like '%' || ${files.id} || '%')`,
       ),
     )

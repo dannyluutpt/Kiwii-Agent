@@ -234,6 +234,8 @@ export const generations = sqliteTable(
     // Videos only: the clip's length in seconds, and the OpenRouter job the run waits on.
     duration: integer(),
     job_id: text(),
+    // Videos only: files.id of the picture the clip ends on; its first frame is reference_file_ids.
+    last_frame_file_id: text(),
     ...Timestamps,
   },
   (t) => [

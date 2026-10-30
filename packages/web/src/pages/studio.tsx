@@ -80,6 +80,10 @@ export default function Studio() {
     studio.setMode(g.kind)
     if (g.kind === "video") {
       studio.patchVideo({ model: g.model, option: g.option, aspectRatio: g.aspectRatio, duration: g.duration ?? 5 })
+      // The pictures the clip started from and ended on come back with it.
+      const frame = (id: string) => ({ id, url: `/api/images/files/${id}`, name: id, edge: 0 })
+      studio.setReferences(g.referenceFileIDs.slice(0, 1).map(frame))
+      studio.setLastFrame(g.lastFrameFileID ? frame(g.lastFrameFileID) : undefined)
     }
     if (g.kind !== "video") studio.patch({ model: g.model, option: g.option, aspectRatio: g.aspectRatio, n: g.n })
     setViewer(undefined)
@@ -129,6 +133,8 @@ export default function Studio() {
     onPrompt: studio.setPrompt,
     references: studio.references(),
     onReferences: studio.setReferences,
+    lastFrame: studio.lastFrame(),
+    onLastFrame: studio.setLastFrame,
     cost: studio.cost(),
     busy: studio.busy(),
     locked: studio.mode() === "video" ? studio.videoLocked() : studio.locked(),

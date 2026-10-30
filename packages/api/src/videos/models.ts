@@ -30,6 +30,8 @@ export type VideoModel = {
   maxReferenceEdge: number
   // Credits added when the clip starts from a picture, where OpenRouter bills it as a reference.
   firstFrameCredits: number
+  // Whether the clip can also end on a picture (OpenRouter's last_frame).
+  lastFrame: boolean
 }
 
 // Credits = ceil(OpenRouter price for the clip × 25,460 đ/USD ÷ (1,083 đ × 0.45)): at least a 55%
@@ -54,6 +56,7 @@ export const VIDEO_MODELS: VideoModel[] = [
     maxReferences: 1,
     maxReferenceEdge: 1920,
     firstFrameCredits: 0,
+    lastFrame: true,
   },
   {
     id: "minimax-h3",
@@ -68,6 +71,7 @@ export const VIDEO_MODELS: VideoModel[] = [
     maxReferences: 1,
     maxReferenceEdge: 1920,
     firstFrameCredits: 0,
+    lastFrame: true,
   },
   {
     id: "seedance-2.5",
@@ -82,6 +86,7 @@ export const VIDEO_MODELS: VideoModel[] = [
     maxReferences: 1,
     maxReferenceEdge: 1920,
     firstFrameCredits: 0,
+    lastFrame: true,
   },
 ]
 

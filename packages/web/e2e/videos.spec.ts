@@ -9,6 +9,15 @@ test.use({ storageState: PRO_STATE })
 const prompt = (page: Page) => page.getByRole("textbox", { name: /^Mô tả video/ })
 const card = (page: Page, text: string) => page.getByRole("article", { name: text }).first()
 const makeButton = (page: Page, cost: number) => page.getByRole("button", { name: `Tạo video, ${cost} credit` })
+const frames = (page: Page) => page.getByRole("group", { name: "Khung hình của clip" })
+const png = (name: string) => ({
+  name,
+  mimeType: "image/png",
+  buffer: Buffer.from(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+    "base64",
+  ),
+})
 
 async function videoMode(page: Page) {
   await page.goto("/")
@@ -101,20 +110,42 @@ test("the price follows the model, the resolution, the length and a first frame"
   await done(page, isMobile)
   await expect(makeButton(page, 68)).toBeEnabled()
   // The picture a clip starts from costs nothing more; only one can be added.
-  await page.locator('input[type="file"]').setInputFiles({
-    name: "frame.png",
-    mimeType: "image/png",
-    buffer: Buffer.from(
-      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
-      "base64",
-    ),
-  })
+  await page.locator('input[data-input="references"]').setInputFiles(png("frame.png"))
   await expect(makeButton(page, 68)).toBeEnabled()
   await expect(page.getByRole("button", { name: /^Thêm ảnh làm khung hình đầu/ })).toBeDisabled()
 
   await pick(page, isMobile, "Model", "Seedance 2.5")
   await done(page, isMobile)
   await expect(makeButton(page, 122)).toBeEnabled()
+})
+
+test("a clip can end on a picture too, at no extra cost, and keeps both frames", async ({ page }) => {
+  test.setTimeout(60_000)
+  await videoMode(page)
+  await prompt(page).fill("Nụ hoa từ từ nở thành bông")
+  // The last frame's slot opens once there is a first frame.
+  await expect(frames(page)).toHaveCount(0)
+  await page.locator('input[data-input="references"]').setInputFiles(png("start.png"))
+  await expect(frames(page).getByRole("img", { name: "Khung đầu" })).toBeVisible()
+  await expect(frames(page).getByRole("button", { name: "Thêm ảnh làm khung hình cuối" })).toBeVisible()
+  await page.locator('input[data-input="last-frame"]').setInputFiles(png("end.png"))
+  await expect(frames(page).getByRole("img", { name: "Khung cuối" })).toBeVisible()
+  await expect(makeButton(page, 27)).toBeEnabled()
+
+  const sent = page.waitForRequest((req) => req.url().endsWith("/api/videos/generations") && req.method() === "POST")
+  await makeButton(page, 27).click()
+  const body = (await sent).postDataJSON() as { referenceFileIDs: string[]; lastFrameFileID?: string }
+  expect(body.referenceFileIDs).toHaveLength(1)
+  expect(body.lastFrameFileID).toEqual(expect.any(String))
+  const tile = card(page, "Nụ hoa từ từ nở thành bông")
+  await expect(tile.getByRole("button", { name: "Xem video" })).toBeVisible({ timeout: 30_000 })
+
+  // Taking the first frame off takes the last one with it; using the clip again brings both back.
+  await frames(page).getByRole("button", { name: "Bỏ khung đầu" }).click()
+  await expect(frames(page)).toHaveCount(0)
+  await tile.getByRole("button", { name: "Dùng lại prompt" }).click()
+  await expect(frames(page).getByRole("img", { name: "Khung đầu" })).toBeVisible()
+  await expect(frames(page).getByRole("img", { name: "Khung cuối" })).toBeVisible()
 })
 
 test("a clip the model refuses fails in place and gives its credits back", async ({ page }) => {

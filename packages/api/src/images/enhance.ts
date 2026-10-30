@@ -97,7 +97,7 @@ function rewriteRules(model: ImageModelID, aspectRatio: string, references: numb
 function videoRules(
   model: VideoModelID,
   aspectRatio: string,
-  clip: { seconds: number; sound: boolean },
+  clip: { seconds: number; sound: boolean; lastFrame?: boolean },
   references: number,
   seen: boolean,
 ) {
@@ -111,13 +111,22 @@ function videoRules(
       ? "- The clip has sound: name the sounds that belong to the scene in a few words. Put words someone says in double quotes, exactly as given, and say who says them and in which language."
       : "",
     references > 0
-      ? `- The clip starts from the picture they attached${seen ? ", shown after their words" : ", which you cannot see"}. Do not describe it again: say what moves and changes from that first frame, and that the people, things and setting in it stay as they are unless they ask otherwise.`
+      ? frameRule(clip.lastFrame === true, seen)
       : "- Fill in only what the clip needs and they left open (setting, light), briefly and plainly.",
     `- The video is ${aspectRatio}, ${orientation(aspectRatio)}: compose for that frame, without writing the ratio.`,
     "- At most 90 words, no preamble. Write plain sentences.",
   ]
     .filter(Boolean)
     .join("\n")
+}
+
+// The pictures a clip starts from and, with a last frame, ends on: the model sees them, so the rewrite
+// says what moves between them instead of describing them.
+function frameRule(lastFrame: boolean, seen: boolean) {
+  if (lastFrame) {
+    return `- The clip starts on the first picture they attached and ends on the second${seen ? ", both shown after their words" : ", which you cannot see"}. Do not describe them again: say how the scene moves and changes from the first frame to the last, and that the people, things and setting in them stay as they are unless they ask otherwise.`
+  }
+  return `- The clip starts from the picture they attached${seen ? ", shown after their words" : ", which you cannot see"}. Do not describe it again: say what moves and changes from that first frame, and that the people, things and setting in it stay as they are unless they ask otherwise.`
 }
 
 // What the person's own pictures are for. Read as edits to keep "exactly as they are", a portrait
@@ -184,8 +193,9 @@ export async function enhancePrompt(input: {
   apiKey: string
   baseURL?: string
   model: ImageModelID | VideoModelID
-  // Set for a video run: the clip's length and whether the model makes sound.
-  clip?: { seconds: number; sound: boolean }
+  // Set for a video run: the clip's length, whether the model makes sound, and whether it ends on a
+  // picture as well as starting from one.
+  clip?: { seconds: number; sound: boolean; lastFrame?: boolean }
   prompt: string
   rewrite: boolean
   aspectRatio: string
