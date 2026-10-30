@@ -117,15 +117,16 @@ export function SavedOptions(props: { store: SavedStore; max: number; onCreate?:
 
 // What the "Characters" and "Locations" filters show: a card that saves a new one, then every saved
 // one, to use in the next pictures, rename or delete. A character's card stands like a portrait, a
-// location's lies like a view.
-export function SavedGallery(props: { store: SavedStore; max: number }) {
+// location's lies like a view. On a page of its own, `onUse` goes on to the studio once one is picked,
+// and the page gives the padding.
+export function SavedGallery(props: { store: SavedStore; max: number; onUse?: () => void; class?: string }) {
   const { t } = useLanguage()
   const shape = () => (props.store.kind === "locations" ? "aspect-[4/3]" : "aspect-[3/4]")
   return (
-    <div class="flex min-h-full w-full flex-col gap-4 px-3 py-3 md:px-5 md:py-5">
+    <div class={`flex min-h-full w-full flex-col gap-4 ${props.class ?? "px-3 py-3 md:px-5 md:py-5"}`}>
       <p class="max-w-xl text-callout text-label-2">{t(`${props.store.kind}.lead`)}</p>
       <ul
-        class="grid grid-cols-2 gap-2 md:gap-3 lg:grid-cols-3 2xl:grid-cols-4"
+        class="grid grid-cols-2 gap-2 sm:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] md:gap-3"
         aria-label={t(`${props.store.kind}.title`)}
       >
         <li>
@@ -152,14 +153,14 @@ export function SavedGallery(props: { store: SavedStore; max: number }) {
           </For>
         </Show>
         <For each={props.store.list.latest ?? []}>
-          {(item) => <SavedCard store={props.store} item={item} max={props.max} shape={shape()} />}
+          {(item) => <SavedCard store={props.store} item={item} max={props.max} shape={shape()} onUse={props.onUse} />}
         </For>
       </ul>
     </div>
   )
 }
 
-function SavedCard(props: { store: SavedStore; item: Saved; max: number; shape: string }) {
+function SavedCard(props: { store: SavedStore; item: Saved; max: number; shape: string; onUse?: () => void }) {
   const { t } = useLanguage()
   const on = () => props.store.picked().includes(props.item.id)
   return (
@@ -186,7 +187,12 @@ function SavedCard(props: { store: SavedStore; item: Saved; max: number; shape: 
             pill
             variant={on() ? "tinted" : "secondary"}
             aria-pressed={on()}
-            onClick={() => props.store.pick(props.item.id, props.max)}
+            onClick={() => {
+              const use = props.onUse
+              if (!use) return props.store.pick(props.item.id, props.max)
+              if (!on()) props.store.pick(props.item.id, props.max)
+              use()
+            }}
           >
             {on() ? t(`${props.store.kind}.inUse`) : t(`${props.store.kind}.use`)}
           </Button>

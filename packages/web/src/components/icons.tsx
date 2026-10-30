@@ -46,6 +46,13 @@ export const IconPerson = icon(() => (
   </>
 ))
 
+export const IconCharacter = icon(() => (
+  <>
+    <circle cx="12" cy="8" r="3.5" />
+    <path d="M5.5 19.5c.9-3.2 3.4-5 6.5-5s5.6 1.8 6.5 5" />
+  </>
+))
+
 export const IconPersonAdd = icon(() => (
   <>
     <circle cx="10" cy="8" r="3.5" />

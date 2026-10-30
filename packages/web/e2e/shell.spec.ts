@@ -3,11 +3,16 @@ import { expect, test } from "./fixtures"
 test.describe("phone", () => {
   test.skip(({ isMobile }) => !isMobile, "phone layout only")
 
-  test("the tab bar moves between the studio, the library and the account", async ({ page }) => {
+  test("the tab bar moves between the studio, the characters, the locations, the library and the account", async ({
+    page,
+  }) => {
     await page.goto("/")
     const tabs = page.getByRole("navigation", { name: "Điều hướng chính" })
-    await expect(tabs.getByRole("link")).toHaveText(["Studio", "Thư viện", "Tài khoản"])
+    await expect(tabs.getByRole("link")).toHaveText(["Studio", "Nhân vật", "Bối cảnh", "Thư viện", "Tài khoản"])
     await expect(tabs.getByRole("link", { name: "Studio" })).toHaveClass(/text-accent/)
+    await tabs.getByRole("link", { name: "Bối cảnh" }).click()
+    await expect(page).toHaveURL(/\/locations$/)
+    await expect(page.getByRole("heading", { level: 1, name: "Bối cảnh" })).toBeVisible()
     await tabs.getByRole("link", { name: "Thư viện" }).click()
     await expect(page).toHaveURL(/\/library$/)
     await expect(page.getByRole("heading", { level: 1, name: "Thư viện" })).toBeVisible()
@@ -63,6 +68,9 @@ test.describe("desktop", () => {
     await page.goto("/")
     const sidebar = page.getByRole("navigation", { name: "Điều hướng chính" })
     await expect(sidebar.getByRole("link", { name: "Tất cả dự án" })).toBeVisible()
+    // The saved characters and locations, and the library, sit above the projects.
+    for (const name of ["Nhân vật", "Bối cảnh", "Thư viện"])
+      await expect(sidebar.getByRole("link", { name })).toBeVisible()
     await expect(page.getByRole("navigation")).toHaveCount(1)
 
     await sidebar.getByRole("button", { name: "Ẩn thanh bên" }).click()
