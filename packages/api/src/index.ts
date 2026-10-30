@@ -15,12 +15,17 @@ import { videos } from "./routes/videos"
 
 const app = createApp()
 
-// One canonical host: www and the workers.dev hostname redirect to APP_URL.
+// One canonical host: www, the workers.dev hostname and the hostnames the app moved from redirect to
+// APP_URL, keeping the path. A host the app moved from still answers /api: payment webhooks call
+// it, and so do pages opened before the move.
 app.use("*", async (c, next) => {
   const canonical = new URL(c.env.APP_URL)
   const url = new URL(c.req.url)
   if (canonical.hostname === "localhost" || url.hostname === canonical.hostname) return next()
-  if (url.hostname !== `www.${canonical.hostname}` && !url.hostname.endsWith(".workers.dev")) return next()
+  const moved = (c.env.MOVED_FROM ?? "").split(/\s+/).includes(url.hostname)
+  if (moved && url.pathname.startsWith("/api/")) return next()
+  const alias = moved || url.hostname === `www.${canonical.hostname}` || url.hostname.endsWith(".workers.dev")
+  if (!alias) return next()
   url.host = canonical.host
   url.protocol = canonical.protocol
   return c.redirect(url.toString(), 301)
