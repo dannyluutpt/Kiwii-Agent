@@ -33,8 +33,11 @@
   // 00:00 Asia/Ho_Chi_Minh
   "triggers": { "crons": ["0 17 * * *"] },
   "limits": { "cpu_ms": 30000 },
-  // Both hostnames attach to this Worker; the Worker redirects www to the apex.
+  // Every hostname attaches to this Worker. It redirects www and the domains the app moved from
+  // (MOVED_FROM) to APP_URL.
   "routes": [
+    { "pattern": "amberpix.com", "custom_domain": true },
+    { "pattern": "www.amberpix.com", "custom_domain": true },
     { "pattern": "kiwiiagent.com", "custom_domain": true },
     { "pattern": "www.kiwiiagent.com", "custom_domain": true },
   ],
@@ -44,6 +47,9 @@
   "keep_vars": true,
   "vars": {
     "APP_URL": "https://kiwiiagent.com",
+    // Hostnames the app moved from, space-separated: their pages redirect to APP_URL, their /api
+    // keeps answering for payment webhooks and pages opened before the move.
+    "MOVED_FROM": "kiwiiagent.com www.kiwiiagent.com",
     "EMAIL_FROM": "Amberpix <no-reply@kiwiiagent.com>",
     // Receiving account shown on every VietQR; public by nature, so it lives here.
     "SEPAY_BANK_CODE": "ACB",
