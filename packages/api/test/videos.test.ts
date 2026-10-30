@@ -150,6 +150,7 @@ describe("prepareVideo", () => {
     // The owner found the clips' skin glossy and the frames too sharp: real life on film is softer.
     expect(system).toContain("In a real-life scene, people have real skin")
     expect(system).toContain("a real-life scene looks shot on 35mm film")
+    expect(system).toContain("say plainly where each one is, whether they stand or sit")
     expect(generation).toMatchObject({
       kind: "video",
       status: "running",

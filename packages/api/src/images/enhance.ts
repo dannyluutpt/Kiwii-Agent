@@ -92,6 +92,11 @@ const EXACT_NAMES =
 const REAL_SKIN =
   "real skin: matte, with visible pores, fine lines and uneven tone, never glossy, waxy, plastic or airbrushed"
 
+// Where people are has to be said, not implied: "seen past a waiting customer, looking across the
+// counter" became a barista sitting at a café table like a customer.
+const PLACES =
+  "- When people or things have places in the scene, say plainly where each one is, whether they stand or sit, and what is between them (for example: the barista stands behind a tall counter, the customer stands in front of it)."
+
 // The rewrite translates and clarifies; it must not stage the picture. Embellished prompts ("a
 // subtle smile", "50mm lens", "shallow depth of field", a change of clothes) made people pose and
 // look at the camera, which reads as a stock photo, and drifted edits away from the reference.
@@ -113,6 +118,7 @@ function rewriteRules(
     `When allowed, rewrite the prompt in English for ${model} as a faithful, clear translation:`,
     "- Keep everything the person asked for: subjects, actions, poses, expressions, clothing, counts, named styles and quoted text. Translate the meaning faithfully and no stronger: a faint smile stays faint.",
     EXACT_NAMES,
+    PLACES,
     "- Add nothing they did not ask for: no new people, objects, clothes, expressions or gestures, and no camera models, lens, depth-of-field or quality words (8k, masterpiece, ultra-detailed, cinematic).",
     "- Photographs should look natural and believable. Unless they ask for a posed shot such as a portrait or a selfie, a photo shows an ordinary, candid moment: people carry on with what they are doing and do not look at the camera, in the light the place really has.",
     "- For a photograph, say where its light comes from (daylight through a window, a street lamp, a ceiling light, a camera flash only if they ask for one) and name the real texture of what is already there (skin, fabric, worn wood, wet ground) in a few plain words. When they want an everyday, real-life photo, say how a person took it: a phone snapshot, at eye level or slightly tilted, with ordinary framing.",
@@ -145,6 +151,7 @@ function videoRules(
     `When allowed, rewrite the prompt in English for ${model} as a faithful, clear description of a ${clip.seconds}-second video clip:`,
     "- Keep everything the person asked for: subjects, actions, expressions, clothing, counts, named styles and quoted text. Translate the meaning faithfully and no stronger.",
     EXACT_NAMES,
+    PLACES,
     `- Say what happens during the clip, in order: who or what moves and how. Keep to what fits in ${clip.seconds} seconds.`,
     "- Add nothing they did not ask for: no new people or objects, and no quality words (8k, masterpiece, cinematic).",
     "- Say how the camera moves, as the person holding it would, in plain words and at most two moves. Use the move they ask for. For a real-life scene of people (everyday life, family, street, a vlog, a documentary) the camera is handheld, with a slight natural sway, and does what the scene needs of these: follows the action, refocuses from one subject to another, lets its exposure adjust when the light changes, swings quickly toward something sudden. For a staged, product or animated scene, one steady move (a static shot, a slow push-in, a pan to the left).",
