@@ -7,10 +7,13 @@ import { IconImage, IconPlay } from "@/components/icons"
 import { Lightbox } from "@/components/lightbox"
 import { LoadMore } from "@/components/load-more"
 import { Page } from "@/components/page"
+import { useCharacters } from "@/context/characters"
 import { useLanguage } from "@/context/language"
+import { useStudio } from "@/context/studio"
 import { altFor, aspectStyle } from "@/images"
 import { errorMessage } from "@/lib/errors"
 import { buttonClass } from "@/ui/button"
+import { askText } from "@/ui/confirm"
 import { Skeleton } from "@/ui/skeleton"
 import { toast } from "@/ui/toast"
 
@@ -27,6 +30,8 @@ type Asset = {
   aspectRatio: string
   prompt: string
   url: string
+  // A character sheet, which saves as a character with its panels cut out.
+  sheet: "character" | null
 }
 
 const PLACEHOLDER_RATIOS = ["1:1", "3:4", "4:3", "9:16", "1:1", "16:9", "3:4", "1:1", "2:3", "4:3", "1:1", "3:4"]
@@ -34,6 +39,8 @@ const PLACEHOLDER_RATIOS = ["1:1", "3:4", "4:3", "9:16", "1:1", "16:9", "3:4", "
 export default function Assets() {
   const { t } = useLanguage()
   const navigate = useNavigate()
+  const characters = useCharacters()
+  const studio = useStudio()
   const [list, setList] = createStore<{ items: Asset[]; cursor: string | null; loading: boolean }>({
     items: [],
     cursor: null,
@@ -64,6 +71,31 @@ export default function Assets() {
     const query = new URLSearchParams({ prompt: asset.prompt, model: asset.model })
     if (asset.kind === "video") query.set("kind", "video")
     navigate(`/?${query}`)
+  }
+
+  // A character sheet left unsaved where it was made is saved from here, cut the same way. The
+  // viewer closes first: the name is asked for in a dialog of its own.
+  const saveSheet = async (asset: Asset) => {
+    setViewer(undefined)
+    const name = await askText({
+      title: t("characters.create"),
+      label: t("characters.name"),
+      value: "",
+      confirmLabel: t("common.save"),
+      maxLength: 40,
+    })
+    if (!name) return
+    const made = await characters.fromSheet(name, asset.fileID)
+    if (!made) return
+    toast.success(t("characters.saved", { name: made.name }), {
+      action: {
+        label: t("characters.use"),
+        onClick: () => {
+          characters.pick(made.id, studio.config.latest?.maxCharacters ?? 2)
+          navigate("/")
+        },
+      },
+    })
   }
 
   return (
@@ -148,6 +180,7 @@ export default function Assets() {
           download: `${asset.url}?download`,
           name: `${BRAND_SLUG}-${asset.id}`,
           video: asset.kind === "video",
+          character: asset.sheet === "character",
         }))}
         index={viewer()}
         onIndex={setViewer}
@@ -155,6 +188,10 @@ export default function Assets() {
         onReuse={(index) => {
           const asset = list.items[index]
           if (asset) reuse(asset)
+        }}
+        onCharacter={(index) => {
+          const asset = list.items[index]
+          if (asset) void saveSheet(asset)
         }}
         onNextScene={(index) => {
           const asset = list.items[index]

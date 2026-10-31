@@ -59,6 +59,15 @@ export function createSaved(kind: SavedKind) {
       if (made) mutate((items) => [made, ...(items ?? [])])
       return made
     },
+    // Saves one from a sheet picture the account made; the server cuts its photos out of it.
+    fromSheet: async (name: string, fileID: string) => {
+      const made = await api<Saved>(`/${kind}/from-sheet`, { body: { name, fileID } }).catch((error: unknown) => {
+        toast.error(errorMessage(error, t("error.network")))
+        return undefined
+      })
+      if (made) mutate((items) => [made, ...(items ?? [])])
+      return made
+    },
     rename: async (item: Saved) => {
       const name = await askText({
         title: t(`${kind}.renameTitle`),

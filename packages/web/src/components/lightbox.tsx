@@ -17,7 +17,8 @@ import {
 import { useShareFile } from "./save"
 
 // `download` is the picture's download link; `name` is what it is saved as through the share sheet;
-// `video` marks a clip, which plays with its controls.
+// `video` marks a clip, which plays with its controls; `character: false` hides saving the picture as
+// a character where only some pictures can be.
 export type LightboxItem = {
   src: string
   alt: string
@@ -25,6 +26,7 @@ export type LightboxItem = {
   download: string
   name: string
   video?: boolean
+  character?: boolean
 }
 
 // Full-screen viewer over a set of pictures: arrow keys, the side buttons or a horizontal swipe step
@@ -120,7 +122,7 @@ export function Lightbox(props: {
             <p class="flex-1 pl-2 text-subhead text-label-2 tabular-nums" aria-live="polite">
               <Show when={count() > 1}>{t("images.position", { n: position() + 1, total: count() })}</Show>
             </p>
-            <Show when={props.onCharacter && !item()?.video}>
+            <Show when={props.onCharacter && !item()?.video && item()?.character !== false}>
               <IconButton
                 label={t("characters.saveAs")}
                 variant="overlay"

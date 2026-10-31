@@ -31,6 +31,8 @@ export function presentGeneration(
     duration: g.duration,
     error: g.error === null ? null : friendly(g.error, g.kind === "video" ? "video" : "ảnh"),
     projectID: g.project_id,
+    // A sheet run's picture saves as a character with its panels cut out.
+    sheet: g.sheet,
     createdAt: g.created_at,
     finishedAt: g.finished_at,
     images: imageRows.map((row) => ({

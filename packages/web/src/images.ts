@@ -22,6 +22,8 @@ export type ModelsResponse = {
   // Saved characters one run may feature.
   maxCharacters: number
   credits: number
+  // What a character sheet costs; null where the plan does not make them.
+  sheets: { character: number | null }
   models: ImageModel[]
 }
 
@@ -69,6 +71,8 @@ export type Generation = {
   error: string | null
   // The project the run belongs to; null for runs made outside one.
   projectID: string | null
+  // A character sheet: its picture saves as a character with its panels cut out.
+  sheet: "character" | null
   createdAt: number
   finishedAt: number | null
   images: GenerationImage[]

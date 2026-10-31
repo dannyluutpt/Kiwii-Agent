@@ -6,7 +6,7 @@ import { castPhotos, MAX_CHARACTERS_PER_RUN, ownCharacters, type Character } fro
 import { balance, reserve } from "../credits/ledger"
 import { TRIAL_MODELS, TRIAL_OPTIONS } from "../credits/trial"
 import type { Database } from "../db/client"
-import { files, generations } from "../db/schema"
+import { files, generations, type SheetKind } from "../db/schema"
 import { languageModels } from "../llm/models"
 import { ownLocation, type Location } from "../locations/store"
 import { loadPlan } from "../plans"
@@ -73,10 +73,16 @@ export async function prepareGeneration(input: {
   baseURL?: string
   user: User
   request: z.infer<typeof CreateGeneration>
+  // A sheet run, for paid plans only: the description is screened on its own, then laid out by
+  // `prompt` into the panels the picture is cut into.
+  sheet?: { kind: (typeof SheetKind)[number]; prompt: (description: string) => string }
 }) {
   const db = input.db
   const body = input.request
   const plan = await loadPlan(db, input.user)
+  if (input.sheet && plan.parallel_limit === 0) {
+    throw new ApiError(403, "SHEET_REQUIRES_PAID", "Tạo nhân vật từ mô tả dành cho gói trả phí. Hãy nâng cấp gói.")
+  }
   const access = imageAccess(plan.parallel_limit, await balance(db, input.user.id))
   if (access.parallelLimit === 0) {
     throw new ApiError(403, "IMAGE_REQUIRES_PAID", "Tạo ảnh dành cho gói trả phí. Hãy nâng cấp gói.")
@@ -206,7 +212,7 @@ export async function prepareGeneration(input: {
     aspect_ratio: body.aspectRatio,
     n: body.n,
     prompt_raw: body.prompt,
-    prompt_enhanced: enhanced.rewritten ? enhanced.prompt : null,
+    prompt_enhanced: input.sheet ? input.sheet.prompt(enhanced.prompt) : enhanced.rewritten ? enhanced.prompt : null,
     enhance: body.enhance ? 1 : 0,
     // The prompt screening and rewrite was paid for already; the image cost is added on top.
     cost_usd: enhanced.costUsd,
@@ -215,6 +221,7 @@ export async function prepareGeneration(input: {
     location_id: place?.id ?? null,
     credits_reserved: cost,
     project_id: project?.id ?? null,
+    sheet: input.sheet?.kind ?? null,
     created_at: now,
   })
   if (project) await touchProject(db, project, body.prompt, now)

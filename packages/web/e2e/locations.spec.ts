@@ -83,7 +83,7 @@ test("a location saved from an uploaded photo is picked in the composer, renamed
   const name = unique("Phố cổ", testInfo.project.name)
   await page.goto("/")
   await filter(page, "Bối cảnh")
-  await page.getByRole("button", { name: "Tạo bối cảnh" }).first().click()
+  await page.getByRole("button", { name: "Tải ảnh lên" }).first().click()
   const dialog = page.getByRole("dialog", { name: "Tạo bối cảnh" })
   await expect(dialog.getByText("Chỉ dùng ảnh của bạn hoặc ảnh bạn có quyền sử dụng.")).toBeVisible()
   await dialog.locator('input[type="file"]').setInputFiles(await photo(page))
