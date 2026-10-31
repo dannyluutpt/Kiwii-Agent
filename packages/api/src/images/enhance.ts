@@ -91,9 +91,15 @@ const EXACT_NAMES =
 
 // Left to themselves, image and video models give people glossy, poreless skin and razor-sharp,
 // shiny frames: the owner found today's clips "too AI". Real skin and, for a clip, the softer look of
-// film stock read as filmed by a person.
+// film stock read as filmed by a person. Fine lines asked of everyone made a woman of 27 look older
+// than the man of 30 beside her: lines come with age.
 const REAL_SKIN =
-  "real skin: matte, with visible pores, fine lines and uneven tone, never glossy, waxy, plastic or airbrushed"
+  "real skin true to each person's age: matte, with visible pores and uneven tone, never glossy, waxy, plastic or airbrushed, and lines or wrinkles only as their age brings them"
+
+// A clip that starts from a picture gets no photos of its characters, and a close shot after a cut is
+// drawn anew: Lan, 27 in her photos, came out past forty. An age written down is kept.
+const AGES =
+  "- Keep each person's age: say it in a few words as they give it or as the pictures show it (a woman in her late twenties, a man around thirty), and never make anyone look older or younger."
 
 // Where people are has to be said, not implied: "seen past a waiting customer, looking across the
 // counter" became a barista sitting at a café table like a customer.
@@ -122,6 +128,7 @@ function rewriteRules(
     "- Keep everything the person asked for: subjects, actions, poses, expressions, clothing, counts, named styles and quoted text. Translate the meaning faithfully and no stronger: a faint smile stays faint.",
     EXACT_NAMES,
     PLACES,
+    AGES,
     "- Add nothing they did not ask for: no new people, objects, clothes, expressions or gestures, and no camera models, lens, depth-of-field or quality words (8k, masterpiece, ultra-detailed, cinematic).",
     "- Photographs should look natural and believable. Unless they ask for a posed shot such as a portrait or a selfie, a photo shows an ordinary, candid moment: people carry on with what they are doing and do not look at the camera, in the light the place really has.",
     "- For a photograph, say where its light comes from (daylight through a window, a street lamp, a ceiling light, a camera flash only if they ask for one) and name the real texture of what is already there (skin, fabric, worn wood, wet ground) in a few plain words. When they want an everyday, real-life photo, say how a person took it: a phone snapshot, at eye level or slightly tilted, with ordinary framing.",
@@ -155,8 +162,10 @@ function videoRules(
     "- Keep everything the person asked for: subjects, actions, expressions, clothing, counts, named styles and quoted text. Translate the meaning faithfully and no stronger.",
     EXACT_NAMES,
     PLACES,
+    AGES,
     `- Open with one sentence on what the clip shows. Then, in order: who or what moves, which way and how, ending on what the last second shows. With several actions or a line of speech, give each beat its whole seconds (0–2 s, 2–${clip.seconds} s). Keep every event they asked for: when the clip is crowded, cut incidental detail, never an event.`,
-    "- Add nothing they did not ask for: no new people or objects, and no quality words (8k, masterpiece, cinematic).",
+    // Wan wrote made-up Vietnamese on a blank chalkboard once the clip cut to another angle.
+    "- Add nothing they did not ask for: no new people or objects, no writing, letters or numbers (a blank board, page or sign stays blank in every shot), and no quality words (8k, masterpiece, cinematic).",
     "- Name the framing once (a wide, medium or close shot, and the angle if it matters) and say it is one continuous shot, unless they ask for cuts: then give each shot its seconds and framing. Say how the camera moves, in plain words and at most two moves, each with its direction and speed. When they name a move (a dolly, a pan, a tilt, a zoom, a crane or drone shot, a static shot), use exactly that move and keep it smooth and steady: never call that camera handheld or let it sway. When they name none, for a real-life scene of people (everyday life, family, street, a vlog, a documentary) the camera is handheld, moved as the person holding it would, with a slight natural sway, and does what the scene needs of these: follows the action, refocuses from one subject to another, lets its exposure adjust when the light changes, swings quickly toward something sudden. For a staged, product or animated scene, one steady move (a static shot, a slow push-in, a pan to the left).",
     `- In a real-life scene, people have ${REAL_SKIN}. Unless they ask for another look (a phone video, a crisp commercial, animation), a real-life scene looks shot on 35mm film: a little soft rather than razor-sharp, with fine natural grain, muted true-to-life colors and highlights that roll off gently.`,
     "- Unless they ask for a posed shot, people carry on with what they are doing and do not look at the camera, in the light the place really has. Say where that light comes from and name the textures that move or catch it (hair, fabric, steam, water, dust) in a few plain words.",
