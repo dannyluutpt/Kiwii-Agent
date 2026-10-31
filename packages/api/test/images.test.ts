@@ -96,8 +96,13 @@ describe("enhancePrompt", () => {
     expect(fresh.system).toContain("a phone snapshot")
     // "cành đào" came out as an apricot branch, which is hoa mai.
     expect(fresh.system).toContain("cành đào or hoa đào is a pink peach blossom branch")
-    // Glossy, poreless skin and over-sharpened frames read as AI.
-    expect(fresh.system).toContain("In a photograph, people have real skin: matte, with visible pores")
+    // Glossy, poreless skin and over-sharpened frames read as AI; lines come with age, not with everyone.
+    expect(fresh.system).toContain(
+      "In a photograph, people have real skin true to each person's age: matte, with visible pores",
+    )
+    expect(fresh.system).toContain("lines or wrinkles only as their age brings them")
+    expect(fresh.system).not.toContain("fine lines")
+    expect(fresh.system).toContain("Keep each person's age")
     expect(fresh.system).toContain("no HDR glow, no over-sharpening")
     // A barista seen "across the counter" ended up seated at a table like a customer.
     expect(fresh.system).toContain("say plainly where each one is, whether they stand or sit")

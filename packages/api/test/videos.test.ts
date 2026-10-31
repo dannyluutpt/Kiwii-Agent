@@ -154,6 +154,12 @@ describe("prepareVideo", () => {
     expect(system).toContain("Never make up words for anyone to say")
     // The owner found the clips' skin glossy and the frames too sharp: real life on film is softer.
     expect(system).toContain("In a real-life scene, people have real skin")
+    // Lan, 27 in her photos, came out past forty: ages are kept, and lines come with age only.
+    expect(system).toContain("Keep each person's age")
+    expect(system).toContain("never make anyone look older or younger")
+    expect(system).not.toContain("fine lines")
+    // Wan wrote made-up Vietnamese on a blank chalkboard after a cut.
+    expect(system).toContain("no writing, letters or numbers (a blank board, page or sign stays blank in every shot)")
     expect(system).toContain("a real-life scene looks shot on 35mm film")
     expect(system).toContain("say plainly where each one is, whether they stand or sit, which way they face")
     // From a guide to video prompts: the clip's goal first, then beats in whole seconds to an end state,
