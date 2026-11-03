@@ -5,6 +5,7 @@ APP=kiwii
 MUTED='\033[0;2m'
 RED='\033[0;31m'
 ORANGE='\033[38;5;214m'
+SEED='\033[38;2;156;204;101m' # Kiwii brand green #9ccc65, for the kiwi-seed dots of the "i"s
 NC='\033[0m' # No Color
 
 usage() {
@@ -453,10 +454,9 @@ if [ -n "${GITHUB_ACTIONS-}" ] && [ "${GITHUB_ACTIONS}" == "true" ]; then
 fi
 
 echo -e ""
-echo -e "${MUTED}                    ${NC}             ▄     "
-echo -e "${MUTED}█▀▀█ █▀▀█ █▀▀█ █▀▀▄ ${NC}█▀▀▀ █▀▀█ █▀▀█ █▀▀█"
-echo -e "${MUTED}█░░█ █░░█ █▀▀▀ █░░█ ${NC}█░░░ █░░█ █░░█ █▀▀▀"
-echo -e "${MUTED}▀▀▀▀ █▀▀▀ ▀▀▀▀ ▀  ▀ ${NC}▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀"
+echo -e "${MUTED}█ ▄▀   ▀${SEED}▀${NC}   █ █ █   ▀${SEED}▀${NC}   ▀${SEED}▀${NC}"
+echo -e "${MUTED}█▀▄    █${NC}   █ █ █   █   █ "
+echo -e "${MUTED}▀  ▀   ▀${NC}   ▀▀▀▀▀   ▀   ▀ "
 echo -e ""
 echo -e ""
 echo -e "${MUTED}Kiwii includes free models, to start:${NC}"

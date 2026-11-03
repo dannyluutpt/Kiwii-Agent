@@ -1,6 +1,6 @@
 import { EOL } from "os"
 import { Schema } from "effect"
-import { logo as glyphs } from "./logo"
+import { dots, logo as glyphs } from "./logo"
 
 const wordmark = [
   `       ▄          ▄    ▄ `,
@@ -58,6 +58,8 @@ export function logo(pad?: string) {
 
   const result: string[] = []
   const reset = "\x1b[0m"
+  // Kiwii brand green (theme primary #9ccc65): the dots of the three "i"s are kiwi seeds.
+  const seed = "\x1b[38;2;156;204;101m"
   const left = {
     fg: "\x1b[90m",
     shadow: "\x1b[38;5;235m",
@@ -69,9 +71,9 @@ export function logo(pad?: string) {
     bg: "\x1b[48;5;238m",
   }
   const gap = " "
-  const draw = (line: string, fg: string, shadow: string, bg: string) => {
+  const draw = (line: string, fg: string, shadow: string, bg: string, seeds: number[]) => {
     const parts: string[] = []
-    for (const char of line) {
+    for (const [column, char] of [...line].entries()) {
       if (char === "_") {
         parts.push(bg, " ", reset)
         continue
@@ -88,16 +90,20 @@ export function logo(pad?: string) {
         parts.push(" ")
         continue
       }
+      if (seeds.includes(column)) {
+        parts.push(seed, char, reset)
+        continue
+      }
       parts.push(fg, char, reset)
     }
     return parts.join("")
   }
   glyphs.left.forEach((row, index) => {
     if (pad) result.push(pad)
-    result.push(draw(row, left.fg, left.shadow, left.bg))
+    result.push(draw(row, left.fg, left.shadow, left.bg, index === 0 ? dots.left : []))
     result.push(gap)
     const other = glyphs.right[index] ?? ""
-    result.push(draw(other, right.fg, right.shadow, right.bg))
+    result.push(draw(other, right.fg, right.shadow, right.bg, index === 0 ? dots.right : []))
     result.push(EOL)
   })
   return result.join("").trimEnd()
