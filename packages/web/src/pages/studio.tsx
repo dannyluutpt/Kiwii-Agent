@@ -171,6 +171,7 @@ export default function Studio() {
           <Gallery
             items={items()}
             loading={studio.gallery(shelf())?.loading ?? true}
+            failed={studio.gallery(shelf())?.failed}
             more={!!studio.gallery(shelf())?.cursor}
             config={studio.config.latest}
             videoModels={studio.videoConfig.latest?.models}

@@ -3,7 +3,7 @@ import { For, Show, type JSX } from "solid-js"
 import { useLanguage } from "@/context/language"
 import type { I18nKey } from "@/i18n/vi"
 import { aspectStyle, type Generation, type ModelsResponse, type VideoModel } from "@/images"
-import { buttonClass } from "@/ui/button"
+import { Button, buttonClass } from "@/ui/button"
 import { Skeleton } from "@/ui/skeleton"
 import { GenerationTile } from "./generation-tile"
 import { IconGlobe, IconImage, IconPencil, IconSparkles, IconVideo } from "./icons"
@@ -40,6 +40,8 @@ const SUGGESTIONS: Array<{ icon: () => JSX.Element; title: I18nKey; prompt: I18n
 export function Gallery(props: {
   items: Generation[]
   loading: boolean
+  // The last page did not load: the list says so and offers to try again, instead of looking empty.
+  failed?: boolean
   more: boolean
   config: ModelsResponse | undefined
   videoModels: VideoModel[] | undefined
@@ -57,7 +59,7 @@ export function Gallery(props: {
   onNextScene: (g: Generation) => void
 }) {
   const { t } = useLanguage()
-  const empty = () => !props.loading && props.items.length === 0
+  const empty = () => !props.loading && !props.failed && props.items.length === 0
 
   return (
     <div class="flex min-h-full w-full flex-col gap-4 px-3 py-3 md:px-5 md:py-5">
@@ -79,6 +81,14 @@ export function Gallery(props: {
           <A href="/pricing" class={buttonClass("primary", "md", "mt-2")}>
             {t("images.locked.cta")}
           </A>
+        </div>
+      </Show>
+      <Show when={props.failed && !props.loading && props.items.length === 0}>
+        <div class="mx-auto flex max-w-md flex-1 flex-col items-center justify-center gap-3 py-10 text-center">
+          <p class="text-callout text-label-2">{t("error.network")}</p>
+          <Button variant="secondary" onClick={() => props.onLoadMore()}>
+            {t("common.retry")}
+          </Button>
         </div>
       </Show>
       <Show when={empty() && props.clipsOnly}>
@@ -155,7 +165,7 @@ export function Gallery(props: {
         </div>
       </Show>
       <Show when={props.items.length > 0}>
-        <LoadMore more={props.more} loading={props.loading} onLoad={props.onLoadMore} />
+        <LoadMore more={props.more} loading={props.loading} failed={props.failed} onLoad={props.onLoadMore} />
       </Show>
     </div>
   )
