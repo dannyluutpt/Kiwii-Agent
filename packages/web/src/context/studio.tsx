@@ -312,7 +312,8 @@ export const { use: useStudio, provider: StudioProvider } = createSimpleContext(
     const back = () => {
       if (document.visibilityState === "visible") void settle()
     }
-    const timer = setInterval(() => void settle(), 10_000)
+    // A hidden tab asks nothing; `back` asks the moment it shows again.
+    const timer = setInterval(() => document.hidden || void settle(), 10_000)
     document.addEventListener("visibilitychange", back)
     window.addEventListener("online", back)
     onCleanup(() => {

@@ -194,7 +194,12 @@ export function AssistantComposer(props: {
           multiple={!video()}
           class="hidden"
           data-input="references"
-          onChange={(event) => event.currentTarget.files && void uploads.upload(event.currentTarget.files)}
+          onChange={(event) => {
+            // Copied before the field is cleared; cleared so picking the same photo again asks again.
+            const files = [...(event.currentTarget.files ?? [])]
+            event.currentTarget.value = ""
+            if (files.length) void uploads.upload(files)
+          }}
         />
         <IconButton
           label={addLabel()}

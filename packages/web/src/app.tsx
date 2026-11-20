@@ -6,7 +6,8 @@ import { AssistantProvider } from "@/context/assistant"
 import { AuthProvider, useAuth } from "@/context/auth"
 import { CharactersProvider } from "@/context/characters"
 import { safeNext } from "@/lib/next"
-import { LanguageProvider } from "@/context/language"
+import { BRAND } from "@/brand"
+import { LanguageProvider, useLanguage } from "@/context/language"
 import { LayoutProvider } from "@/context/layout"
 import { LocationsProvider } from "@/context/locations"
 import { ProjectsProvider } from "@/context/projects"
@@ -32,10 +33,46 @@ const Checkout = lazy(() => import("@/pages/checkout"))
 const Account = lazy(() => import("@/pages/account"))
 const SitePricing = lazy(() => import("@/pages/site-pricing"))
 
+// The tab's name follows the screen, so tabs, history and bookmarks tell the screens apart. The public
+// pages keep the title the server wrote for them (packages/api/src/seo.ts).
+const TITLES = [
+  ["/library", "assets.title"],
+  ["/characters", "characters.title"],
+  ["/locations", "locations.title"],
+  ["/pricing", "nav.pricing"],
+  ["/account", "account.title"],
+  ["/login", "auth.login.title"],
+  ["/signup/verify", "auth.verify.title"],
+  ["/signup", "auth.signup.title"],
+  ["/forgot", "auth.forgot.title"],
+  ["/reset", "auth.reset.title"],
+] as const
+
+// The address the page was opened at and the title the server gave it.
+const served = { path: location.pathname, title: document.title }
+
+function Titles() {
+  const location = useLocation()
+  const auth = useAuth()
+  const { t } = useLanguage()
+  createEffect(() => {
+    const key = TITLES.find(([path]) => location.pathname.startsWith(path))?.[1]
+    const guest = auth.ready() && !auth.me()
+    if (guest && location.pathname === served.path && (served.path === "/" || served.path === "/pricing")) {
+      document.title = served.title
+      return
+    }
+    const name = key ? t(key) : auth.me() ? t("nav.images") : undefined
+    document.title = name && !name.includes(BRAND) ? `${name} · ${BRAND}` : (name ?? BRAND)
+  })
+  return null
+}
+
 function Providers(props: ParentProps) {
   return (
     <LanguageProvider>
       <AuthProvider>
+        <Titles />
         {props.children}
         <ToastRegion />
         <ConfirmHost />

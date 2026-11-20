@@ -28,13 +28,34 @@
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="Amberpix" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "Amberpix",
+        "url": "https://amberpix.com/",
+        "image": "https://amberpix.com/showcase/og.jpg",
+        "applicationCategory": "MultimediaApplication",
+        "operatingSystem": "Web",
+        "inLanguage": ["vi", "en"],
+        "description": "Studio tạo, sửa ảnh và làm video bằng AI, chỉ cần mô tả bằng tiếng Việt."
+      }
+    </script>
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="icon" type="image/svg+xml" href="/logo.svg" />
     <link rel="alternate icon" type="image/png" href="/logo.png" />
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
   </head>
   <body class="overflow-hidden overscroll-none text-callout">
-    <noscript>Bạn cần bật JavaScript để dùng Amberpix.</noscript>
+    <noscript>
+      <h1>Amberpix: tạo ảnh và video AI bằng tiếng Việt</h1>
+      <p>
+        Mô tả bằng tiếng Việt, Amberpix tạo ảnh, sửa ảnh và làm video bằng GPT Image, Nano Banana, FLUX, Wan, MiniMax và
+        Seedance. Lưu nhân vật và bối cảnh để giữ nhất quán giữa các ảnh. Thanh toán bằng chuyển khoản VietQR.
+      </p>
+      <p><a href="/pricing">Bảng giá</a> · <a href="/signup">Dùng thử miễn phí</a></p>
+      <p>Bạn cần bật JavaScript để dùng Amberpix.</p>
+    </noscript>
     <div id="root"></div>
     <script src="/src/entry.tsx" type="module"></script>
   </body>
