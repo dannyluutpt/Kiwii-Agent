@@ -16,28 +16,42 @@ export async function balance(db: Database, userID: string, now = Date.now()) {
   return row?.total ?? 0
 }
 
-export async function grant(
-  db: Database,
-  input: { userID: string; source: (typeof GrantSource)[number]; amount: number; expiresAt: number; reason: string },
-) {
+type GrantInput = {
+  userID: string
+  source: (typeof GrantSource)[number]
+  amount: number
+  expiresAt: number
+  reason: string
+}
+
+// The two rows of a grant, for a batch: the credits and their line in the ledger land together or
+// not at all. `balanceBefore` is the balance the grant is added to.
+export function grantWrites(db: Database, input: GrantInput & { balanceBefore: number; id?: string }) {
+  const id = input.id ?? ulid()
+  return [
+    db.insert(credit_grants).values({
+      id,
+      user_id: input.userID,
+      source: input.source,
+      amount: input.amount,
+      remaining: input.amount,
+      expires_at: input.expiresAt,
+    }),
+    db.insert(credit_ledger).values({
+      id: ulid(),
+      user_id: input.userID,
+      grant_id: id,
+      type: "grant",
+      delta: input.amount,
+      balance_after: input.balanceBefore + input.amount,
+      reason: input.reason,
+    }),
+  ] as const
+}
+
+export async function grant(db: Database, input: GrantInput) {
   const id = ulid()
-  await db.insert(credit_grants).values({
-    id,
-    user_id: input.userID,
-    source: input.source,
-    amount: input.amount,
-    remaining: input.amount,
-    expires_at: input.expiresAt,
-  })
-  await db.insert(credit_ledger).values({
-    id: ulid(),
-    user_id: input.userID,
-    grant_id: id,
-    type: "grant",
-    delta: input.amount,
-    balance_after: await balance(db, input.userID),
-    reason: input.reason,
-  })
+  await db.batch(grantWrites(db, { ...input, id, balanceBefore: await balance(db, input.userID) }))
   return id
 }
 

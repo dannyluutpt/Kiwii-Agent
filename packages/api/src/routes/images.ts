@@ -118,7 +118,14 @@ images.get("/files/:id", async (c) => {
   headers.set("etag", object.httpEtag)
   headers.set("accept-ranges", "bytes")
   headers.set("cache-control", "private, max-age=31536000, immutable")
-  if (c.req.query("download") !== undefined) headers.set("content-disposition", `attachment; filename="${row.name}"`)
+  // A header holds Latin-1 only and the name of an uploaded photo is the person's own: the plain
+  // name is cut down to safe characters and the real one follows encoded (RFC 6266).
+  if (c.req.query("download") !== undefined) {
+    headers.set(
+      "content-disposition",
+      `attachment; filename="${row.name.replace(/[^\w.-]+/g, "_")}"; filename*=UTF-8''${encodeURIComponent(row.name)}`,
+    )
+  }
   const span = byteSpan(object.range, object.size)
   if (!span) return new Response(object.body, { headers })
   headers.set("content-range", `bytes ${span.start}-${span.end}/${object.size}`)

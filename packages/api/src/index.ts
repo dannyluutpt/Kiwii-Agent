@@ -35,6 +35,8 @@ app.use("*", async (c, next) => {
 app.use("/api/*", async (c, next) => {
   c.set("db", createDatabase(c.env.DB))
   c.header("cache-control", "no-store")
+  // A file is what its content type says, never what a browser guesses from its bytes.
+  c.header("x-content-type-options", "nosniff")
   await next()
 })
 const ipLimit = rateLimitBy((env) => env.RL_IP, "ip")
@@ -95,6 +97,8 @@ app.notFound(async (c) => {
   headers.set("content-security-policy", CSP)
   headers.set("x-content-type-options", "nosniff")
   headers.set("referrer-policy", "strict-origin-when-cross-origin")
+  headers.set("strict-transport-security", "max-age=31536000; includeSubDomains")
+  headers.set("permissions-policy", "camera=(), microphone=(), geolocation=(), payment=()")
   return new Response(res.body, { status: res.status, headers })
 })
 

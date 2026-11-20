@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm"
+import { and, eq, lt, sql } from "drizzle-orm"
 import { getCookie } from "hono/cookie"
 import { ulid } from "ulid"
 import { z } from "zod"
@@ -18,7 +18,7 @@ import { loadPlan } from "../plans"
 import { balance } from "../credits/ledger"
 import { grantTrial } from "../credits/trial"
 import type { Database } from "../db/client"
-import { password_resets, pending_signups, users } from "../db/schema"
+import { password_resets, pending_signups, sessions, users } from "../db/schema"
 import { clientIP, consumeWindow, rateLimitBy } from "../middleware/ratelimit"
 import { requireAuth } from "../middleware/auth"
 import { verifyTurnstile } from "../middleware/turnstile"
@@ -27,7 +27,7 @@ const Email = z.string().trim().toLowerCase().email().max(254)
 const Code = z
   .string()
   .trim()
-  .regex(/^\d{4}$/)
+  .regex(/^\d{6}$/)
 
 const SignupBody = z.object({ email: Email, password: z.string(), turnstile: z.string().optional() })
 const VerifyBody = z.object({ email: Email, code: Code })
@@ -111,15 +111,16 @@ auth.post("/signup/verify", async (c) => {
   if (!pending || pending.expires_at < Date.now()) {
     throw new ApiError(400, "OTP_EXPIRED", "Mã đã hết hạn, hãy yêu cầu mã mới")
   }
-  if (pending.attempts >= OTP_MAX_ATTEMPTS) {
-    throw new ApiError(400, "OTP_LOCKED", "Nhập sai quá nhiều lần, hãy yêu cầu mã mới")
-  }
+  // The try is counted before the code is compared, in one statement: guesses sent side by side
+  // each take a try of their own instead of all reading the same count.
+  const [tried] = await db
+    .update(pending_signups)
+    .set({ attempts: sql`${pending_signups.attempts} + 1` })
+    .where(and(eq(pending_signups.email, body.email), lt(pending_signups.attempts, OTP_MAX_ATTEMPTS)))
+    .returning({ attempts: pending_signups.attempts })
+  if (!tried) throw new ApiError(400, "OTP_LOCKED", "Nhập sai quá nhiều lần, hãy yêu cầu mã mới")
   if (!(await verifyOTP(body.email, body.code, pending.otp_hash))) {
-    await db
-      .update(pending_signups)
-      .set({ attempts: pending.attempts + 1 })
-      .where(eq(pending_signups.email, body.email))
-    throw new ApiError(400, "OTP_INVALID", "Mã không đúng", { remaining: OTP_MAX_ATTEMPTS - pending.attempts - 1 })
+    throw new ApiError(400, "OTP_INVALID", "Mã không đúng", { remaining: OTP_MAX_ATTEMPTS - tried.attempts })
   }
   const existing = await db.select({ id: users.id }).from(users).where(eq(users.email, body.email)).get()
   if (existing) throw new ApiError(409, "EMAIL_TAKEN", "Email này đã được đăng ký")
@@ -213,17 +214,20 @@ auth.post("/reset", async (c) => {
   const reset = await db.select().from(password_resets).where(eq(password_resets.email, body.email)).get()
   if (!reset || reset.expires_at < Date.now())
     throw new ApiError(400, "OTP_EXPIRED", "Mã đã hết hạn, hãy yêu cầu mã mới")
-  if (reset.attempts >= OTP_MAX_ATTEMPTS)
-    throw new ApiError(400, "OTP_LOCKED", "Nhập sai quá nhiều lần, hãy yêu cầu mã mới")
+  const [tried] = await db
+    .update(password_resets)
+    .set({ attempts: sql`${password_resets.attempts} + 1` })
+    .where(and(eq(password_resets.email, body.email), lt(password_resets.attempts, OTP_MAX_ATTEMPTS)))
+    .returning({ attempts: password_resets.attempts })
+  if (!tried) throw new ApiError(400, "OTP_LOCKED", "Nhập sai quá nhiều lần, hãy yêu cầu mã mới")
   if (!(await verifyOTP(body.email, body.code, reset.otp_hash))) {
-    await db
-      .update(password_resets)
-      .set({ attempts: reset.attempts + 1 })
-      .where(eq(password_resets.email, body.email))
-    throw new ApiError(400, "OTP_INVALID", "Mã không đúng", { remaining: OTP_MAX_ATTEMPTS - reset.attempts - 1 })
+    throw new ApiError(400, "OTP_INVALID", "Mã không đúng", { remaining: OTP_MAX_ATTEMPTS - tried.attempts })
   }
   const next = await hashPassword(body.password)
+  const user = await db.select({ id: users.id }).from(users).where(eq(users.email, body.email)).get()
   await db.batch([
+    // Whoever was signed in with the old password, on any device, is signed out.
+    db.delete(sessions).where(eq(sessions.user_id, user?.id ?? "")),
     db
       .update(users)
       .set({ password_hash: next.hash, password_salt: next.salt, password_iterations: next.iterations })

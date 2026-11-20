@@ -39,10 +39,10 @@ export default function Reset() {
       <Field
         label={t("auth.code")}
         value={code()}
-        onInput={(value) => setCode(value.replace(/\D/g, "").slice(0, 4))}
+        onInput={(value) => setCode(value.replace(/\D/g, "").slice(0, 6))}
         inputMode="numeric"
-        pattern="\d{4}"
-        maxLength={4}
+        pattern="\d{6}"
+        maxLength={6}
         autocomplete="one-time-code"
         autofocus
         code

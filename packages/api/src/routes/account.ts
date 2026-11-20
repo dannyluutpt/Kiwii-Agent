@@ -1,9 +1,12 @@
-import { eq } from "drizzle-orm"
+import { and, eq, ne } from "drizzle-orm"
+import { getCookie } from "hono/cookie"
 import { z } from "zod"
 import { ApiError, createApp } from "../app"
 import { hashPassword, validatePassword, verifyPassword } from "../auth/password"
+import { SESSION_COOKIE } from "../auth/session"
 import { sessions, users } from "../db/schema"
 import { requireAuth } from "../middleware/auth"
+import { sha256Hex } from "../util/crypto"
 
 const Patch = z.object({ locale: z.enum(["vi", "en"]) })
 const Password = z.object({ current: z.string(), next: z.string() })
@@ -34,12 +37,22 @@ account.post("/password", async (c) => {
   })
   if (!ok) throw new ApiError(401, "BAD_CREDENTIALS", "Mật khẩu hiện tại không đúng")
   const next = await hashPassword(body.next)
-  await c
-    .get("db")
-    .update(users)
-    .set({ password_hash: next.hash, password_salt: next.salt, password_iterations: next.iterations })
-    .where(eq(users.id, user.id))
+  const db = c.get("db")
   // Other devices must log in again with the new password; this session keeps its cookie.
+  await db.batch([
+    db
+      .update(users)
+      .set({ password_hash: next.hash, password_salt: next.salt, password_iterations: next.iterations })
+      .where(eq(users.id, user.id)),
+    db
+      .delete(sessions)
+      .where(
+        and(
+          eq(sessions.user_id, user.id),
+          ne(sessions.token_hash, await sha256Hex(getCookie(c, SESSION_COOKIE) ?? "")),
+        ),
+      ),
+  ])
   return c.json({ ok: true })
 })
 

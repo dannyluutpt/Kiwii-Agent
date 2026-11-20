@@ -188,7 +188,7 @@ export const dict = {
   "auth.signup.hasAccount": "Đã có tài khoản?",
   "auth.signup.hint": "Ít nhất 8 ký tự",
   "auth.verify.title": "Nhập mã xác minh",
-  "auth.verify.lead": "Mã 4 số đã được gửi tới {{email}}. Mã có hiệu lực 10 phút.",
+  "auth.verify.lead": "Mã 6 số đã được gửi tới {{email}}. Mã có hiệu lực 10 phút.",
   "auth.verify.submit": "Xác nhận",
   "auth.verify.resend": "Gửi lại mã",
   "auth.verify.resent": "Đã gửi mã mới",

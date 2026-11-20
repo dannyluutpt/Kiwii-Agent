@@ -192,7 +192,7 @@ export const dict: Record<I18nKey, string> = {
   "auth.signup.hasAccount": "Already have an account?",
   "auth.signup.hint": "At least 8 characters",
   "auth.verify.title": "Enter the verification code",
-  "auth.verify.lead": "A 4-digit code was sent to {{email}}. It expires in 10 minutes.",
+  "auth.verify.lead": "A 6-digit code was sent to {{email}}. It expires in 10 minutes.",
   "auth.verify.submit": "Confirm",
   "auth.verify.resend": "Resend code",
   "auth.verify.resent": "A new code was sent",

@@ -2,7 +2,7 @@ import { and, desc, eq } from "drizzle-orm"
 import { ulid } from "ulid"
 import { z } from "zod"
 import { ApiError, createApp } from "../app"
-import { activateOrder } from "../billing/activate"
+import { activateOrder, PAYABLE } from "../billing/activate"
 import { openOrder } from "../billing/orders"
 import { findMemo, generateMemo, isPaidTier, ORDER_TTL_MS, TOPUP_PACKS, vietQRUrl } from "../billing/plans"
 import { balance } from "../credits/ledger"
@@ -58,7 +58,7 @@ billing.post("/webhook/sepay", async (c) => {
     throw new ApiError(401, "BAD_WEBHOOK_KEY", "Sai khoá webhook")
   }
   const raw = await c.req.text()
-  const parsed = SepayWebhook.safeParse(JSON.parse(raw))
+  const parsed = SepayWebhook.safeParse(parseJSON(raw))
   if (!parsed.success) throw new ApiError(400, "BAD_WEBHOOK_BODY", "Payload không hợp lệ")
   const event = parsed.data
   const db = c.get("db")
@@ -84,12 +84,21 @@ billing.post("/webhook/sepay", async (c) => {
     .update(bank_events)
     .set({ order_id: order.id })
     .where(eq(bank_events.sepay_id, String(event.id)))
-  if (order.status !== "pending") return c.json({ ok: true, ignored: `order ${order.status}` })
+  if (!PAYABLE.some((status) => status === order.status)) {
+    // Money for an order already paid or under review: nothing is granted twice, and the log says so.
+    console.warn(`[billing] bank event ${event.id} for order ${order.id}, which is ${order.status}`)
+    return c.json({ ok: true, ignored: `order ${order.status}` })
+  }
   if (event.transferAmount < order.amount_vnd) {
     await db.update(plan_orders).set({ status: "pending_review" }).where(eq(plan_orders.id, order.id))
     return c.json({ ok: true, review: "amount below order" })
   }
-  const activated = await activateOrder(db, order, { bankEventID: String(event.id) })
+  // A failed activation forgets the event, so SePay's retry is not taken for a repeat of one that
+  // already acted, and answers 500 so that the retry comes.
+  const activated = await activateOrder(db, order, { bankEventID: String(event.id) }).catch(async (error: unknown) => {
+    await db.delete(bank_events).where(eq(bank_events.sepay_id, String(event.id)))
+    throw error
+  })
   return c.json({ ok: true, activated })
 })
 
@@ -190,6 +199,14 @@ billing.get("/orders", async (c) => {
     .limit(20)
   return c.json({ orders: rows.map((o) => presentOrder(o, c.env)) })
 })
+
+function parseJSON(text: string): unknown {
+  try {
+    return JSON.parse(text)
+  } catch {
+    return undefined
+  }
+}
 
 function presentOrder(
   order: typeof plan_orders.$inferSelect,
