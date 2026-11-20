@@ -55,7 +55,17 @@ export namespace RipgrepBinary {
       ) {
         const dir = yield* fs.makeTempDirectoryScoped({ directory: Global.Path.bin, prefix: "ripgrep-" })
 
-        if (config.extension === "zip") {
+        // Windows ships bsdtar, which reads a zip. It is tried first: Expand-Archive can exit 0 having
+        // extracted nothing when Windows PowerShell is started from PowerShell 7, whose module path it
+        // inherits (seen on GitHub's Windows runners).
+        const untarred =
+          config.extension === "zip" &&
+          (yield* run("tar.exe", ["-xf", archive, "-C", dir]).pipe(
+            Effect.map((result) => result.code === 0),
+            Effect.orElseSucceed(() => false),
+          ))
+
+        if (config.extension === "zip" && !untarred) {
           const shell = (yield* Effect.sync(() => which("powershell.exe") ?? which("pwsh.exe"))) ?? "powershell.exe"
           const result = yield* run(shell, [
             "-NoProfile",
