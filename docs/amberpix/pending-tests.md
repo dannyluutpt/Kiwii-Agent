@@ -13,9 +13,9 @@ Số tiền là ước tính từ giá đo ngày 2026-10-27 ghi trong `packages/
 | 1 | Đăng ký một tài khoản mới trên amberpix.com | Xác nhận email mã 6 số tới nơi và nhập được | 0 |
 | 2 | Tạo 1 ảnh FLUX 3 Klein 1K | Xác nhận dòng "ping" 15 giây không làm hỏng luồng ảnh thật, ô ảnh hoàn tất bình thường | 1 credit, dưới 0,02 USD (khoảng 500 đ) |
 | 3 | Tạo 1 ảnh GPT Image 2.5 mức low, tắt Wi-Fi giữa chừng rồi bật lại | Xác nhận ô ảnh vẫn "đang chạy" rồi tự hiện ảnh, không báo thất bại | khoảng 0,01 USD (khoảng 250 đ) |
-| 4 | Chuyển khoản thử một đơn Starter, hoặc chạy workflow `sepay-smoke` | Xác nhận kích hoạt gói theo cách ghi mới (một khối) | 0 nếu dùng workflow; 299.000 đ vào chính tài khoản của bạn nếu chuyển thật |
+| 4 | Chuyển khoản thật một đơn Starter | Xác nhận kích hoạt gói theo cách ghi mới (một khối) trên D1 thật. Workflow `sepay-smoke` chỉ kiểm tra khoá webhook, không kiểm tra được bước này | 299.000 đ, vào chính tài khoản ngân hàng của bạn |
 
-Tổng nếu chạy 1 đến 3 và dùng workflow cho mục 4: dưới 0,05 USD (khoảng 1.300 đ).
+Tổng cho mục 1 đến 3: dưới 0,05 USD (khoảng 1.300 đ). Mục 4 không mất tiền ra ngoài.
 
 ## Chưa làm, cần bạn quyết
 
