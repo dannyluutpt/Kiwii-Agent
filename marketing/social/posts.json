@@ -1,0 +1,58 @@
+[
+  {
+    "key": "ca-phe",
+    "title": "Cà phê phin Sài Gòn xưa",
+    "model": "FLUX 3 Klein",
+    "prompt": "Phin cà phê nhỏ giọt trên ly sữa đặc trong quán cà phê Sài Gòn xưa, nắng xiên qua cửa chớp gỗ, bụi nắng lơ lửng, tông màu ấm hoài cổ, ảnh cận cảnh",
+    "image": "../../packages/web/public/showcase/ca-phe-l.webp"
+  },
+  {
+    "key": "nuoc-hoa",
+    "title": "Chai nước hoa hổ phách",
+    "model": "FLUX 3 Klein",
+    "prompt": "Chai nước hoa thủy tinh màu hổ phách đặt trên tảng đá bazan đen, giọt nước li ti, ánh sáng viền vàng, nền đen sang trọng, ảnh quảng cáo sản phẩm cao cấp",
+    "image": "../../packages/web/public/showcase/nuoc-hoa-l.webp"
+  },
+  {
+    "key": "poster",
+    "title": "Poster lễ hội ánh sáng",
+    "model": "GPT Image 2.5",
+    "prompt": "Poster sự kiện với dòng chữ tiêu đề lớn 'LỄ HỘI ÁNH SÁNG ĐÀ NẴNG' và dòng chữ nhỏ '12 - 14.12.2026', phong cách retro thập niên 70, cầu Rồng phun lửa và pháo hoa trên sông Hàn, bảng màu cam vàng tím, typography rõ ràng",
+    "image": "../../packages/web/public/showcase/poster-l.webp"
+  },
+  {
+    "key": "ao-dai",
+    "title": "Áo dài giữa phố cổ Hội An",
+    "model": "Nano Banana 2.1",
+    "prompt": "Chân dung thời trang một cô gái Việt mặc áo dài lụa vàng nghệ đứng giữa phố cổ Hội An lúc hoàng hôn, đèn lồng đỏ phía sau mờ ảo, nắng vàng ấm viền tóc, ống kính 85mm, nhiếp ảnh thời trang điện ảnh",
+    "image": "../../packages/web/public/showcase/ao-dai-l.webp"
+  },
+  {
+    "key": "pho",
+    "title": "Tô phở bò buổi sáng",
+    "model": "GPT Image 2.5",
+    "prompt": "Tô phở bò Hà Nội bốc khói trên bàn gỗ, rau thơm, chanh, ớt tươi, ánh sáng cửa sổ buổi sáng, ảnh chụp món ăn chuyên nghiệp, góc 45 độ, hậu cảnh mờ",
+    "image": "../../packages/web/public/showcase/pho-l.webp"
+  },
+  {
+    "key": "thuong-hieu",
+    "title": "Nhận diện thương hiệu Mây Tea",
+    "model": "GPT Image 2.5",
+    "prompt": "Bộ nhận diện thương hiệu cho quán trà tên 'Mây Tea': logo tối giản hình đám mây ôm chiếc lá trà, in trên ly giấy, túi giấy và danh thiếp, tông xanh bạc hà và kem, ảnh mockup studio",
+    "image": "../../packages/web/public/showcase/thuong-hieu-l.webp"
+  },
+  {
+    "key": "noi-that",
+    "title": "Phòng khách Đông Dương",
+    "model": "GPT Image 2.5",
+    "prompt": "Phòng khách phong cách Đông Dương hiện đại, sàn gạch bông, bàn ghế gỗ và mây tre, cây xanh lớn, nắng chiều chiếu qua cửa sổ gỗ, ảnh kiến trúc nội thất",
+    "image": "../../packages/web/public/showcase/noi-that-l.webp"
+  },
+  {
+    "key": "linh-vat",
+    "title": "Linh vật mèo đội nón lá",
+    "model": "GPT Image 2.5",
+    "prompt": "Linh vật chú mèo vàng 3D dễ thương đội nón lá, tay cầm bóng bay hình ngôi sao, phong cách hoạt hình 3D, nền vàng hổ phách trơn, ánh sáng studio mềm",
+    "image": "../../packages/web/public/showcase/linh-vat-l.webp"
+  }
+]

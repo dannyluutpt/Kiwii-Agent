@@ -1,0 +1,480 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <title>Amberpix: phim ra mắt 30 giây</title>
+    <!--
+      The launch film as one page. Nothing here runs on a clock: render.mjs calls setTime(seconds) for
+      every frame and takes a picture, so the film is the same on every run. Open the file in a browser
+      to watch it in real time (it plays by itself when not being rendered).
+      Every picture and clip is from packages/web/public/showcase: made with Amberpix on production.
+    -->
+    <style>
+      :root {
+        --amber: #ffd60a;
+        --ink: #0a0a0a;
+        --surface: #161616;
+        --line: rgb(255 255 255 / 0.1);
+        --text: #f5f5f5;
+        --muted: #a3a3a3;
+      }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+      }
+      html,
+      body {
+        width: 1080px;
+        height: 1920px;
+        overflow: hidden;
+        background: var(--ink);
+        color: var(--text);
+        font-family: "Inter Display", Inter, system-ui, sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+      #stage {
+        position: relative;
+        width: 1080px;
+        height: 1920px;
+        overflow: hidden;
+      }
+      #glow {
+        position: absolute;
+        width: 1500px;
+        height: 1500px;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgb(255 214 10 / 0.2), transparent 62%);
+        left: -210px;
+        top: 120px;
+      }
+      .scene {
+        position: absolute;
+        inset: 0;
+        opacity: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 0 72px;
+      }
+      .kicker {
+        font-size: 44px;
+        font-weight: 600;
+        color: var(--amber);
+        letter-spacing: 0.01em;
+      }
+      h1 {
+        font-size: 124px;
+        line-height: 1.06;
+        font-weight: 800;
+        letter-spacing: -0.035em;
+        text-align: center;
+      }
+      h2 {
+        font-size: 84px;
+        line-height: 1.1;
+        font-weight: 800;
+        letter-spacing: -0.03em;
+        text-align: center;
+      }
+      .amber {
+        color: var(--amber);
+      }
+      .brand {
+        position: absolute;
+        top: 96px;
+        left: 0;
+        right: 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 20px;
+        font-size: 46px;
+        font-weight: 700;
+      }
+      .brand img {
+        width: 72px;
+        height: 72px;
+        border-radius: 18px;
+      }
+      .card {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 44px;
+        box-shadow: 0 40px 120px rgb(0 0 0 / 0.6);
+      }
+      .chip {
+        display: inline-flex;
+        align-items: center;
+        height: 68px;
+        padding: 0 30px;
+        border-radius: 999px;
+        background: rgb(0 0 0 / 0.62);
+        border: 1px solid var(--line);
+        font-size: 34px;
+        font-weight: 600;
+        backdrop-filter: blur(12px);
+      }
+      .shot {
+        border-radius: 40px;
+        overflow: hidden;
+        box-shadow: 0 40px 120px rgb(0 0 0 / 0.65);
+        border: 1px solid var(--line);
+      }
+      .shot img {
+        display: block;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+
+      /* 2: the composer */
+      #composer {
+        position: absolute;
+        left: 72px;
+        right: 72px;
+        top: 1330px;
+        padding: 40px 44px;
+      }
+      #typed {
+        font-size: 50px;
+        line-height: 1.3;
+        font-weight: 500;
+        min-height: 195px;
+      }
+      #caret {
+        display: inline-block;
+        width: 5px;
+        height: 54px;
+        margin-left: 4px;
+        vertical-align: -8px;
+        background: var(--amber);
+      }
+      #composer .row {
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        margin-top: 26px;
+      }
+      #composer .opt {
+        height: 72px;
+        padding: 0 30px;
+        border-radius: 999px;
+        background: rgb(255 255 255 / 0.07);
+        font-size: 32px;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        color: var(--muted);
+      }
+      #go {
+        margin-left: auto;
+        height: 88px;
+        padding: 0 44px;
+        border-radius: 999px;
+        background: var(--amber);
+        color: var(--ink);
+        font-size: 38px;
+        font-weight: 800;
+        display: flex;
+        align-items: center;
+      }
+      #result {
+        position: absolute;
+        left: 190px;
+        top: 300px;
+        width: 700px;
+        height: 960px;
+      }
+
+      /* 3: the wall */
+      #wall {
+        position: absolute;
+        left: 60px;
+        right: 60px;
+        top: 520px;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 26px;
+      }
+      #wall .shot {
+        position: relative;
+        height: 390px;
+        border-radius: 34px;
+      }
+      #wall .chip {
+        position: absolute;
+        left: 20px;
+        bottom: 20px;
+        height: 58px;
+        font-size: 30px;
+        padding: 0 24px;
+      }
+
+      /* 4: the edit */
+      #edit {
+        position: absolute;
+        left: 60px;
+        right: 60px;
+        top: 770px;
+        height: 536px;
+      }
+      #edit img {
+        position: absolute;
+        inset: 0;
+      }
+      #after {
+        clip-path: inset(0 100% 0 0);
+      }
+      #handle {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        width: 6px;
+        margin-left: -3px;
+        background: var(--amber);
+        box-shadow: 0 0 30px rgb(255 214 10 / 0.9);
+      }
+      #edit .tag {
+        position: absolute;
+        top: 20px;
+        height: 56px;
+        font-size: 28px;
+        padding: 0 22px;
+      }
+      #say {
+        position: absolute;
+        left: 72px;
+        right: 72px;
+        top: 1380px;
+        padding: 36px 44px;
+        font-size: 46px;
+        font-weight: 600;
+        line-height: 1.3;
+        text-align: center;
+      }
+
+      /* 5: the clips */
+      .clip {
+        position: absolute;
+        left: 60px;
+        right: 60px;
+        height: 540px;
+      }
+      .clip .chip {
+        position: absolute;
+        left: 22px;
+        bottom: 22px;
+        height: 58px;
+        font-size: 30px;
+        padding: 0 24px;
+      }
+
+      /* 6: the close */
+      #cta {
+        margin-top: 46px;
+        height: 132px;
+        padding: 0 72px;
+        border-radius: 999px;
+        background: var(--amber);
+        color: var(--ink);
+        font-size: 58px;
+        font-weight: 800;
+        display: flex;
+        align-items: center;
+        box-shadow: 0 0 110px rgb(255 214 10 / 0.5);
+      }
+      #url {
+        margin-top: 44px;
+        font-size: 64px;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+      }
+      #small {
+        position: absolute;
+        bottom: 150px;
+        left: 0;
+        right: 0;
+        text-align: center;
+        font-size: 36px;
+        color: var(--muted);
+        font-weight: 500;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="stage">
+      <div id="glow"></div>
+
+      <section class="scene" id="s1" style="justify-content: center; gap: 40px">
+        <div class="brand" id="b1"><img src="../../packages/web/public/logo.svg" alt="" />Amberpix</div>
+        <h1 id="h1a">Ảnh sản phẩm<br />đẹp như studio.</h1>
+        <h1 id="h1b" class="amber">Chỉ cần một câu.</h1>
+      </section>
+
+      <section class="scene" id="s2">
+        <div class="kicker" id="k2" style="margin-top: 150px">Mô tả bằng tiếng Việt</div>
+        <div class="shot" id="result"><img src="../../packages/web/public/showcase/ca-phe-l.webp" alt="" /></div>
+        <div class="card" id="composer">
+          <div id="typed"><span id="text"></span><span id="caret"></span></div>
+          <div class="row">
+            <div class="opt">FLUX 3 Klein</div>
+            <div class="opt">2:3</div>
+            <div id="go">Tạo ảnh</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="scene" id="s3">
+        <div class="kicker" style="margin-top: 170px">Một studio cho mọi việc</div>
+        <h2 style="margin-top: 26px">Bán hàng, quảng cáo,<br />nội dung mỗi ngày</h2>
+        <div id="wall">
+          <div class="shot">
+            <img src="../../packages/web/public/showcase/banh-mi-l.webp" alt="" /><span class="chip">Ẩm thực</span>
+          </div>
+          <div class="shot">
+            <img src="../../packages/web/public/showcase/nuoc-hoa-l.webp" alt="" /><span class="chip">Mỹ phẩm</span>
+          </div>
+          <div class="shot">
+            <img src="../../packages/web/public/showcase/ao-dai-l.webp" alt="" /><span class="chip">Thời trang</span>
+          </div>
+          <div class="shot">
+            <img src="../../packages/web/public/showcase/poster-l.webp" alt="" /><span class="chip">Poster</span>
+          </div>
+          <div class="shot">
+            <img src="../../packages/web/public/showcase/noi-that-l.webp" alt="" /><span class="chip">Nội thất</span>
+          </div>
+          <div class="shot">
+            <img src="../../packages/web/public/showcase/thuong-hieu-l.webp" alt="" /><span class="chip">Thương hiệu</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="scene" id="s4">
+        <div class="kicker" style="margin-top: 380px">Sửa ảnh có sẵn</div>
+        <h2 style="margin-top: 26px">Nói một câu,<br />ảnh đổi theo</h2>
+        <div class="shot" id="edit">
+          <img src="../../packages/web/public/showcase/louvre-before.webp" alt="" />
+          <img id="after" src="../../packages/web/public/showcase/louvre-l.webp" alt="" />
+          <span class="chip tag" style="left: 20px" id="tagAfter">Sau</span>
+          <span class="chip tag" style="right: 20px" id="tagBefore">Trước</span>
+          <div id="handle"></div>
+        </div>
+        <div class="card" id="say">“Xoá toàn bộ người trong ảnh”</div>
+      </section>
+
+      <section class="scene" id="s5">
+        <div class="kicker" style="margin-top: 250px">Không chỉ là ảnh</div>
+        <h2 style="margin-top: 26px">Làm cả <span class="amber">video ngắn</span></h2>
+        <div class="shot clip" id="c1" style="top: 600px">
+          <img id="f1" alt="" /><span class="chip">Quán phở vỉa hè Hà Nội</span>
+        </div>
+        <div class="shot clip" id="c2" style="top: 1190px">
+          <img id="f2" alt="" /><span class="chip">Thả hoa đăng trên sông Hoài</span>
+        </div>
+      </section>
+
+      <section class="scene" id="s6" style="justify-content: center">
+        <img id="logo6" src="../../packages/web/public/logo.svg" alt="" style="width: 220px; height: 220px; border-radius: 52px" />
+        <h1 id="h6" style="margin-top: 56px; font-size: 112px">Amberpix</h1>
+        <div id="cta">Dùng thử miễn phí</div>
+        <div id="url">amberpix.com</div>
+        <div id="small">Trả theo tháng bằng chuyển khoản VietQR · Không tự gia hạn</div>
+      </section>
+    </div>
+
+    <script>
+      const DURATION = 30
+      const FPS = 30
+      // The opening of the prompt that made this picture on production (packages/web/src/showcase.ts).
+      const TYPED = "Phin cà phê nhỏ giọt trên ly sữa đặc trong quán cà phê Sài Gòn xưa, nắng xiên qua cửa chớp gỗ"
+      const $ = (id) => document.getElementById(id)
+      const clamp = (x) => Math.min(1, Math.max(0, x))
+      // 0 before `from`, 1 after `to`, eased in between.
+      const ease = (t, from, to) => {
+        const x = clamp((t - from) / (to - from))
+        return 1 - Math.pow(1 - x, 3)
+      }
+      // A scene is on screen from `a` to `b`, fading over `f` seconds at each end.
+      const show = (t, a, b, f = 0.35) => Math.min(ease(t, a, a + f), 1 - ease(t, b - f, b))
+      const rise = (el, p, from = 70) => {
+        el.style.opacity = p
+        el.style.transform = `translateY(${(1 - p) * from}px)`
+      }
+      const frame = (clip, t, start, count) =>
+        `frames/${clip}/${String(Math.min(count, Math.max(1, Math.floor((t - start) * FPS) + 1))).padStart(3, "0")}.jpg`
+
+      window.DURATION = DURATION
+      window.FPS = FPS
+      window.setTime = (t) => {
+        $("glow").style.transform = `translate(${Math.sin(t / 4) * 120}px, ${Math.cos(t / 5) * 160 + t * 8}px)`
+
+        // 1 · 0 to 3.2: the promise
+        $("s1").style.opacity = show(t, 0, 3.2, 0.3)
+        rise($("b1"), ease(t, 0.1, 0.6), 30)
+        rise($("h1a"), ease(t, 0.25, 0.9))
+        rise($("h1b"), ease(t, 1.1, 1.7))
+
+        // 2 · 3.2 to 9: words in, a picture out
+        $("s2").style.opacity = show(t, 3.2, 9)
+        rise($("k2"), ease(t, 3.4, 3.9), 30)
+        rise($("composer"), ease(t, 3.3, 3.9), 120)
+        const typed = Math.floor(clamp((t - 3.9) / 2.1) * TYPED.length)
+        $("text").textContent = TYPED.slice(0, typed)
+        $("caret").style.opacity = typed < TYPED.length ? 1 : Math.floor(t * 2) % 2
+        const press = t > 6.15 && t < 6.4 ? 0.94 : 1
+        $("go").style.transform = `scale(${press})`
+        const made = ease(t, 6.5, 7.3)
+        $("result").style.opacity = made
+        $("result").style.transform = `scale(${0.9 + made * 0.1 + ease(t, 7.3, 9) * 0.03})`
+        $("result").style.filter = `blur(${(1 - made) * 30}px)`
+
+        // 3 · 9 to 15: what it is for
+        $("s3").style.opacity = show(t, 9, 15)
+        document.querySelectorAll("#wall .shot").forEach((tile, i) => {
+          const p = ease(t, 9.7 + i * 0.28, 10.3 + i * 0.28)
+          tile.style.opacity = p
+          tile.style.transform = `translateY(${(1 - p) * 90}px) scale(${0.94 + p * 0.06})`
+        })
+
+        // 4 · 15 to 20.5: an edit, from the left
+        $("s4").style.opacity = show(t, 15, 20.5)
+        const wipe = ease(t, 16.4, 18.8)
+        $("after").style.clipPath = `inset(0 ${(1 - wipe) * 100}% 0 0)`
+        $("handle").style.left = `${wipe * 100}%`
+        $("handle").style.opacity = wipe > 0.995 ? 0 : 1
+        $("tagAfter").style.opacity = ease(t, 17, 17.4)
+        $("tagBefore").style.opacity = 1 - ease(t, 18.2, 18.7)
+        rise($("say"), ease(t, 15.6, 16.2), 60)
+
+        // 5 · 20.5 to 25.8: clips
+        $("s5").style.opacity = show(t, 20.5, 25.8)
+        rise($("c1"), ease(t, 20.9, 21.5), 100)
+        rise($("c2"), ease(t, 21.2, 21.8), 100)
+        $("f1").src = frame("quan-pho", t, 20.9, 150)
+        $("f2").src = frame("hoa-dang", t, 21.2, 155)
+
+        // 6 · 25.8 to 30: where to go
+        $("s6").style.opacity = ease(t, 25.8, 26.2)
+        const logo = ease(t, 25.9, 26.6)
+        $("logo6").style.transform = `scale(${0.7 + logo * 0.3})`
+        $("logo6").style.opacity = logo
+        rise($("h6"), ease(t, 26.2, 26.8), 50)
+        rise($("cta"), ease(t, 26.7, 27.3), 50)
+        rise($("url"), ease(t, 27.1, 27.7), 40)
+        $("small").style.opacity = ease(t, 27.6, 28.2)
+      }
+
+      // Watched in a browser, it plays; rendered, render.mjs sets the time itself.
+      if (!new URLSearchParams(location.search).has("render")) {
+        const began = performance.now()
+        const tick = () => {
+          window.setTime(((performance.now() - began) / 1000) % DURATION)
+          requestAnimationFrame(tick)
+        }
+        tick()
+      } else {
+        window.setTime(0)
+      }
+    </script>
+  </body>
+</html>
