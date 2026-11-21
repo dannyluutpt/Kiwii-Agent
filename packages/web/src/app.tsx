@@ -6,6 +6,7 @@ import { AssistantProvider } from "@/context/assistant"
 import { AuthProvider, useAuth } from "@/context/auth"
 import { CharactersProvider } from "@/context/characters"
 import { safeNext } from "@/lib/next"
+import { USE_CASES } from "@/use-cases"
 import { BRAND } from "@/brand"
 import { LanguageProvider, useLanguage } from "@/context/language"
 import { LayoutProvider } from "@/context/layout"
@@ -32,6 +33,7 @@ const Templates = lazy(() => import("@/pages/templates"))
 const Pricing = lazy(() => import("@/pages/pricing"))
 const Checkout = lazy(() => import("@/pages/checkout"))
 const Account = lazy(() => import("@/pages/account"))
+const UseCasePage = lazy(() => import("@/pages/use-case"))
 const Support = lazy(() => import("@/pages/support"))
 const Legal = lazy(() => import("@/pages/legal"))
 const SitePricing = lazy(() => import("@/pages/site-pricing"))
@@ -60,8 +62,9 @@ function Titles() {
   const auth = useAuth()
   const { t } = useLanguage()
   createEffect(() => {
-    // A legal page names itself (pages/legal.tsx).
+    // These pages name themselves (pages/legal.tsx, support.tsx, use-case.tsx).
     if (["/terms", "/privacy", "/refund", "/support"].includes(location.pathname)) return
+    if (USE_CASES.some((page) => page.path === location.pathname)) return
     const key = TITLES.find(([path]) => location.pathname.startsWith(path))?.[1]
     const guest = auth.ready() && !auth.me()
     if (guest && location.pathname === served.path && (served.path === "/" || served.path === "/pricing")) {
@@ -214,6 +217,10 @@ export function App() {
       <Route path="/privacy" component={Legal} />
       <Route path="/refund" component={Legal} />
       <Route path="/support" component={Support} />
+      {/* One public page for each thing people come to make. */}
+      {USE_CASES.map((page) => (
+        <Route path={page.path} component={UseCasePage} />
+      ))}
       {/* Where the studio and the library used to live. */}
       <Route path="/images" component={() => <Navigate href="/" />} />
       <Route path="/images/assets" component={() => <Navigate href="/library" />} />

@@ -2,6 +2,11 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url><loc>https://amberpix.com/</loc><changefreq>weekly</changefreq><priority>1.0</priority></url>
   <url><loc>https://amberpix.com/pricing</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://amberpix.com/anh-san-pham-ai</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://amberpix.com/poster-quang-cao-ai</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://amberpix.com/anh-thoi-trang-ai</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://amberpix.com/anh-mon-an-ai</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://amberpix.com/video-san-pham-ai</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
   <url><loc>https://amberpix.com/terms</loc><changefreq>yearly</changefreq><priority>0.3</priority></url>
   <url><loc>https://amberpix.com/privacy</loc><changefreq>yearly</changefreq><priority>0.3</priority></url>
   <url><loc>https://amberpix.com/refund</loc><changefreq>yearly</changefreq><priority>0.3</priority></url>
