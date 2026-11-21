@@ -1,5 +1,6 @@
 import { A } from "@solidjs/router"
-import { For, type ParentProps } from "solid-js"
+import { For, Show, type ParentProps } from "solid-js"
+import { useAuth } from "@/context/auth"
 import { useLanguage } from "@/context/language"
 import type { I18nKey } from "@/i18n/vi"
 import { buttonClass } from "@/ui/button"
@@ -35,6 +36,7 @@ export function SitePage(props: ParentProps) {
 
 function SiteHeader() {
   const { t } = useLanguage()
+  const auth = useAuth()
   return (
     <header class="glass sticky top-0 z-(--z-topbar) pt-safe shadow-[inset_0_-0.5px_0_var(--k-separator-strong)]">
       <div class="mx-auto flex h-16 w-full max-w-6xl items-center gap-1.5 px-4 sm:gap-2 md:px-6">
@@ -58,13 +60,23 @@ function SiteHeader() {
         <span class="ml-auto">
           <LanguageSwitch />
         </span>
-        <A href="/login" class={buttonClass("ghost", "sm")}>
-          {t("site.signin")}
-        </A>
-        <A href="/signup" class={buttonClass("primary", "sm", undefined, true)}>
-          <span class="max-sm:hidden">{t("site.start")}</span>
-          <span class="sm:hidden">{t("site.startShort")}</span>
-        </A>
+        {/* A customer reading the policies or writing to support goes back to their studio. */}
+        <Show
+          when={!auth.me()}
+          fallback={
+            <A href="/" class={buttonClass("primary", "sm", undefined, true)}>
+              {t("site.open")}
+            </A>
+          }
+        >
+          <A href="/login" class={buttonClass("ghost", "sm")}>
+            {t("site.signin")}
+          </A>
+          <A href="/signup" class={buttonClass("primary", "sm", undefined, true)}>
+            <span class="max-sm:hidden">{t("site.start")}</span>
+            <span class="sm:hidden">{t("site.startShort")}</span>
+          </A>
+        </Show>
       </div>
     </header>
   )

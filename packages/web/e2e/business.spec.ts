@@ -48,5 +48,8 @@ test.describe("customer", () => {
   test("a signed-in customer reads the policies too", async ({ page }) => {
     await page.goto("/privacy")
     await expect(page.getByRole("heading", { level: 1, name: "Chính sách quyền riêng tư" })).toBeVisible()
+    // And goes back to the studio from there, not to a sign-in form.
+    await page.getByRole("banner").getByRole("link", { name: "Mở studio" }).click()
+    await expect(page).toHaveURL(/:\d+\/$/)
   })
 })
