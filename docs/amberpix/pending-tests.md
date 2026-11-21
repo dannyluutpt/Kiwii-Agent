@@ -16,9 +16,17 @@ Tôi không tự làm được: đăng ký tài khoản cần vượt Turnstile 
 | 2 | Tạo 1 ảnh FLUX 3 Klein 1K, rồi mở thư viện | Ô ảnh hoàn tất; ảnh thu nhỏ hiện ra (bước này dùng Cloudflare Images lần đầu) | 1 credit, dưới 0,02 USD (khoảng 500 đ) |
 | 3 | Tạo 1 ảnh GPT Image mức low, tắt Wi-Fi giữa chừng rồi bật lại | Ô ảnh vẫn "đang chạy" rồi tự hiện ảnh | khoảng 0,01 USD (khoảng 250 đ) |
 | 4 | Chuyển khoản thật một đơn Starter | Kích hoạt gói trên cơ sở dữ liệu thật | 299.000 đ, vào chính tài khoản ngân hàng của bạn |
-| 5 | Gửi một tin ở amberpix.com/support | Tin về tới hộp thư của bạn | 0 |
+
+Đã kiểm trên production sau khi deploy ngày 2026-11-21, không cần đăng nhập: trang chủ, bảng giá, ba
+trang chính sách và trang Hỗ trợ có tiêu đề riêng; `robots.txt`, `sitemap.xml`; migration 0015 đã chạy;
+mã 4 số bị từ chối; một tin gửi qua form Hỗ trợ đã về tới hộp thư của bạn.
 
 ## Việc cần tài khoản của bạn
+
+- **Turnstile chưa bật trên production.** `/api/health` báo `turnstile: false`, nghĩa là form đăng ký,
+  đăng nhập và Hỗ trợ chưa có bước chống robot; hiện chỉ có giới hạn tần suất. Tạo một widget Turnstile
+  trong Cloudflare, rồi đặt `TURNSTILE_SITE_KEY` (biến) và `TURNSTILE_SECRET_KEY` (secret) cho Worker
+  `kiwii-agent` ở Settings, Variables and Secrets. Không cần deploy lại.
 
 - **Trang Facebook và tài khoản TikTok cho Amberpix.** Hai tài khoản đang kết nối với công cụ đăng bài
   thuộc một thương hiệu khác, nên chưa bài nào được đăng. Tạo xong và kết nối, các bài trong

@@ -3,6 +3,7 @@ import { ErrorBoundary } from "solid-js"
 import { render } from "solid-js/web"
 import { App } from "@/app"
 import { Splash } from "@/components/splash"
+import { LanguageProvider } from "@/context/language"
 import { rememberReferral } from "@/lib/referral"
 import "./index.css"
 
@@ -27,7 +28,12 @@ render(
     <ErrorBoundary
       fallback={(error) => {
         console.error(error)
-        return <Splash failed onRetry={() => location.reload()} />
+        // The app's own providers are gone with whatever broke; the screen brings its language along.
+        return (
+          <LanguageProvider>
+            <Splash failed onRetry={() => location.reload()} />
+          </LanguageProvider>
+        )
       }}
     >
       <App />
