@@ -14,6 +14,7 @@ import { CreateGeneration, imageAccess, prepareGeneration } from "../images/prep
 import { fileURL, presentGeneration } from "../images/present"
 import { byteSpan, IMAGE_MIMES, MAX_UPLOAD_BYTES, objectKey, putObject } from "../images/r2"
 import { streamGeneration } from "../images/stream"
+import { thumb, thumbKeys, thumbWidth } from "../images/thumb"
 import { requireAuth } from "../middleware/auth"
 
 const ListQuery = z.object({
@@ -110,6 +111,14 @@ images.post("/references", async (c) => {
 // answers range requests with 206 Partial Content.
 images.get("/files/:id", async (c) => {
   const row = await ownFile(c, c.req.param("id"))
+  // ?w=480 or ?w=960: a small copy for a gallery tile. Anything it cannot be made for is served whole.
+  const width = IMAGE_MIMES.has(row.mime) ? thumbWidth(c.req.query("w")) : undefined
+  const small = width ? await thumb(c.env.IMAGES, c.env.BUCKET, row.r2_key, width) : undefined
+  if (small) {
+    return new Response(small, {
+      headers: { "content-type": "image/webp", "cache-control": "private, max-age=31536000, immutable" },
+    })
+  }
   const object = await c.env.BUCKET.get(row.r2_key, { range: c.req.raw.headers })
   if (!object) throw new ApiError(404, "FILE_NOT_FOUND", "Không tìm thấy tệp")
   const headers = new Headers()
@@ -210,7 +219,7 @@ images.delete("/generations/:id", async (c) => {
     .select({ id: files.id, r2_key: files.r2_key })
     .from(files)
     .where(eq(files.generation_id, generation.id))
-  if (owned.length) await c.env.BUCKET.delete(owned.map((f) => f.r2_key))
+  if (owned.length) await c.env.BUCKET.delete(owned.flatMap((f) => [f.r2_key, ...thumbKeys(f.r2_key)]))
   await db(c).batch([
     db(c).delete(generation_images).where(eq(generation_images.generation_id, generation.id)),
     db(c).delete(files).where(eq(files.generation_id, generation.id)),

@@ -3,7 +3,10 @@ import { ErrorBoundary } from "solid-js"
 import { render } from "solid-js/web"
 import { App } from "@/app"
 import { Splash } from "@/components/splash"
+import { rememberReferral } from "@/lib/referral"
 import "./index.css"
+
+rememberReferral(location.search)
 
 // A screen's file asked for after a deploy is gone (the server answers with the page instead), and the
 // screen would stay blank: load the new version, once, so a real outage does not reload in a loop.

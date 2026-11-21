@@ -1,4 +1,5 @@
 import { and, eq, inArray } from "drizzle-orm"
+import { thumbKeys } from "./thumb"
 import { ulid } from "ulid"
 import { z } from "zod"
 import { ApiError } from "../app"
@@ -87,5 +88,5 @@ export async function deletePhotos(db: Database, bucket: R2Bucket, userID: strin
   const owned = await db.select({ r2_key: files.r2_key }).from(files).where(own)
   await db.delete(files).where(own)
   // An object left behind by a failure here has no row any more, and the daily sweep removes it.
-  if (owned.length) await bucket.delete(owned.map((file) => file.r2_key))
+  if (owned.length) await bucket.delete(owned.flatMap((file) => [file.r2_key, ...thumbKeys(file.r2_key)]))
 }

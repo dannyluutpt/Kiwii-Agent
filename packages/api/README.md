@@ -99,3 +99,30 @@ The general chat (conversations, file tools, web search) was removed in favour o
 generation. Its D1 tables (`conversations`, `messages`, `chat_usage`), the `plans.chat_*` columns and
 old `files` rows of kind `attachment`/`generated` with their R2 objects remain; nothing reads them,
 and they must not be dropped without a backup.
+
+## Small copies of pictures
+
+`GET /api/images/files/:id?w=480` (or `960`) answers a WebP copy of a picture at that width for
+gallery tiles (`src/images/thumb.ts`). It is made once through the `IMAGES` binding and kept in R2
+under `t/<width>/<key>`, outside the `u/` folder the orphan sweep walks, and is removed with its
+picture. Cloudflare Images bills each transformation, so a picture costs at most two. Without the
+binding, or for a clip, the file itself is served.
+
+## Referrals
+
+`GET /api/account/referral` gives the account's invitation link (`/?ref=CODE`), made the first time
+it is asked for. Sign-up takes the code as `ref`; when the invited account pays for its first plan,
+the same batch that activates the plan gives credits to both (`src/billing/referral.ts`). The amounts
+are `app_config.referral = {"referrer": 30, "friend": 20}`; 0 turns a side off. The credits last 60
+days and are grants of source `referral`.
+
+## What the owner is told
+
+With `app_config.admin_email` set (plain text), the Worker emails that address (`src/report.ts`):
+
+- at once, when a transfer matches no order, falls short of its order, or arrives for an order
+  already handled: each needs a person;
+- every Monday from the daily cron: sign-ups, paid orders and revenue, runs made and failed, credits
+  used, what OpenRouter billed, and anything still waiting.
+
+Unset, nothing is sent.

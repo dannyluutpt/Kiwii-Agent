@@ -14,6 +14,7 @@ import {
   SESSION_COOKIE,
   sessionCookie,
 } from "../auth/session"
+import { referrerOf } from "../billing/referral"
 import { loadPlan } from "../plans"
 import { balance } from "../credits/ledger"
 import { grantTrial } from "../credits/trial"
@@ -29,7 +30,13 @@ const Code = z
   .trim()
   .regex(/^\d{6}$/)
 
-const SignupBody = z.object({ email: Email, password: z.string(), turnstile: z.string().optional() })
+const SignupBody = z.object({
+  email: Email,
+  password: z.string(),
+  turnstile: z.string().optional(),
+  // The code of whoever invited them; one that is nobody's is ignored.
+  ref: z.string().max(20).optional(),
+})
 const VerifyBody = z.object({ email: Email, code: Code })
 const ResendBody = z.object({ email: Email })
 const LoginBody = z.object({ email: Email, password: z.string(), turnstile: z.string().optional() })
@@ -57,10 +64,12 @@ auth.post("/signup", async (c) => {
   const code = generateOTP()
   const password = await hashPassword(body.password)
   const now = Date.now()
+  const referredBy = (await referrerOf(db, body.ref)) ?? null
   await db
     .insert(pending_signups)
     .values({
       email: body.email,
+      referred_by: referredBy,
       password_hash: password.hash,
       password_salt: password.salt,
       password_iterations: password.iterations,
@@ -72,6 +81,7 @@ auth.post("/signup", async (c) => {
     .onConflictDoUpdate({
       target: pending_signups.email,
       set: {
+        referred_by: referredBy,
         password_hash: password.hash,
         password_salt: password.salt,
         password_iterations: password.iterations,
@@ -132,6 +142,7 @@ auth.post("/signup/verify", async (c) => {
       password_hash: pending.password_hash,
       password_salt: pending.password_salt,
       password_iterations: pending.password_iterations,
+      referred_by: pending.referred_by,
     }),
     db.delete(pending_signups).where(eq(pending_signups.email, body.email)),
   ])

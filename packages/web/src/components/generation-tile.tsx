@@ -1,6 +1,6 @@
 import { createSignal, For, Show } from "solid-js"
 import { useLanguage } from "@/context/language"
-import { altFor, aspectStyle, type Generation } from "@/images"
+import { altFor, aspectStyle, thumbs, type Generation } from "@/images"
 import { Button } from "@/ui/button"
 import { IconButton, iconButtonClass } from "@/ui/icon-button"
 import { Menu, MenuContent, MenuItem, MenuSeparator } from "@/ui/menu"
@@ -118,7 +118,7 @@ export function GenerationTile(props: {
                           onClick={() => props.onOpen(shown().findIndex((item) => item.id === img().id))}
                         >
                           <img
-                            src={img().url}
+                            {...thumbs(img().url, "(min-width: 1024px) 30vw, 50vw")}
                             alt={altFor(g())}
                             loading="lazy"
                             decoding="async"

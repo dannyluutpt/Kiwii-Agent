@@ -9,6 +9,7 @@ import { balance } from "../credits/ledger"
 import { trialCredits } from "../credits/trial"
 import { bank_events, credit_ledger, plan_orders, plans, subscriptions, users } from "../db/schema"
 import { requireAuth } from "../middleware/auth"
+import { notifyAdmin } from "../report"
 import { timingSafeEqual } from "../util/crypto"
 
 const CreateOrder = z.union([
@@ -79,7 +80,15 @@ billing.post("/webhook/sepay", async (c) => {
 
   const memo = findMemo(`${event.code ?? ""} ${event.content} ${event.description ?? ""}`)
   const order = memo ? await db.select().from(plan_orders).where(eq(plan_orders.memo, memo)).get() : undefined
-  if (!order) return c.json({ ok: true, ignored: "no matching order" })
+  if (!order) {
+    await notifyAdmin(
+      c.env,
+      db,
+      "Chuyển khoản không khớp đơn nào",
+      `Giao dịch SePay ${event.id}: ${event.transferAmount.toLocaleString("vi-VN")} đ\nNội dung: ${event.content}\n\nKhông tìm thấy mã đơn (KW...) trong nội dung. Nếu đây là tiền mua gói, hãy đối chiếu với khách và kích hoạt tay.`,
+    )
+    return c.json({ ok: true, ignored: "no matching order" })
+  }
   await db
     .update(bank_events)
     .set({ order_id: order.id })
@@ -87,10 +96,22 @@ billing.post("/webhook/sepay", async (c) => {
   if (!PAYABLE.some((status) => status === order.status)) {
     // Money for an order already paid or under review: nothing is granted twice, and the log says so.
     console.warn(`[billing] bank event ${event.id} for order ${order.id}, which is ${order.status}`)
+    await notifyAdmin(
+      c.env,
+      db,
+      "Chuyển khoản cho một đơn đã xử lý",
+      `Giao dịch SePay ${event.id}: ${event.transferAmount.toLocaleString("vi-VN")} đ cho đơn ${order.id} (mã ${order.memo}), đơn đang ở trạng thái "${order.status}".\n\nCó thể khách chuyển hai lần. Không có credit nào được cộng thêm; hãy liên hệ khách để hoàn tiền.`,
+    )
     return c.json({ ok: true, ignored: `order ${order.status}` })
   }
   if (event.transferAmount < order.amount_vnd) {
     await db.update(plan_orders).set({ status: "pending_review" }).where(eq(plan_orders.id, order.id))
+    await notifyAdmin(
+      c.env,
+      db,
+      "Chuyển khoản thiếu tiền",
+      `Giao dịch SePay ${event.id}: nhận ${event.transferAmount.toLocaleString("vi-VN")} đ cho đơn ${order.id} (mã ${order.memo}) trị giá ${order.amount_vnd.toLocaleString("vi-VN")} đ.\n\nĐơn chưa được kích hoạt và đang chờ bạn xử lý.`,
+    )
     return c.json({ ok: true, review: "amount below order" })
   }
   // A failed activation forgets the event, so SePay's retry is not taken for a repeat of one that

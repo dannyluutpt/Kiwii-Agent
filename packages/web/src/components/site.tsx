@@ -12,6 +12,12 @@ const NAV: Array<{ href: string; label: I18nKey }> = [
   { href: "/pricing", label: "site.nav.pricing" },
 ]
 
+const LEGAL_LINKS: Array<{ href: string; label: I18nKey }> = [
+  { href: "/terms", label: "legal.terms" },
+  { href: "/privacy", label: "legal.privacy" },
+  { href: "/refund", label: "legal.refund" },
+]
+
 // The public website around a page: a glass header that stays on top, the page, and the footer.
 // The page scrolls inside it, as the app's screens do.
 export function SitePage(props: ParentProps) {
@@ -68,7 +74,7 @@ function SiteFooter() {
   const { t } = useLanguage()
   return (
     <footer class="border-t border-separator pb-safe">
-      <div class="mx-auto grid w-full max-w-6xl gap-8 px-4 py-10 md:grid-cols-[1.5fr_1fr_1fr] md:px-6">
+      <div class="mx-auto grid w-full max-w-6xl gap-8 px-4 py-10 md:grid-cols-[1.5fr_1fr_1fr_1fr] md:px-6">
         <div class="flex flex-col gap-3">
           <A href="/" class="flex items-center gap-2 self-start">
             <img src="/logo.svg" alt="" class="size-8 rounded-[9px]" />
@@ -94,6 +100,19 @@ function SiteFooter() {
           <A href="/login" class="text-label-2 hover:text-label">
             {t("site.signin")}
           </A>
+        </nav>
+        <nav aria-label={t("site.footer.support")} class="flex flex-col gap-2 text-subhead">
+          <h2 class="text-footnote font-semibold text-label-3">{t("site.footer.support")}</h2>
+          <A href="/support" class="text-label-2 hover:text-label">
+            {t("support.title")}
+          </A>
+          <For each={LEGAL_LINKS}>
+            {(item) => (
+              <A href={item.href} class="text-label-2 hover:text-label">
+                {t(item.label)}
+              </A>
+            )}
+          </For>
         </nav>
       </div>
       <div class="mx-auto flex w-full max-w-6xl flex-col gap-1 px-4 pb-8 text-footnote text-label-3 md:flex-row md:justify-between md:px-6">

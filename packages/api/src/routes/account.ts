@@ -5,6 +5,7 @@ import { ApiError, createApp } from "../app"
 import { hashPassword, validatePassword, verifyPassword } from "../auth/password"
 import { SESSION_COOKIE } from "../auth/session"
 import { sessions, users } from "../db/schema"
+import { referralCode, referralRewards, referralStats } from "../billing/referral"
 import { requireAuth } from "../middleware/auth"
 import { sha256Hex } from "../util/crypto"
 
@@ -54,6 +55,19 @@ account.post("/password", async (c) => {
       ),
   ])
   return c.json({ ok: true })
+})
+
+// The account's invitation link, what an invitation earns and what its invitations have come to.
+account.get("/referral", async (c) => {
+  const db = c.get("db")
+  const user = c.get("user")
+  const code = await referralCode(db, user.id)
+  return c.json({
+    code,
+    link: `${new URL(c.env.APP_URL).origin}/?ref=${code}`,
+    rewards: await referralRewards(db),
+    ...(await referralStats(db, user.id)),
+  })
 })
 
 account.post("/logout-all", async (c) => {

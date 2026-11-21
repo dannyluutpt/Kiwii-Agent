@@ -12,6 +12,7 @@ import { characters } from "./routes/characters"
 import { images } from "./routes/images"
 import { locations } from "./routes/locations"
 import { projects } from "./routes/projects"
+import { support } from "./routes/support"
 import { videos } from "./routes/videos"
 import { seo } from "./seo"
 
@@ -51,6 +52,7 @@ app.route("/api/projects", projects)
 app.route("/api/characters", characters)
 app.route("/api/locations", locations)
 app.route("/api/videos", videos)
+app.route("/api/support", support)
 
 // Reports which optional settings are present (never their values) so a misplaced secret is
 // visible without reading Worker logs.

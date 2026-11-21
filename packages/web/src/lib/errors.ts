@@ -43,6 +43,7 @@ const ENGLISH: Record<string, string | ((extra: Record<string, unknown>) => stri
   VIDEO_FAILED: "The clip could not be made. Your credits were returned.",
   VIDEO_REQUIRES_PAID: "Video needs a paid plan. Upgrade to continue.",
   WEAK_PASSWORD: "The password must have 8 to 128 characters",
+  SUPPORT_NOT_CONFIGURED: "We cannot take support requests right now. Try again later.",
   INTERNAL: "Something went wrong on our side",
 }
 

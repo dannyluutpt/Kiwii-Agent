@@ -150,3 +150,9 @@ export type VideoSettings = {
   aspectRatio: string
   duration: number
 }
+
+// A picture's small copies for a tile `sizes` wide: the browser picks 480 or 960 pixels by the tile's
+// width and the screen's density, and the full picture is left to the viewer and the download.
+export function thumbs(url: string, sizes: string) {
+  return { src: `${url}?w=480`, srcset: `${url}?w=480 480w, ${url}?w=960 960w`, sizes }
+}

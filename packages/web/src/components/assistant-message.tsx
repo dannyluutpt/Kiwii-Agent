@@ -47,7 +47,12 @@ export function AssistantMessage(props: { message: Message; onOpen: (g: Generati
               <For each={attached()}>
                 {(fileID) => (
                   <li class="rim relative size-14 overflow-hidden rounded-[10px] bg-fill">
-                    <img src={`/api/images/files/${fileID}`} alt="" class="size-full object-cover" />
+                    <img
+                      src={`/api/images/files/${fileID}?w=480`}
+                      alt=""
+                      loading="lazy"
+                      class="size-full object-cover"
+                    />
                   </li>
                 )}
               </For>
@@ -159,7 +164,7 @@ function RunStrip(props: { generation: Generation; onOpen: (index: number) => vo
                       aria-label={t("images.open", { n: position + 1, total: g().n })}
                       onClick={() => props.onOpen(shown().findIndex((item) => item.id === img().id))}
                     >
-                      <img src={img().url} alt={altFor(g())} class="size-full object-cover" />
+                      <img src={`${img().url}?w=480`} alt={altFor(g())} loading="lazy" class="size-full object-cover" />
                     </button>
                   )}
                 </Show>

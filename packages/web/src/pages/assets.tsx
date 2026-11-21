@@ -10,7 +10,7 @@ import { Page } from "@/components/page"
 import { useCharacters } from "@/context/characters"
 import { useLanguage } from "@/context/language"
 import { useStudio } from "@/context/studio"
-import { altFor, aspectStyle } from "@/images"
+import { altFor, aspectStyle, thumbs } from "@/images"
 import { errorMessage } from "@/lib/errors"
 import { Button, buttonClass } from "@/ui/button"
 import { askText } from "@/ui/confirm"
@@ -140,7 +140,7 @@ export default function Assets() {
                   when={asset.kind === "video"}
                   fallback={
                     <img
-                      src={asset.url}
+                      {...thumbs(asset.url, "(min-width: 1280px) 20vw, (min-width: 768px) 33vw, 50vw")}
                       alt=""
                       loading="lazy"
                       decoding="async"

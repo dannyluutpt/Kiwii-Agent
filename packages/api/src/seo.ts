@@ -12,6 +12,22 @@ const PAGES: Record<string, { title: string; description: string }> = {
     title: `Bảng giá ${BRAND}: gói tạo ảnh và video AI theo tháng`,
     description: `Các gói ${BRAND} trả theo tháng bằng chuyển khoản VietQR, không tự gia hạn. Dùng thử miễn phí, nâng cấp khi cần nhiều credit và nhiều model hơn.`,
   },
+  "/terms": {
+    title: `Điều khoản sử dụng ${BRAND}`,
+    description: `Điều khoản khi dùng ${BRAND}: tài khoản, gói và credit, nội dung không được phép, quyền đối với ảnh và video bạn tạo.`,
+  },
+  "/privacy": {
+    title: `Chính sách quyền riêng tư ${BRAND}`,
+    description: `${BRAND} lưu dữ liệu gì, dùng để làm gì, gửi cho nhà cung cấp nào và bạn có quyền gì với dữ liệu của mình.`,
+  },
+  "/support": {
+    title: `Hỗ trợ ${BRAND}`,
+    description: `Gửi câu hỏi, yêu cầu hoàn tiền hoặc yêu cầu về dữ liệu cá nhân tới ${BRAND}. Trả lời qua email trong 3 ngày làm việc.`,
+  },
+  "/refund": {
+    title: `Chính sách hoàn tiền ${BRAND}`,
+    description: `Khi nào ${BRAND} hoàn credit tự động và khi nào hoàn tiền gói: 100% trong 7 ngày nếu dùng không quá 10 credit.`,
+  },
 }
 
 export function seo(res: Response, url: URL, origin: string) {

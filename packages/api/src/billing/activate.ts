@@ -1,9 +1,10 @@
-import { and, eq, inArray, lte } from "drizzle-orm"
+import { and, eq, inArray, lte, ne } from "drizzle-orm"
 import { ulid } from "ulid"
 import { balance, grantWrites } from "../credits/ledger"
 import type { Database } from "../db/client"
 import { plan_events, plan_orders, plans, subscriptions, users, type Tier } from "../db/schema"
 import { isPaidTier, PERIOD_MS, TOPUP_PACKS, TOPUP_TTL_MS } from "./plans"
+import { REFERRAL_TTL_MS, referralRewards } from "./referral"
 
 type Order = typeof plan_orders.$inferSelect
 
@@ -73,6 +74,7 @@ async function apply(db: Database, order: Order, now: number) {
     .get()
   // Renewing the same plan stacks onto the current period; any other case starts a fresh one.
   const renewal = current !== undefined && current.plan_id === tier && current.period_end > now
+  const referral = await referralWrites(db, order, balanceBefore + plan.credits, now)
   const periodStart = renewal ? current.period_end : now
   const periodEnd = periodStart + PERIOD_MS
   await db.batch([
@@ -106,6 +108,7 @@ async function apply(db: Database, order: Order, now: number) {
       reason: `${renewal ? "renewal" : "activation"} ${tier} order ${order.id}`,
       balanceBefore,
     }),
+    ...referral,
     db.insert(plan_events).values({
       id: ulid(),
       user_id: order.user_id,
@@ -115,6 +118,62 @@ async function apply(db: Database, order: Order, now: number) {
     }),
   ])
   return true
+}
+
+// The credits a referral earns, written in the batch that activates the invited account's first plan:
+// to whoever invited it, and to the account itself on top of its plan. Nothing for a later plan, an
+// account nobody invited, or an inviter whose account is gone.
+async function referralWrites(db: Database, order: Order, friendBalance: number, now: number) {
+  const buyer = await db.select({ referred_by: users.referred_by }).from(users).where(eq(users.id, order.user_id)).get()
+  if (!buyer?.referred_by) return []
+  const earlier = await db
+    .select({ id: plan_orders.id })
+    .from(plan_orders)
+    .where(
+      and(
+        eq(plan_orders.user_id, order.user_id),
+        eq(plan_orders.kind, "plan"),
+        eq(plan_orders.status, "paid"),
+        ne(plan_orders.id, order.id),
+      ),
+    )
+    .get()
+  if (earlier) return []
+  const referrer = await db.select({ id: users.id }).from(users).where(eq(users.id, buyer.referred_by)).get()
+  if (!referrer) return []
+  const rewards = await referralRewards(db)
+  const expiresAt = now + REFERRAL_TTL_MS
+  return [
+    ...(rewards.referrer > 0
+      ? [
+          ...grantWrites(db, {
+            userID: referrer.id,
+            source: "referral",
+            amount: rewards.referrer,
+            expiresAt,
+            reason: `referral: invited account paid, order ${order.id}`,
+            balanceBefore: await balance(db, referrer.id, now),
+          }),
+          db.insert(plan_events).values({
+            id: ulid(),
+            user_id: referrer.id,
+            type: "referral",
+            order_id: order.id,
+            payload: JSON.stringify({ invited: order.user_id, credits: rewards.referrer }),
+          }),
+        ]
+      : []),
+    ...(rewards.friend > 0
+      ? grantWrites(db, {
+          userID: order.user_id,
+          source: "referral",
+          amount: rewards.friend,
+          expiresAt,
+          reason: `referral: welcome credits, order ${order.id}`,
+          balanceBefore: friendBalance,
+        })
+      : []),
+  ]
 }
 
 // Daily: subscriptions past their period end drop the user back to free unless a renewal
