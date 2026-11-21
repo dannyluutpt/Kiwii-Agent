@@ -63,7 +63,14 @@ export async function weeklyNumbers(db: Database, now = Date.now()) {
   const unmatched = await db
     .select({ n: count, amount: sql<number>`coalesce(sum(${bank_events.amount}), 0)` })
     .from(bank_events)
-    .where(and(gte(bank_events.received_at, since), sql`${bank_events.order_id} is null`))
+    // Money coming in only: transfers out of the account are recorded too, and match no order.
+    .where(
+      and(
+        gte(bank_events.received_at, since),
+        sql`${bank_events.order_id} is null`,
+        sql`json_extract(${bank_events.raw}, '$.transferType') = 'in'`,
+      ),
+    )
     .get()
   const sum = (pick: (row: (typeof runs)[number]) => number, where: (row: (typeof runs)[number]) => boolean) =>
     runs.filter(where).reduce((total, row) => total + pick(row), 0)

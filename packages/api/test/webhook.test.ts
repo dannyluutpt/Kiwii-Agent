@@ -31,11 +31,28 @@ const status = async (site: Site, order: Order) =>
 const settings = { SEPAY_API_KEY: KEY, SEPAY_BANK_ACCOUNT: "1", SEPAY_BANK_CODE: "ACB" }
 
 describe("SePay webhook", () => {
+  test("a delivery that marked the order paid and wrote nothing more is finished by the next one", async () => {
+    const site = await testSite(settings)
+    const order = await customer(site)
+    // What the first delivery left when the database went away after the claim: the event recorded,
+    // the order paid by it, and nothing granted.
+    site.sqlite.run(
+      `insert into bank_events (sepay_id, order_id, amount, content, raw, received_at) values ('7', '${order.id}', ${order.amountVnd}, '${order.memo}', '{}', 1)`,
+    )
+    site.sqlite.run(`update plan_orders set status = 'paid', paid_at = 1795000000000, bank_event_id = '7'`)
+    expect(await me(site)).toMatchObject({ tier: "free", credits: 3 })
+    expect(await (await transfer(site, paid(order, 7))).json()).toEqual({ ok: true, duplicate: true, finished: true })
+    expect(await me(site)).toMatchObject({ tier: "starter", credits: 3 + 180 })
+    // And only once.
+    expect(await (await transfer(site, paid(order, 7))).json()).toEqual({ ok: true, duplicate: true, finished: false })
+    expect(await me(site)).toMatchObject({ credits: 3 + 180 })
+  })
+
   test("a transfer with the memo activates the plan once, however often it is delivered", async () => {
     const site = await testSite(settings)
     const order = await customer(site)
     expect(await (await transfer(site, paid(order, 1))).json()).toEqual({ ok: true, activated: true })
-    expect(await (await transfer(site, paid(order, 1))).json()).toEqual({ ok: true, duplicate: true })
+    expect(await (await transfer(site, paid(order, 1))).json()).toEqual({ ok: true, duplicate: true, finished: false })
     // The customer pays the same memo a second time: recorded, nothing granted again.
     expect(await (await transfer(site, paid(order, 2))).json()).toEqual({ ok: true, ignored: "order paid" })
     expect(await me(site)).toMatchObject({ tier: "starter", credits: 3 + 180 })

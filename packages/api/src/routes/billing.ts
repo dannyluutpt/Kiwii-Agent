@@ -2,12 +2,14 @@ import { and, desc, eq } from "drizzle-orm"
 import { ulid } from "ulid"
 import { z } from "zod"
 import { ApiError, createApp } from "../app"
-import { activateOrder, PAYABLE } from "../billing/activate"
+import { activateOrder, finishActivation, PAYABLE } from "../billing/activate"
 import { openOrder } from "../billing/orders"
 import { findMemo, generateMemo, isPaidTier, ORDER_TTL_MS, TOPUP_PACKS, vietQRUrl } from "../billing/plans"
 import { balance } from "../credits/ledger"
 import { trialCredits } from "../credits/trial"
+import type { Database } from "../db/client"
 import { bank_events, credit_ledger, plan_orders, plans, subscriptions, users } from "../db/schema"
+import type { Env } from "../env"
 import { requireAuth } from "../middleware/auth"
 import { notifyAdmin } from "../report"
 import { timingSafeEqual } from "../util/crypto"
@@ -75,19 +77,35 @@ billing.post("/webhook/sepay", async (c) => {
     })
     .onConflictDoNothing()
     .returning({ id: bank_events.sepay_id })
-  if (inserted.length === 0) return c.json({ ok: true, duplicate: true })
-  if (event.transferType !== "in") return c.json({ ok: true, ignored: "outgoing" })
+  // The same delivery again. If the first one marked the order paid and then could write nothing more
+  // (the database went away mid-way, and so could not give the claim back either), this one finishes it.
+  if (inserted.length === 0) {
+    return c.json({ ok: true, duplicate: true, finished: await finishActivation(db, String(event.id)) })
+  }
+  // Whatever fails from here on forgets the event and answers 500, so SePay's retry is handled afresh
+  // instead of being taken for a repeat of a delivery that already acted.
+  const answer = await handleTransfer(c.env, db, event).catch(async (error: unknown) => {
+    await db.delete(bank_events).where(eq(bank_events.sepay_id, String(event.id)))
+    throw error
+  })
+  return c.json(answer)
+})
+
+// What an incoming transfer comes to: nothing (money going out, no order with its memo, an order
+// already handled), a wait for a person (too little money), or the order activated.
+async function handleTransfer(env: Env, db: Database, event: z.infer<typeof SepayWebhook>) {
+  if (event.transferType !== "in") return { ok: true, ignored: "outgoing" }
 
   const memo = findMemo(`${event.code ?? ""} ${event.content} ${event.description ?? ""}`)
   const order = memo ? await db.select().from(plan_orders).where(eq(plan_orders.memo, memo)).get() : undefined
   if (!order) {
     await notifyAdmin(
-      c.env,
+      env,
       db,
       "Chuyển khoản không khớp đơn nào",
       `Giao dịch SePay ${event.id}: ${event.transferAmount.toLocaleString("vi-VN")} đ\nNội dung: ${event.content}\n\nKhông tìm thấy mã đơn (KW...) trong nội dung. Nếu đây là tiền mua gói, hãy đối chiếu với khách và kích hoạt tay.`,
     )
-    return c.json({ ok: true, ignored: "no matching order" })
+    return { ok: true, ignored: "no matching order" }
   }
   await db
     .update(bank_events)
@@ -97,31 +115,25 @@ billing.post("/webhook/sepay", async (c) => {
     // Money for an order already paid or under review: nothing is granted twice, and the log says so.
     console.warn(`[billing] bank event ${event.id} for order ${order.id}, which is ${order.status}`)
     await notifyAdmin(
-      c.env,
+      env,
       db,
       "Chuyển khoản cho một đơn đã xử lý",
       `Giao dịch SePay ${event.id}: ${event.transferAmount.toLocaleString("vi-VN")} đ cho đơn ${order.id} (mã ${order.memo}), đơn đang ở trạng thái "${order.status}".\n\nCó thể khách chuyển hai lần. Không có credit nào được cộng thêm; hãy liên hệ khách để hoàn tiền.`,
     )
-    return c.json({ ok: true, ignored: `order ${order.status}` })
+    return { ok: true, ignored: `order ${order.status}` }
   }
   if (event.transferAmount < order.amount_vnd) {
     await db.update(plan_orders).set({ status: "pending_review" }).where(eq(plan_orders.id, order.id))
     await notifyAdmin(
-      c.env,
+      env,
       db,
       "Chuyển khoản thiếu tiền",
       `Giao dịch SePay ${event.id}: nhận ${event.transferAmount.toLocaleString("vi-VN")} đ cho đơn ${order.id} (mã ${order.memo}) trị giá ${order.amount_vnd.toLocaleString("vi-VN")} đ.\n\nĐơn chưa được kích hoạt và đang chờ bạn xử lý.`,
     )
-    return c.json({ ok: true, review: "amount below order" })
+    return { ok: true, review: "amount below order" }
   }
-  // A failed activation forgets the event, so SePay's retry is not taken for a repeat of one that
-  // already acted, and answers 500 so that the retry comes.
-  const activated = await activateOrder(db, order, { bankEventID: String(event.id) }).catch(async (error: unknown) => {
-    await db.delete(bank_events).where(eq(bank_events.sepay_id, String(event.id)))
-    throw error
-  })
-  return c.json({ ok: true, activated })
-})
+  return { ok: true, activated: await activateOrder(db, order, { bankEventID: String(event.id) }) }
+}
 
 billing.use("*", requireAuth)
 

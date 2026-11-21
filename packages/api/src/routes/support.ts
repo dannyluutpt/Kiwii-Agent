@@ -31,7 +31,8 @@ support.post("/", async (c) => {
   await verifyTurnstile(c.env, body.turnstile, ip)
   const to = await adminEmail(db)
   if (!to) throw new ApiError(500, "SUPPORT_NOT_CONFIGURED", "Chưa nhận được yêu cầu hỗ trợ lúc này, hãy thử lại sau")
-  for (const key of [`support:${body.email}`, `support-ip:${ip}`]) {
+  // The network first: one that is over its share is turned away before it can use up an address's.
+  for (const key of [`support-ip:${ip}`, `support:${body.email}`]) {
     const window = await consumeWindow(db, { key, limit: 5, windowMs: DAY })
     if (!window.allowed)
       throw new ApiError(429, "RATE_LIMITED", "Bạn đã gửi nhiều yêu cầu hôm nay, hãy thử lại vào ngày mai")

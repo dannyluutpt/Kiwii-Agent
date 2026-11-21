@@ -72,8 +72,10 @@ export async function holdSlot(db: Database, run: { id: string; user_id: string 
     .orderBy(generations.id)
     .limit(limit)
   if (ahead.some((row) => row.id === run.id)) return
-  await db.delete(generations).where(eq(generations.id, run.id))
+  // The credits go back before the row goes: were the refund to fail, the row is still there for the
+  // reaper to find and refund.
   await refund(db, { userID: run.user_id, generationID: run.id, reason: "over the parallel limit" })
+  await db.delete(generations).where(eq(generations.id, run.id))
   throw new ApiError(429, "PARALLEL_LIMIT", message, { limit })
 }
 

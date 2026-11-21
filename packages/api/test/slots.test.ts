@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm"
 import { ApiError } from "../src/app"
 import { balance, grant, reserve } from "../src/credits/ledger"
 import { generations } from "../src/db/schema"
+import { refundFailed } from "../src/images/generate"
 import { holdSlot } from "../src/images/prepare"
 import { testDatabase } from "./db"
 
@@ -45,5 +46,16 @@ describe("holdSlot", () => {
     await holdSlot(db, { id: "run-a", user_id: "u1" }, 2, "over")
     await holdSlot(db, { id: "run-b", user_id: "u1" }, 2, "over")
     expect(await balance(db, "u1")).toBe(80)
+  })
+})
+
+describe("refundFailed", () => {
+  test("a run marked failed whose refund never happened gets its credits back, once", async () => {
+    const db = await twoRuns()
+    await db.update(generations).set({ status: "failed", finished_at: Date.now() }).where(eq(generations.id, "run-a"))
+    expect(await balance(db, "u1")).toBe(80)
+    expect(await refundFailed(db)).toBe(10)
+    expect(await refundFailed(db)).toBe(0)
+    expect(await balance(db, "u1")).toBe(90)
   })
 })

@@ -60,6 +60,16 @@ describe("what the owner is told", () => {
     expect((await weeklyNumbers(createDatabase(site.env.DB))).ordersToReview).toBe(1)
   })
 
+  test("money going out is not counted as a transfer that matched no order", async () => {
+    const site = await testSite(settings)
+    await transfer(site, { id: 5, transferType: "out", transferAmount: 9000, content: "rut tien" })
+    await transfer(site, { id: 6, transferType: "in", transferAmount: 5000, content: "cam on shop" })
+    expect(await weeklyNumbers(createDatabase(site.env.DB))).toMatchObject({
+      unmatchedTransfers: 1,
+      unmatchedVnd: 5000,
+    })
+  })
+
   test("without an address nothing is sent and the webhook answers as before", async () => {
     const site = await testSite(settings)
     const before = site.outbox.length

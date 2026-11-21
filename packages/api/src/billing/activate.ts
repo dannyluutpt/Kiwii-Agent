@@ -38,6 +38,25 @@ export async function activateOrder(db: Database, order: Order, input: { bankEve
   return applied
 }
 
+// A delivery that marked its order paid and then wrote nothing more, not even the claim's return:
+// the order is paid by this bank event and has no record of what it bought. Applies it now. True when
+// there was such an order.
+export async function finishActivation(db: Database, bankEventID: string, now = Date.now()) {
+  const order = await db
+    .select()
+    .from(plan_orders)
+    .where(and(eq(plan_orders.bank_event_id, bankEventID), eq(plan_orders.status, "paid")))
+    .get()
+  if (!order) return false
+  const recorded = await db
+    .select({ id: plan_events.id })
+    .from(plan_events)
+    .where(and(eq(plan_events.order_id, order.id), eq(plan_events.user_id, order.user_id)))
+    .get()
+  if (recorded) return false
+  return apply(db, order, order.paid_at ?? now)
+}
+
 async function apply(db: Database, order: Order, now: number) {
   const balanceBefore = await balance(db, order.user_id, now)
   if (order.kind === "topup") {

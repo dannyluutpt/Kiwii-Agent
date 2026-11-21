@@ -15,26 +15,34 @@ export function thumbKey(key: string, width: ThumbWidth) {
 
 export const thumbKeys = (key: string) => THUMB_WIDTHS.map((width) => thumbKey(key, width))
 
+// Removes pictures and their small copies. R2 takes at most 1,000 keys in one call.
+export async function deleteObjects(bucket: R2Bucket, keys: string[]) {
+  const all = keys.flatMap((key) => [key, ...thumbKeys(key)])
+  for (let at = 0; at < all.length; at += 1000) await bucket.delete(all.slice(at, at + 1000))
+}
+
 // The small WebP copy of a picture, made on first ask and kept in R2: Cloudflare Images bills each
 // transformation, so a picture is transformed once per width, however often it is looked at.
-// Undefined when it cannot be made (no binding, the picture is gone, the transformation failed): the
-// caller serves the picture itself.
+// Undefined when it cannot be made or kept (no binding, the picture is gone, the transformation or
+// the write failed): the caller serves the picture itself.
 export async function thumb(images: ImagesBinding | undefined, bucket: R2Bucket, key: string, width: ThumbWidth) {
   const kept = await bucket.get(thumbKey(key, width))
   if (kept) return kept.body
   if (!images) return undefined
+  return make(images, bucket, key, width).catch((error: unknown) => {
+    console.warn(`[thumb] ${key} at ${width}: ${String(error)}`)
+    return undefined
+  })
+}
+
+async function make(images: ImagesBinding, bucket: R2Bucket, key: string, width: ThumbWidth) {
   const object = await bucket.get(key)
   if (!object) return undefined
-  const bytes = await images
+  const made = await images
     .input(object.body)
     .transform({ width, fit: "scale-down" })
     .output({ format: "image/webp", quality: 82 })
-    .then((made) => made.response().arrayBuffer())
-    .catch((error: unknown) => {
-      console.warn(`[thumb] ${key} at ${width}: ${String(error)}`)
-      return undefined
-    })
-  if (!bytes) return undefined
+  const bytes = await made.response().arrayBuffer()
   await bucket.put(thumbKey(key, width), bytes, { httpMetadata: { contentType: "image/webp" } })
   return bytes
 }
