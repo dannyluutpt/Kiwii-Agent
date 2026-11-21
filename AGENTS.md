@@ -8,6 +8,15 @@ The CLI lives in `packages/kiwii`, shared services in `packages/core`.
 - Keep runtime dependencies directed from Schema to Core and Protocol, then from Core and Protocol to Server.
 - The default branch in this repo is `main`.
 
+## Autonomous Work
+
+When the user hands over a task to be done autonomously, finish every part of what they asked for before stopping.
+
+- Do not stop to report, to ask which part to do next, or to offer options while work you can do yourself remains. Pick the sensible default, say which one you took, and carry on.
+- A long task is not a reason to stop: work through the whole list, committing as each part is done.
+- Stop only for what truly needs the user: spending money (see "Paid runs" in `CLAUDE.md`), an action on production that cannot be undone, or credentials only they hold. Even then, finish everything that does not depend on their answer first, and ask for all of it in one list at the end.
+- The final report says plainly what is done and verified. Anything left undone must be there because it was blocked, with the reason, never because the work was put down early.
+
 ## Branch Names
 
 Use a short branch name of at most three words, separated by hyphens. Do not use slashes or type prefixes such as `feat/` or `fix/`.

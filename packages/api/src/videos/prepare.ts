@@ -9,7 +9,7 @@ import { files, generations } from "../db/schema"
 import { enhancePrompt } from "../images/enhance"
 import { reapStaleGenerations } from "../images/generate"
 import { glance } from "../images/glance"
-import { savedPhotos } from "../images/prepare"
+import { holdSlot, savedPhotos } from "../images/prepare"
 import { IMAGE_MIMES } from "../images/r2"
 import { languageModels } from "../llm/models"
 import { ownLocation } from "../locations/store"
@@ -153,6 +153,12 @@ export async function prepareVideo(input: {
     project_id: project?.id ?? null,
     created_at: now,
   })
+  await holdSlot(
+    db,
+    { id, user_id: input.user.id },
+    plan.parallel_limit,
+    `Gói của bạn chạy tối đa ${plan.parallel_limit} lượt tạo cùng lúc`,
+  )
   if (project) await touchProject(db, project, body.prompt, now)
   const generation = (await db.select().from(generations).where(eq(generations.id, id)).get())!
   return { generation, model }
