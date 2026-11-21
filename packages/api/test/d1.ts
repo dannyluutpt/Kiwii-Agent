@@ -82,6 +82,7 @@ export async function testSite(vars: Partial<Env> = {}) {
       return res
     }
     return {
+      request: (method: string, path: string, body?: unknown) => call(method, path, body),
       get: (path: string) => call("GET", path),
       post: (path: string, body?: unknown, headers?: Record<string, string>) => call("POST", path, body, headers),
     }
