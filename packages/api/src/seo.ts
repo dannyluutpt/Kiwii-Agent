@@ -12,6 +12,31 @@ const PAGES: Record<string, { title: string; description: string }> = {
     title: `Bảng giá ${BRAND}: gói tạo ảnh và video AI theo tháng`,
     description: `Các gói ${BRAND} trả theo tháng bằng chuyển khoản VietQR, không tự gia hạn. Dùng thử miễn phí, nâng cấp khi cần nhiều credit và nhiều model hơn.`,
   },
+  "/anh-san-pham-ai": {
+    title: `Ảnh sản phẩm bằng AI cho shop online | ${BRAND}`,
+    description:
+      "Tạo ảnh sản phẩm nền trắng, ảnh trong bối cảnh và flat lay bằng AI cho Shopee, TikTok Shop, Lazada. Mô tả bằng tiếng Việt, không cần studio. Dùng thử miễn phí.",
+  },
+  "/poster-quang-cao-ai": {
+    title: `Poster và banner quảng cáo bằng AI | ${BRAND}`,
+    description:
+      "Tạo poster khuyến mãi có chữ tiếng Việt đúng dấu, banner Facebook, thiệp Tết bằng AI. Gõ dòng chữ bạn muốn, không cần phần mềm thiết kế.",
+  },
+  "/anh-thoi-trang-ai": {
+    title: `Lookbook và ảnh thời trang bằng AI | ${BRAND}`,
+    description:
+      "Tạo ảnh lookbook với người mẫu AI nhất quán: cùng một gương mặt, nhiều bộ đồ và bối cảnh. Không cần ekip chụp ảnh.",
+  },
+  "/anh-mon-an-ai": {
+    title: `Ảnh món ăn bằng AI cho quán và menu | ${BRAND}`,
+    description:
+      "Tạo ảnh món ăn hấp dẫn cho menu, GrabFood, ShopeeFood và bài đăng của quán bằng AI. Mô tả món ăn bằng tiếng Việt, xong trong vài giây.",
+  },
+  "/video-san-pham-ai": {
+    title: `Video sản phẩm bằng AI cho TikTok và Reels | ${BRAND}`,
+    description:
+      "Tạo clip sản phẩm 5 đến 10 giây bằng AI từ một câu mô tả hoặc một bức ảnh: máy quay lượn quanh sản phẩm, món ăn bốc khói, có cả âm thanh.",
+  },
   "/terms": {
     title: `Điều khoản sử dụng ${BRAND}`,
     description: `Điều khoản khi dùng ${BRAND}: tài khoản, gói và credit, nội dung không được phép, quyền đối với ảnh và video bạn tạo.`,

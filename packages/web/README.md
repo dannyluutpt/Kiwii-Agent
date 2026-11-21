@@ -79,6 +79,12 @@ pictures (`thumbs()` in `src/images.ts`); the viewer and the download use the fu
 describe what the product does (what is stored, who it is sent to, when credits come back): change
 the product and they change with it. The support address is `SUPPORT_EMAIL` in `src/brand.ts`.
 
+One public page per thing people come to make (`/anh-san-pham-ai`, `/poster-quang-cao-ai`,
+`/anh-thoi-trang-ai`, `/anh-mon-an-ai`, `/video-san-pham-ai`) renders from `src/use-cases.ts`
+(`pages/use-case.tsx`): the templates that make it, showcase pictures and clips of that kind with their
+prompts, and the questions people ask. A new page also needs its title and description in
+`packages/api/src/seo.ts` and a line in `public/sitemap.xml`; `src/use-cases.test.ts` checks both.
+
 An invitation link (`/?ref=CODE`) is remembered until sign-up (`lib/referral.ts`); the account screen
 shows the person's own link and what it has earned.
 

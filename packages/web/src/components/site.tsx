@@ -4,6 +4,7 @@ import { useAuth } from "@/context/auth"
 import { useLanguage } from "@/context/language"
 import type { I18nKey } from "@/i18n/vi"
 import { buttonClass } from "@/ui/button"
+import { USE_CASES } from "@/use-cases"
 import { LanguageSwitch } from "./language-switch"
 
 const NAV: Array<{ href: string; label: I18nKey }> = [
@@ -83,10 +84,10 @@ function SiteHeader() {
 }
 
 function SiteFooter() {
-  const { t } = useLanguage()
+  const { t, locale } = useLanguage()
   return (
     <footer class="border-t border-separator pb-safe">
-      <div class="mx-auto grid w-full max-w-6xl gap-8 px-4 py-10 md:grid-cols-[1.5fr_1fr_1fr_1fr] md:px-6">
+      <div class="mx-auto grid w-full max-w-6xl gap-8 px-4 py-10 md:grid-cols-[1.4fr_1fr_1fr_1.3fr_1fr] md:px-6">
         <div class="flex flex-col gap-3">
           <A href="/" class="flex items-center gap-2 self-start">
             <img src="/logo.svg" alt="" class="size-8 rounded-[9px]" />
@@ -112,6 +113,16 @@ function SiteFooter() {
           <A href="/login" class="text-label-2 hover:text-label">
             {t("site.signin")}
           </A>
+        </nav>
+        <nav aria-label={t("usecase.more")} class="flex flex-col gap-2 text-subhead">
+          <h2 class="text-footnote font-semibold text-label-3">{t("usecase.more")}</h2>
+          <For each={USE_CASES}>
+            {(item) => (
+              <A href={item.path} class="text-label-2 hover:text-label">
+                {item.title[locale()]}
+              </A>
+            )}
+          </For>
         </nav>
         <nav aria-label={t("site.footer.support")} class="flex flex-col gap-2 text-subhead">
           <h2 class="text-footnote font-semibold text-label-3">{t("site.footer.support")}</h2>

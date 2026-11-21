@@ -53,3 +53,25 @@ test.describe("customer", () => {
     await expect(page).toHaveURL(/:\d+\/$/)
   })
 })
+
+test.describe("use-case pages", () => {
+  test.use({ storageState: { cookies: [], origins: [] } })
+
+  test("a visitor lands on a page for what they came to make, and it leads to the templates", async ({ page }) => {
+    await page.goto("/anh-san-pham-ai")
+    await expect(page.getByRole("heading", { level: 1, name: "Ảnh sản phẩm bằng AI cho shop online" })).toBeVisible()
+    await expect(page).toHaveTitle("Ảnh sản phẩm bằng AI cho shop online · Amberpix")
+    await expect(page.getByRole("link", { name: /^Sản phẩm nền trắng/ })).toBeVisible()
+    await expect(page.getByRole("heading", { name: "Chai nước hoa hổ phách" })).toBeVisible()
+    // The other pages are one tap away, and so is signing up to reach the templates.
+    await page
+      .getByRole("navigation", { name: "Làm được gì" })
+      .first()
+      .getByRole("link", { name: /^Video sản phẩm/ })
+      .click()
+    await expect(page).toHaveURL(/\/video-san-pham-ai$/)
+    await expect(page.locator("video")).toHaveCount(3)
+    await page.getByRole("link", { name: /^Xoay quanh sản phẩm/ }).click()
+    await expect(page).toHaveURL(/\/signup\?next=%2Ftemplates$/)
+  })
+})
