@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, isNull, lt } from "drizzle-orm"
+import { and, desc, eq, inArray, isNull, lt, ne } from "drizzle-orm"
 import type { Context } from "hono"
 import { ulid } from "ulid"
 import { z } from "zod"
@@ -269,6 +269,49 @@ images.get("/assets", async (c) => {
     assets: page.map((row) => ({ ...row, url: fileURL(row.fileID) })),
     nextCursor: rows.length > query.limit ? page.at(-1)?.id : null,
   })
+})
+
+// One picture or clip out of the library. Its run goes with it once it was the run's last; a run with
+// other pictures keeps them. What was charged for it stays charged.
+images.delete("/assets/:id", async (c) => {
+  const user = c.get("user")
+  const image = await db(c)
+    .select()
+    .from(generation_images)
+    .where(and(eq(generation_images.id, c.req.param("id")), eq(generation_images.user_id, user.id)))
+    .get()
+  if (!image) throw new ApiError(404, "FILE_NOT_FOUND", "Không tìm thấy ảnh")
+  const file = await db(c)
+    .select({ r2_key: files.r2_key })
+    .from(files)
+    .where(and(eq(files.id, image.file_id), eq(files.user_id, user.id)))
+    .get()
+  if (file) await deleteObjects(c.env.BUCKET, [file.r2_key])
+  const others = await db(c)
+    .select({ id: generation_images.id })
+    .from(generation_images)
+    .where(and(eq(generation_images.generation_id, image.generation_id), ne(generation_images.id, image.id)))
+  await db(c).batch([
+    db(c).delete(generation_images).where(eq(generation_images.id, image.id)),
+    db(c)
+      .delete(files)
+      .where(and(eq(files.id, image.file_id), eq(files.user_id, user.id))),
+    // The run's last picture takes the run with it, unless the run is still making more.
+    ...(others.length === 0
+      ? [
+          db(c)
+            .delete(generations)
+            .where(
+              and(
+                eq(generations.id, image.generation_id),
+                eq(generations.user_id, user.id),
+                ne(generations.status, "running"),
+              ),
+            ),
+        ]
+      : []),
+  ])
+  return c.json({ ok: true })
 })
 
 type Ctx = Context<AppEnv>

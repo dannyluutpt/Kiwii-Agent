@@ -330,6 +330,18 @@ export const { use: useStudio, provider: StudioProvider } = createSimpleContext(
         }),
       )
 
+    // A picture deleted from the library leaves the studio's copy of its run too; a run left with no
+    // picture goes with it.
+    const forgetImage = (generationID: string, imageID: string) => {
+      const run = state.runs[generationID]
+      if (!run) return
+      if (run.images.filter((image) => image.id !== imageID).length === 0) return drop(generationID)
+      update(generationID, (g) => {
+        g.images = g.images.filter((image) => image.id !== imageID)
+        g.n = Math.max(1, g.images.length)
+      })
+    }
+
     // A new run from the composer into `projectID` (none: it shows only under "all"), or the same run
     // again when `from`, a failed one, is retried. The gallery shows the run at once; the server takes
     // a few seconds to prepare the prompt and the references before it answers, and that wait must
@@ -601,6 +613,7 @@ export const { use: useStudio, provider: StudioProvider } = createSimpleContext(
       load,
       generate,
       remove,
+      forgetImage,
       // For runs the assistant starts: shown on top of `into`, then kept current by their events.
       adopt: (g: Generation, into: string[]) => place(g.id, g, into),
       follow,

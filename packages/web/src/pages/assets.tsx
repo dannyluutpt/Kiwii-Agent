@@ -1,9 +1,9 @@
 import { A, useNavigate } from "@solidjs/router"
-import { createSignal, For, onMount, Show } from "solid-js"
+import { createMemo, createSignal, For, onCleanup, onMount, Show } from "solid-js"
 import { createStore, produce } from "solid-js/store"
 import { api } from "@/api"
 import { BRAND_SLUG } from "@/brand"
-import { IconImage, IconPlay } from "@/components/icons"
+import { IconCheck, IconImage, IconPlay } from "@/components/icons"
 import { Lightbox } from "@/components/lightbox"
 import { LoadMore } from "@/components/load-more"
 import { Page } from "@/components/page"
@@ -48,6 +48,83 @@ export default function Assets() {
     failed: false,
   })
   const [viewer, setViewer] = createSignal<number>()
+  // Choosing several: a tap picks a tile instead of opening it.
+  const [selecting, setSelecting] = createSignal(false)
+  const [picked, setPicked] = createSignal<string[]>([])
+  // Deleted a moment ago and still possible to bring back: off the screen, not yet off the server.
+  const [leaving, setLeaving] = createSignal<string[]>([])
+  const shown = createMemo(() => list.items.filter((asset) => !leaving().includes(asset.id)))
+  const toggle = (id: string) =>
+    setPicked((current) => (current.includes(id) ? current.filter((item) => item !== id) : [...current, id]))
+  const stopSelecting = () => {
+    setSelecting(false)
+    setPicked([])
+  }
+
+  // Each chosen file in turn; browsers refuse a burst of downloads started at once.
+  const download = async () => {
+    for (const asset of shown().filter((item) => picked().includes(item.id))) {
+      const link = document.createElement("a")
+      link.href = `${asset.url}?download`
+      link.download = ""
+      document.body.append(link)
+      link.click()
+      link.remove()
+      await new Promise((resolve) => setTimeout(resolve, 400))
+    }
+    stopSelecting()
+  }
+
+  // Deleting takes the tiles away at once and waits six seconds before telling the server, so one tap
+  // on "Hoàn tác" brings everything back. Leaving the page sends what is still waiting.
+  const waiting = new Map<ReturnType<typeof setTimeout>, () => void>()
+  const remove = () => {
+    const ids = picked()
+    if (ids.length === 0) return
+    setLeaving((current) => [...current, ...ids])
+    stopSelecting()
+    const back = () => setLeaving((current) => current.filter((id) => !ids.includes(id)))
+    const send = async () => {
+      const gone = list.items.filter((asset) => ids.includes(asset.id))
+      const results = await Promise.all(
+        gone.map((asset) =>
+          api(`/images/assets/${asset.id}`, { method: "DELETE" })
+            .then(() => asset)
+            .catch(() => undefined),
+        ),
+      )
+      const done = results.flatMap((asset) => (asset ? [asset] : []))
+      for (const asset of done) studio.forgetImage(asset.generationID, asset.id)
+      setList(
+        "items",
+        list.items.filter((asset) => !done.some((item) => item.id === asset.id)),
+      )
+      back()
+      if (done.length < gone.length) toast.error(t("assets.deleteFailed"))
+    }
+    const timer = setTimeout(() => {
+      waiting.delete(timer)
+      void send()
+    }, 6000)
+    waiting.set(timer, () => void send())
+    toast.success(t("assets.deleted", { n: ids.length }), {
+      duration: 6000,
+      action: {
+        label: t("assets.undo"),
+        onClick: () => {
+          clearTimeout(timer)
+          waiting.delete(timer)
+          back()
+        },
+      },
+    })
+  }
+  onCleanup(() => {
+    for (const [timer, send] of waiting) {
+      clearTimeout(timer)
+      send()
+    }
+  })
 
   const load = async (cursor?: string | null) => {
     setList({ loading: true, failed: false })
@@ -103,7 +180,17 @@ export default function Assets() {
   }
 
   return (
-    <Page title={t("assets.title")} width="wide">
+    <Page
+      title={t("assets.title")}
+      width="wide"
+      actions={
+        <Show when={shown().length > 0}>
+          <Button variant="ghost" size="sm" onClick={() => (selecting() ? stopSelecting() : setSelecting(true))}>
+            {selecting() ? t("common.done") : t("assets.select")}
+          </Button>
+        </Show>
+      }
+    >
       <Show when={list.failed && !list.loading && list.items.length === 0}>
         <div class="flex flex-col items-center gap-3 py-16 text-center">
           <p class="text-callout text-label-2">{t("error.network")}</p>
@@ -112,7 +199,7 @@ export default function Assets() {
           </Button>
         </div>
       </Show>
-      <Show when={!list.loading && !list.failed && list.items.length === 0}>
+      <Show when={!list.loading && !list.failed && shown().length === 0}>
         <div class="flex flex-col items-center gap-3 py-16 text-center">
           <span class="flex size-14 items-center justify-center rounded-[16px] bg-amber-gloss text-on-accent shadow-amber">
             <IconImage class="size-7" />
@@ -125,17 +212,31 @@ export default function Assets() {
         </div>
       </Show>
       <div class="columns-2 gap-2 md:columns-3 md:gap-3 lg:columns-4 xl:columns-5" aria-busy={list.loading}>
-        <For each={list.items}>
+        <For each={shown()}>
           {(asset, index) => {
             const [loaded, setLoaded] = createSignal(false)
+            const chosen = () => picked().includes(asset.id)
             return (
               <button
                 type="button"
                 class="group/asset rim relative mb-2 block w-full break-inside-avoid overflow-hidden rounded-[14px] bg-fill shadow-raised transition-[box-shadow,translate,scale] duration-(--motion-standard) ease-standard hover:-translate-y-0.5 hover:shadow-lift active:scale-[0.98] md:mb-3"
+                classList={{ "ring-3 ring-accent": chosen() }}
                 style={aspectStyle(asset.aspectRatio)}
                 aria-label={altFor(asset)}
-                onClick={() => setViewer(index())}
+                aria-pressed={selecting() ? chosen() : undefined}
+                onClick={() => (selecting() ? toggle(asset.id) : setViewer(index()))}
               >
+                <Show when={selecting()}>
+                  <span
+                    class="absolute top-2 left-2 z-10 flex size-7 items-center justify-center rounded-full border-2 border-white/90 shadow-raised"
+                    classList={{ "bg-accent text-on-accent border-accent": chosen(), "bg-black/40": !chosen() }}
+                    aria-hidden="true"
+                  >
+                    <Show when={chosen()}>
+                      <IconCheck class="size-4" weight={3} />
+                    </Show>
+                  </span>
+                </Show>
                 <Show
                   when={asset.kind === "video"}
                   fallback={
@@ -181,7 +282,24 @@ export default function Assets() {
           </For>
         </Show>
       </div>
-      <Show when={list.items.length > 0}>
+      <Show when={selecting() && picked().length > 0}>
+        <div
+          role="toolbar"
+          aria-label={t("assets.selected", { n: picked().length })}
+          class="glass-panel fixed inset-x-3 bottom-[calc(var(--tabbar-space,0px)+0.75rem)] z-(--z-topbar) mx-auto flex max-w-md items-center gap-2 rounded-panel p-2 pl-4 shadow-overlay"
+        >
+          <span class="mr-auto text-subhead font-semibold text-label">
+            {t("assets.selected", { n: picked().length })}
+          </span>
+          <Button variant="secondary" size="sm" onClick={() => void download()}>
+            {t("images.download")}
+          </Button>
+          <Button variant="danger-soft" size="sm" onClick={remove}>
+            {t("common.delete")}
+          </Button>
+        </div>
+      </Show>
+      <Show when={shown().length > 0}>
         <LoadMore
           more={!!list.cursor}
           loading={list.loading}
@@ -190,7 +308,7 @@ export default function Assets() {
         />
       </Show>
       <Lightbox
-        items={list.items.map((asset) => ({
+        items={shown().map((asset) => ({
           src: asset.url,
           alt: altFor(asset),
           caption: asset.prompt,
@@ -203,15 +321,15 @@ export default function Assets() {
         onIndex={setViewer}
         onClose={() => setViewer(undefined)}
         onReuse={(index) => {
-          const asset = list.items[index]
+          const asset = shown()[index]
           if (asset) reuse(asset)
         }}
         onCharacter={(index) => {
-          const asset = list.items[index]
+          const asset = shown()[index]
           if (asset) void saveSheet(asset)
         }}
         onNextScene={(index) => {
-          const asset = list.items[index]
+          const asset = shown()[index]
           if (asset) navigate(`/?next=${asset.generationID}`)
         }}
       />
