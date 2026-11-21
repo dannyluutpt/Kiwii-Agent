@@ -357,6 +357,7 @@ export const dict: Record<I18nKey, string> = {
   "assets.deleted": "Deleted {{n}}",
   "assets.undo": "Undo",
   "assets.deleteFailed": "Some could not be deleted. Try again.",
+  "templates.example": "An example this template made",
   "error.generic": "Something went wrong, try again",
   "error.network": "Connection lost, check your network and try again",
   "common.copied": "Copied",

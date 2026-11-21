@@ -6,21 +6,19 @@ không tốn gì. Dưới đây là những việc chỉ bạn làm được, ho
 Số tiền là ước tính từ giá đo ngày 2026-10-27 ghi trong `packages/api/README.md`, tỷ giá khoảng
 25.500 đ/USD. Giá thật có thể lệch.
 
-## Tạo ảnh trên production đang không chạy được (2026-11-21)
+## Đã chạy trên production ngày 2026-11-21
 
-Bạn đã duyệt tạo ảnh và clip minh hoạ cho 14 mẫu. Lượt đầu tiên (một ảnh món ăn, GPT Image mức high)
-bị từ chối hai lần liên tiếp ở bước kiểm duyệt nội dung, trước khi trừ credit:
-`SCREENING_UNAVAILABLE`. Bước này gọi model ngôn ngữ qua OpenRouter (`anthropic/claude-haiku-5.5`, rồi
-dự phòng `google/gemini-2.5-flash-lite`); cả hai đều không trả lời. Lượt tạo gần nhất thành công trên
-production là 14 ngày trước.
+Sau khi bạn thay khoá OpenRouter, tạo ảnh hoạt động lại. Trước đó mọi lượt bị từ chối ở bước kiểm
+duyệt nội dung (`SCREENING_UNAVAILABLE`) vì OpenRouter trả lỗi ngay cho cả hai model kiểm duyệt.
 
-Nguyên nhân có khả năng nhất là tài khoản OpenRouter hết số dư hoặc khoá API có vấn đề, vì cả hai
-model cùng hỏng. Tôi không đọc được log của Worker nên chưa xác nhận được. Điều này có nghĩa là
-**khách hàng hiện cũng không tạo được ảnh**.
+Đã chạy bằng tài khoản của bạn qua một phiên đăng nhập tạm (đã xoá), tổng 121 credit:
 
-Việc cần làm: xem số dư ở openrouter.ai (mục Credits) và nạp thêm nếu hết; sau đó chạy
-`AMBERPIX_SESSION=<giá trị cookie kiwii_session của bạn> bun marketing/templates/generate.ts` để tạo
-14 ví dụ (khoảng 120 credit Amberpix), hoặc báo tôi chạy lại.
+- 1 ảnh FLUX 3 Klein 1K để thử khoá mới: xong sau 13 giây, 1 credit.
+- Ảnh thu nhỏ: bản 480px nặng 29 KB so với 421 KB của ảnh gốc, qua Cloudflare Images thật.
+- 11 ảnh ví dụ cho các mẫu: 39 credit. 3 clip ví dụ (Wan 3.0, 720p, 5 giây): 81 credit.
+
+Ví dụ nằm ở `packages/web/public/templates/` (ảnh thẻ trên trang Mẫu) và `marketing/out/templates/`
+(bản lớn và ba clip, dùng để đăng bài).
 
 ## Kiểm tra trên production (cần tài khoản đăng nhập)
 
@@ -29,8 +27,7 @@ Tôi không tự làm được: đăng ký tài khoản cần vượt Turnstile 
 | # | Việc | Để làm gì | Chi phí ước tính |
 |---|---|---|---|
 | 1 | Đăng ký một tài khoản mới | Email mã 6 số tới nơi và nhập được | 0 |
-| 2 | Tạo 1 ảnh FLUX 3 Klein 1K, rồi mở thư viện | Ô ảnh hoàn tất; ảnh thu nhỏ hiện ra (bước này dùng Cloudflare Images lần đầu) | 1 credit, dưới 0,02 USD (khoảng 500 đ) |
-| 3 | Tạo 1 ảnh GPT Image mức low, tắt Wi-Fi giữa chừng rồi bật lại | Ô ảnh vẫn "đang chạy" rồi tự hiện ảnh | khoảng 0,01 USD (khoảng 250 đ) |
+| 2 | Tạo 1 ảnh, tắt Wi-Fi giữa chừng rồi bật lại | Ô ảnh vẫn "đang chạy" rồi tự hiện ảnh | 1 credit |
 | 4 | Chuyển khoản thật một đơn Starter | Kích hoạt gói trên cơ sở dữ liệu thật | 299.000 đ, vào chính tài khoản ngân hàng của bạn |
 
 Đã kiểm trên production sau khi deploy ngày 2026-11-21, không cần đăng nhập: trang chủ, bảng giá, ba
@@ -63,6 +60,5 @@ mã 4 số bị từ chối; một tin gửi qua form Hỗ trợ đã về tới
 
 Chưa chạy; tôi sẽ báo giá từng lượt trước khi bạn duyệt.
 
-- Ảnh và clip minh hoạ cho 14 mẫu ở trang Mẫu (hiện mỗi mẫu là biểu tượng và chữ).
 - Các nội dung trước/sau từ sản phẩm thật, một áo sáu bối cảnh, người mẫu nhất quán
   (`marketing/content.md`, bảng cuối).

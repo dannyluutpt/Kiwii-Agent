@@ -22,7 +22,7 @@ import { SitePage } from "@/components/site"
 import { useLanguage } from "@/context/language"
 import type { I18nKey } from "@/i18n/vi"
 import { CLIPS, MODEL_NAMES, sample, sampleSrc, sampleSrcset, type Clip, type Sample } from "@/showcase"
-import { TEMPLATES } from "@/templates"
+import { templateExample, TEMPLATES } from "@/templates"
 import { buttonClass } from "@/ui/button"
 import { IconButton } from "@/ui/icon-button"
 import { Tag } from "@/ui/tag"
@@ -233,11 +233,13 @@ export default function Landing() {
                   href={`/signup?next=${encodeURIComponent("/templates")}`}
                   class="flex h-full items-start gap-3 rounded-card bg-surface bg-sheen p-4 shadow-raised transition-[background-color,box-shadow,translate] duration-(--motion-standard) ease-standard hover:-translate-y-0.5 hover:bg-surface-2 hover:shadow-lift"
                 >
-                  <span class="flex size-10 shrink-0 items-center justify-center rounded-[12px] bg-accent-soft bg-amber-soft-gloss text-accent shadow-tinted">
-                    <Show when={template.kind === "video"} fallback={<IconImage class="size-5" />}>
-                      <IconVideo class="size-5" />
-                    </Show>
-                  </span>
+                  <img
+                    src={templateExample(template)}
+                    alt=""
+                    loading="lazy"
+                    decoding="async"
+                    class="size-20 shrink-0 rounded-[12px] object-cover shadow-raised"
+                  />
                   <span class="flex min-w-0 flex-col gap-1">
                     <span class="text-headline text-label">{template.title[locale()]}</span>
                     <span class="text-subhead text-label-2">{template.lead[locale()]}</span>

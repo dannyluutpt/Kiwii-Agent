@@ -356,6 +356,7 @@ export const dict = {
   "assets.deleted": "Đã xoá {{n}} mục",
   "assets.undo": "Hoàn tác",
   "assets.deleteFailed": "Một số mục chưa xoá được, hãy thử lại",
+  "templates.example": "Ví dụ mẫu này tạo ra",
   "error.generic": "Có lỗi xảy ra, thử lại",
   "error.network": "Mất kết nối, kiểm tra mạng rồi thử lại",
   "common.copied": "Đã sao chép",
