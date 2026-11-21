@@ -10,9 +10,9 @@ import { Page } from "@/components/page"
 import { useCharacters } from "@/context/characters"
 import { useLanguage } from "@/context/language"
 import { useStudio } from "@/context/studio"
-import { altFor, aspectStyle } from "@/images"
+import { altFor, aspectStyle, thumbs } from "@/images"
 import { errorMessage } from "@/lib/errors"
-import { buttonClass } from "@/ui/button"
+import { Button, buttonClass } from "@/ui/button"
 import { askText } from "@/ui/confirm"
 import { Skeleton } from "@/ui/skeleton"
 import { toast } from "@/ui/toast"
@@ -41,15 +41,16 @@ export default function Assets() {
   const navigate = useNavigate()
   const characters = useCharacters()
   const studio = useStudio()
-  const [list, setList] = createStore<{ items: Asset[]; cursor: string | null; loading: boolean }>({
+  const [list, setList] = createStore<{ items: Asset[]; cursor: string | null; loading: boolean; failed: boolean }>({
     items: [],
     cursor: null,
     loading: true,
+    failed: false,
   })
   const [viewer, setViewer] = createSignal<number>()
 
   const load = async (cursor?: string | null) => {
-    setList("loading", true)
+    setList({ loading: true, failed: false })
     await api<{ assets: Asset[]; nextCursor: string | null }>(
       `/images/assets?limit=40${cursor ? `&cursor=${cursor}` : ""}`,
     )
@@ -62,7 +63,10 @@ export default function Assets() {
           }),
         ),
       )
-      .catch((error: unknown) => toast.error(errorMessage(error, t("error.network"))))
+      .catch((error: unknown) => {
+        setList("failed", true)
+        toast.error(errorMessage(error, t("error.network")))
+      })
     setList("loading", false)
   }
   onMount(() => void load())
@@ -100,7 +104,15 @@ export default function Assets() {
 
   return (
     <Page title={t("assets.title")} width="wide">
-      <Show when={!list.loading && list.items.length === 0}>
+      <Show when={list.failed && !list.loading && list.items.length === 0}>
+        <div class="flex flex-col items-center gap-3 py-16 text-center">
+          <p class="text-callout text-label-2">{t("error.network")}</p>
+          <Button variant="secondary" onClick={() => void load()}>
+            {t("common.retry")}
+          </Button>
+        </div>
+      </Show>
+      <Show when={!list.loading && !list.failed && list.items.length === 0}>
         <div class="flex flex-col items-center gap-3 py-16 text-center">
           <span class="flex size-14 items-center justify-center rounded-[16px] bg-amber-gloss text-on-accent shadow-amber">
             <IconImage class="size-7" />
@@ -128,7 +140,7 @@ export default function Assets() {
                   when={asset.kind === "video"}
                   fallback={
                     <img
-                      src={asset.url}
+                      {...thumbs(asset.url, "(min-width: 1280px) 20vw, (min-width: 768px) 33vw, 50vw")}
                       alt=""
                       loading="lazy"
                       decoding="async"
@@ -170,7 +182,12 @@ export default function Assets() {
         </Show>
       </div>
       <Show when={list.items.length > 0}>
-        <LoadMore more={!!list.cursor} loading={list.loading} onLoad={() => void load(list.cursor)} />
+        <LoadMore
+          more={!!list.cursor}
+          loading={list.loading}
+          failed={list.failed}
+          onLoad={() => void load(list.cursor)}
+        />
       </Show>
       <Lightbox
         items={list.items.map((asset) => ({

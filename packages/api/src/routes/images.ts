@@ -14,6 +14,7 @@ import { CreateGeneration, imageAccess, prepareGeneration } from "../images/prep
 import { fileURL, presentGeneration } from "../images/present"
 import { byteSpan, IMAGE_MIMES, MAX_UPLOAD_BYTES, objectKey, putObject } from "../images/r2"
 import { streamGeneration } from "../images/stream"
+import { deleteObjects, thumb, thumbWidth } from "../images/thumb"
 import { requireAuth } from "../middleware/auth"
 
 const ListQuery = z.object({
@@ -110,6 +111,18 @@ images.post("/references", async (c) => {
 // answers range requests with 206 Partial Content.
 images.get("/files/:id", async (c) => {
   const row = await ownFile(c, c.req.param("id"))
+  // ?w=480 or ?w=960: a small copy for a gallery tile. Anything it cannot be made for is served whole.
+  const width = IMAGE_MIMES.has(row.mime) ? thumbWidth(c.req.query("w")) : undefined
+  const small = width ? await thumb(c.env.IMAGES, c.env.BUCKET, row.r2_key, width) : undefined
+  if (small) {
+    return new Response(small, {
+      headers: {
+        "content-type": "image/webp",
+        "cache-control": "private, max-age=31536000, immutable",
+        "x-content-type-options": "nosniff",
+      },
+    })
+  }
   const object = await c.env.BUCKET.get(row.r2_key, { range: c.req.raw.headers })
   if (!object) throw new ApiError(404, "FILE_NOT_FOUND", "Không tìm thấy tệp")
   const headers = new Headers()
@@ -117,8 +130,16 @@ images.get("/files/:id", async (c) => {
   headers.set("content-type", row.mime)
   headers.set("etag", object.httpEtag)
   headers.set("accept-ranges", "bytes")
+  headers.set("x-content-type-options", "nosniff")
   headers.set("cache-control", "private, max-age=31536000, immutable")
-  if (c.req.query("download") !== undefined) headers.set("content-disposition", `attachment; filename="${row.name}"`)
+  // A header holds Latin-1 only and the name of an uploaded photo is the person's own: the plain
+  // name is cut down to safe characters and the real one follows encoded (RFC 6266).
+  if (c.req.query("download") !== undefined) {
+    headers.set(
+      "content-disposition",
+      `attachment; filename="${row.name.replace(/[^\w.-]+/g, "_")}"; filename*=UTF-8''${encodeURIComponent(row.name)}`,
+    )
+  }
   const span = byteSpan(object.range, object.size)
   if (!span) return new Response(object.body, { headers })
   headers.set("content-range", `bytes ${span.start}-${span.end}/${object.size}`)
@@ -203,7 +224,12 @@ images.delete("/generations/:id", async (c) => {
     .select({ id: files.id, r2_key: files.r2_key })
     .from(files)
     .where(eq(files.generation_id, generation.id))
-  if (owned.length) await c.env.BUCKET.delete(owned.map((f) => f.r2_key))
+  if (owned.length) {
+    await deleteObjects(
+      c.env.BUCKET,
+      owned.map((f) => f.r2_key),
+    )
+  }
   await db(c).batch([
     db(c).delete(generation_images).where(eq(generation_images.generation_id, generation.id)),
     db(c).delete(files).where(eq(files.generation_id, generation.id)),

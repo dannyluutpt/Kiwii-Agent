@@ -1,6 +1,7 @@
 import { and, eq, inArray, lt, sql } from "drizzle-orm"
 import type { Database } from "../db/client"
 import { app_config, files } from "../db/schema"
+import { deleteObjects } from "./thumb"
 
 const DAY = 24 * 60 * 60 * 1000
 // D1 takes at most 100 bound parameters in one statement.
@@ -27,7 +28,10 @@ export async function removeUnusedReferences(db: Database, bucket: R2Bucket, now
     )
     .limit(500)
   if (rows.length === 0) return 0
-  await bucket.delete(rows.map((row) => row.key))
+  await deleteObjects(
+    bucket,
+    rows.map((row) => row.key),
+  )
   for (const ids of batches(rows.map((row) => row.id))) await db.delete(files).where(inArray(files.id, ids))
   return rows.length
 }
@@ -54,7 +58,7 @@ export async function sweepOrphans(db: Database, bucket: R2Bucket, now = Date.no
       for (const row of rows) known.add(row.key)
     }
     const orphans = old.filter((key) => !known.has(key))
-    if (orphans.length) await bucket.delete(orphans)
+    if (orphans.length) await deleteObjects(bucket, orphans)
     removed += orphans.length
     after = listing.truncated ? listing.objects.at(-1)?.key : undefined
     if (!after) break

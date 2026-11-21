@@ -5,7 +5,8 @@ import { createDatabase } from "./db/client"
 import { password_resets, pending_signups, plan_orders, sessions } from "./db/schema"
 import type { Env } from "./env"
 import { removeUnusedReferences, sweepOrphans } from "./images/cleanup"
-import { reapStaleGenerations } from "./images/generate"
+import { reapStaleGenerations, refundFailed } from "./images/generate"
+import { sendWeeklyReport } from "./report"
 
 // Runs daily at 00:00 Asia/Ho_Chi_Minh (see wrangler.jsonc). Every step is idempotent.
 export async function runDaily(env: Env) {
@@ -23,9 +24,15 @@ export async function runDaily(env: Env) {
   const grants = await expireGrants(db, now)
   const subs = await expireSubscriptions(db, now)
   const stale = await reapStaleGenerations(db, now)
+  const returned = await refundFailed(db, now)
   const references = await removeUnusedReferences(db, env.BUCKET, now)
   const orphans = await sweepOrphans(db, env.BUCKET, now)
+  // Last, and on its own: a report that cannot be sent must not undo the housekeeping above.
+  const reported = await sendWeeklyReport(env, db, now).catch((error: unknown) => {
+    console.error(`[cron] weekly report not sent: ${String(error)}`)
+    return false
+  })
   console.log(
-    `[cron] expired grants=${grants} subscriptions=${subs} stale generations=${stale} unused references=${references} orphaned pictures=${orphans}`,
+    `[cron] weekly report sent=${reported} expired grants=${grants} subscriptions=${subs} stale generations=${stale} credits returned late=${returned} unused references=${references} orphaned pictures=${orphans}`,
   )
 }

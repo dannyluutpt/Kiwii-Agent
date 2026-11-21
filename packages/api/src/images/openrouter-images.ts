@@ -16,6 +16,10 @@ export type ImageRequest = {
   signal?: AbortSignal
 }
 
+// How long one request for pictures may take. Without it a provider that never answers holds the run
+// until the reaper fails it at ten minutes (STALE_AFTER_MS); this ends it first, with its refund.
+export const IMAGE_TIMEOUT_MS = 8 * 60 * 1000
+
 export type GeneratedImage = { bytes: Uint8Array; mime: string }
 
 export type ImageResult = { images: GeneratedImage[]; costUsd: number }
@@ -88,7 +92,7 @@ export async function generateImages(request: ImageRequest): Promise<ImageResult
     method: "POST",
     headers: headers(request.apiKey),
     body: body(request, false),
-    signal: request.signal,
+    signal: request.signal ?? AbortSignal.timeout(IMAGE_TIMEOUT_MS),
   })
   if (!res.ok) throw await failure(res)
   const parsed = (await res.json()) as Buffered
@@ -116,7 +120,7 @@ export async function* streamImages(request: ImageRequest): AsyncGenerator<Image
     method: "POST",
     headers: headers(request.apiKey),
     body: body(request, true),
-    signal: request.signal,
+    signal: request.signal ?? AbortSignal.timeout(IMAGE_TIMEOUT_MS),
   })
   if (!res.ok || !res.body) {
     yield { type: "error", error: await failure(res) }

@@ -1,10 +1,11 @@
-import { useNavigate, useParams, useSearchParams } from "@solidjs/router"
+import { A, useNavigate, useParams, useSearchParams } from "@solidjs/router"
 import { createEffect, createSignal, Match, on, onMount, Show, Switch } from "solid-js"
 import { api } from "@/api"
 import { BRAND_SLUG } from "@/brand"
 import { AssistantPanel } from "@/components/assistant-panel"
 import { FilterChips, type Filter } from "@/components/filter-chips"
 import { Gallery } from "@/components/gallery"
+import { IconWand } from "@/components/icons"
 import { Lightbox, type LightboxItem } from "@/components/lightbox"
 import { SavedGallery } from "@/components/saved"
 import { SavedDialog } from "@/components/saved-dialog"
@@ -18,6 +19,7 @@ import { useProjects } from "@/context/projects"
 import { ALL, useStudio } from "@/context/studio"
 import { altFor, type Generation, type GenerationImage, type ModelsResponse } from "@/images"
 import { errorMessage } from "@/lib/errors"
+import { iconButtonClass } from "@/ui/icon-button"
 import { Skeleton } from "@/ui/skeleton"
 import { toast } from "@/ui/toast"
 
@@ -34,7 +36,13 @@ export default function Studio() {
   const characters = useCharacters()
   const locations = useLocations()
   const params = useParams<{ projectId?: string }>()
-  const [search, setSearch] = useSearchParams<{ prompt?: string; model?: string; kind?: string; next?: string }>()
+  const [search, setSearch] = useSearchParams<{
+    prompt?: string
+    model?: string
+    kind?: string
+    next?: string
+    ratio?: string
+  }>()
   const [viewer, setViewer] = createSignal<{ id: string; index: number }>()
   const [filter, setFilter] = createSignal<Filter>("all")
   let feed: HTMLDivElement | undefined
@@ -57,6 +65,9 @@ export default function Studio() {
     if (search.kind === "video") studio.setMode("video")
     if (search.model && search.kind === "video") studio.patchVideo({ model: search.model })
     if (search.model && search.kind !== "video") studio.patch({ model: search.model })
+    // A template also sets the frame; one the model does not offer is put right with the other options.
+    if (search.ratio && search.kind === "video") studio.patchVideo({ aspectRatio: search.ratio })
+    if (search.ratio && search.kind !== "video") studio.patch({ aspectRatio: search.ratio })
     // …and its "next scene" with the clip to start from.
     const next = search.next
     if (next) {
@@ -64,8 +75,11 @@ export default function Studio() {
         .then((g) => continueFrom(g))
         .catch((error: unknown) => toast.error(errorMessage(error, t("error.network"))))
     }
-    if (search.prompt || search.model || next)
-      setSearch({ prompt: undefined, model: undefined, kind: undefined, next: undefined }, { replace: true })
+    if (search.prompt || search.model || search.ratio || next)
+      setSearch(
+        { prompt: undefined, model: undefined, kind: undefined, next: undefined, ratio: undefined },
+        { replace: true },
+      )
     // Credits and the trial may have changed since the studio was last on screen.
     if (studio.config.state === "ready") void studio.refreshConfig()
   })
@@ -171,6 +185,7 @@ export default function Studio() {
           <Gallery
             items={items()}
             loading={studio.gallery(shelf())?.loading ?? true}
+            failed={studio.gallery(shelf())?.failed}
             more={!!studio.gallery(shelf())?.cursor}
             config={studio.config.latest}
             videoModels={studio.videoConfig.latest?.models}
@@ -207,7 +222,15 @@ export default function Studio() {
         when={!layout.phone()}
         fallback={
           <>
-            <TopBar heading title={title()} />
+            <TopBar
+              heading
+              title={title()}
+              trailing={
+                <A href="/templates" class={iconButtonClass("ghost", "md")} aria-label={t("templates.title")}>
+                  <IconWand class="size-5" />
+                </A>
+              }
+            />
             <FilterChips value={filter()} onChange={setFilter} />
             {gallery}
             <div class="px-3 pt-1 pb-3">

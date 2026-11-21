@@ -3,7 +3,7 @@ import { ulid } from "ulid"
 import { z } from "zod"
 import { ApiError, type User } from "../app"
 import { castPhotos, MAX_CHARACTERS_PER_RUN, ownCharacters, type Character } from "../characters/store"
-import { balance, reserve } from "../credits/ledger"
+import { balance, refund, reserve } from "../credits/ledger"
 import { TRIAL_MODELS, TRIAL_OPTIONS } from "../credits/trial"
 import type { Database } from "../db/client"
 import { files, generations, type SheetKind } from "../db/schema"
@@ -59,6 +59,24 @@ export function imageAccess(parallelLimit: number, credits: number) {
 
 export function accessAllows(access: ReturnType<typeof imageAccess>, model: string, option: string) {
   return (access.models?.includes(model) ?? true) && (access.options?.includes(option) ?? true)
+}
+
+// Two requests sent together both pass the count taken before either has a row. So it is taken again
+// once this run's row exists: a run that is not among the `limit` oldest still running gives its place
+// back, refunded, and is refused like any other over the limit.
+export async function holdSlot(db: Database, run: { id: string; user_id: string }, limit: number, message: string) {
+  const ahead = await db
+    .select({ id: generations.id })
+    .from(generations)
+    .where(and(eq(generations.user_id, run.user_id), eq(generations.status, "running")))
+    .orderBy(generations.id)
+    .limit(limit)
+  if (ahead.some((row) => row.id === run.id)) return
+  // The credits go back before the row goes: were the refund to fail, the row is still there for the
+  // reaper to find and refund.
+  await refund(db, { userID: run.user_id, generationID: run.id, reason: "over the parallel limit" })
+  await db.delete(generations).where(eq(generations.id, run.id))
+  throw new ApiError(429, "PARALLEL_LIMIT", message, { limit })
 }
 
 // Everything between a request for pictures and the run itself: who may run what and how many at
@@ -224,6 +242,12 @@ export async function prepareGeneration(input: {
     sheet: input.sheet?.kind ?? null,
     created_at: now,
   })
+  await holdSlot(
+    db,
+    { id, user_id: input.user.id },
+    access.parallelLimit,
+    `Gói của bạn chạy tối đa ${access.parallelLimit} lượt tạo ảnh cùng lúc`,
+  )
   if (project) await touchProject(db, project, body.prompt, now)
   const generation = (await db.select().from(generations).where(eq(generations.id, id)).get())!
   return {

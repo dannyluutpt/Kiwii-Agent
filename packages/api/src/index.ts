@@ -12,7 +12,9 @@ import { characters } from "./routes/characters"
 import { images } from "./routes/images"
 import { locations } from "./routes/locations"
 import { projects } from "./routes/projects"
+import { support } from "./routes/support"
 import { videos } from "./routes/videos"
+import { seo } from "./seo"
 
 const app = createApp()
 
@@ -35,6 +37,8 @@ app.use("*", async (c, next) => {
 app.use("/api/*", async (c, next) => {
   c.set("db", createDatabase(c.env.DB))
   c.header("cache-control", "no-store")
+  // A file is what its content type says, never what a browser guesses from its bytes.
+  c.header("x-content-type-options", "nosniff")
   await next()
 })
 const ipLimit = rateLimitBy((env) => env.RL_IP, "ip")
@@ -48,6 +52,7 @@ app.route("/api/projects", projects)
 app.route("/api/characters", characters)
 app.route("/api/locations", locations)
 app.route("/api/videos", videos)
+app.route("/api/support", support)
 
 // Reports which optional settings are present (never their values) so a misplaced secret is
 // visible without reading Worker logs.
@@ -91,11 +96,14 @@ app.notFound(async (c) => {
   const range = c.req.header("range")
   if (!html && range && res.status === 200) return byteRange(res, range)
   if (!html) return res
-  const headers = new Headers(res.headers)
+  const page = seo(res, new URL(c.req.url), new URL(c.env.APP_URL).origin)
+  const headers = new Headers(page.headers)
   headers.set("content-security-policy", CSP)
   headers.set("x-content-type-options", "nosniff")
   headers.set("referrer-policy", "strict-origin-when-cross-origin")
-  return new Response(res.body, { status: res.status, headers })
+  headers.set("strict-transport-security", "max-age=31536000; includeSubDomains")
+  headers.set("permissions-policy", "camera=(), microphone=(), geolocation=(), payment=()")
+  return new Response(page.body, { status: res.status, headers })
 })
 
 // The bytes of one "bytes=a-b", "bytes=a-" or "bytes=-n" range as a 206; a range past the end is a 416,

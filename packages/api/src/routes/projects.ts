@@ -6,6 +6,7 @@ import { presentMessage } from "../assistant/parts"
 import { AssistantRequest, checkAssistant, runAssistantTurn, type AssistantEvent } from "../assistant/turn"
 import { generation_images, generations, project_messages } from "../db/schema"
 import { presentGeneration } from "../images/present"
+import { heartbeat } from "../images/stream"
 import { requireAuth } from "../middleware/auth"
 import {
   createProject,
@@ -123,6 +124,7 @@ projects.post("/:id/messages", async (c) => {
     })
     // The reply and the runs it started finish even if the browser leaves mid-way.
     c.executionCtx.waitUntil(job)
-    await job
+    const stop = heartbeat(stream)
+    await job.finally(stop)
   })
 })

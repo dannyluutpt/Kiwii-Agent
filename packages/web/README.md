@@ -66,6 +66,22 @@ keep the original photo, from Unsplash, stretched to the edit's frame so the two
 sample's "Dùng prompt này" signs the visitor up and opens the studio with its prompt and model;
 `next` is carried through sign-up and verification (`lib/next.ts`).
 
+`/templates` (`pages/templates.tsx`) lists ready-made starting points from `src/templates.ts`: each is
+data (a title, a few slots to fill, a prompt with `{slot}` marks, the model and the frame that suit
+it), so adding one is adding an entry. Picking one asks for the slots and an optional look or camera
+move, then opens the studio with the prompt written; nothing runs until Generate is pressed there.
+
+The gallery lays its tiles out in columns by script (`lib/masonry.ts`): a tile keeps the column it was
+first put in, so a new run or a loaded page moves nothing else. Tiles ask for small copies of their
+pictures (`thumbs()` in `src/images.ts`); the viewer and the download use the full picture.
+
+`/terms`, `/privacy` and `/refund` render from `src/legal.ts` for visitors and customers alike. They
+describe what the product does (what is stored, who it is sent to, when credits come back): change
+the product and they change with it. The support address is `SUPPORT_EMAIL` in `src/brand.ts`.
+
+An invitation link (`/?ref=CODE`) is remembered until sign-up (`lib/referral.ts`); the account screen
+shows the person's own link and what it has earned.
+
 State sits above the screens: `context/projects.tsx` holds the project list and its flows,
 `context/studio.tsx` holds the options, the draft and every run seen this session with the galleries
 that list them, so a run keeps streaming into its tile while another project is open, and

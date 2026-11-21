@@ -33,7 +33,8 @@ const PAGE = 12
 // narrowed to pictures or to clips is keyed with ":image" or ":video" after that.
 export const ALL = "all"
 
-type Gallery = { ids: string[]; cursor: string | null; loading: boolean; loaded: boolean }
+// `failed`: its last page did not load; the list offers to try again instead of asking on its own.
+type Gallery = { ids: string[]; cursor: string | null; loading: boolean; loaded: boolean; failed?: boolean }
 
 function loadSettings(): StudioSettings {
   try {
@@ -187,6 +188,7 @@ export const { use: useStudio, provider: StudioProvider } = createSimpleContext(
       setState("galleries", key, (current) => ({
         ...(current ?? { ids: [], cursor: null, loaded: false }),
         loading: true,
+        failed: false,
       }))
       const [base = ALL, kind] = key.split(":")
       const query = new URLSearchParams({ limit: String(PAGE) })
@@ -208,7 +210,10 @@ export const { use: useStudio, provider: StudioProvider } = createSimpleContext(
             }),
           ),
         )
-        .catch((error: unknown) => toast.error(errorMessage(error, t("error.network"))))
+        .catch((error: unknown) => {
+          setState("galleries", key, "failed", true)
+          toast.error(errorMessage(error, t("error.network")))
+        })
       setState("galleries", key, "loading", false)
     }
 
@@ -307,7 +312,8 @@ export const { use: useStudio, provider: StudioProvider } = createSimpleContext(
     const back = () => {
       if (document.visibilityState === "visible") void settle()
     }
-    const timer = setInterval(() => void settle(), 10_000)
+    // A hidden tab asks nothing; `back` asks the moment it shows again.
+    const timer = setInterval(() => document.hidden || void settle(), 10_000)
     document.addEventListener("visibilitychange", back)
     window.addEventListener("online", back)
     onCleanup(() => {
@@ -407,8 +413,11 @@ export const { use: useStudio, provider: StudioProvider } = createSimpleContext(
             action: { label: t("images.topup"), onClick: () => navigate("/pricing") },
           })
         }
-        if (!insufficient) toast.error(errorMessage(error, t("error.network")))
-        if (id) update(id, (g) => (g.status = "failed"))
+        // The connection went after the server took the run: the run goes on there, so its tile keeps
+        // running and the server is asked how it stands. Calling it failed would offer a retry that
+        // pays for the same pictures twice.
+        if (id) void settle()
+        if (!id && !insufficient) toast.error(errorMessage(error, t("error.network")))
         // The server never took the run: hand the prompt back rather than leave a failed tile.
         if (!id && !from) {
           drop(pending)

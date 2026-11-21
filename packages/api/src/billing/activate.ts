@@ -1,40 +1,84 @@
-import { and, eq } from "drizzle-orm"
+import { and, eq, inArray, lte, ne } from "drizzle-orm"
 import { ulid } from "ulid"
-import { grant } from "../credits/ledger"
+import { balance, grantWrites } from "../credits/ledger"
 import type { Database } from "../db/client"
 import { plan_events, plan_orders, plans, subscriptions, users, type Tier } from "../db/schema"
 import { isPaidTier, PERIOD_MS, TOPUP_PACKS, TOPUP_TTL_MS } from "./plans"
+import { REFERRAL_TTL_MS, referralRewards } from "./referral"
 
 type Order = typeof plan_orders.$inferSelect
 
-// Marks the order paid and applies it. Each statement is idempotent on the order id, so a
-// webhook retry after a partial failure finishes the remaining steps without double-granting.
+// An order the money can still be put towards: one waiting, or one whose day ran out before the
+// transfer landed. The customer paid either way.
+export const PAYABLE = ["pending", "expired"] as const
+
+// Marks the order paid and applies it. The claim lets one payment through; everything it buys is
+// then written in one batch, so the plan, the credits and their records land together. If that
+// batch fails the claim is given back and the error rethrown: the webhook answers 500 and SePay's
+// retry finds the order payable again, instead of a paid order that granted nothing.
 export async function activateOrder(db: Database, order: Order, input: { bankEventID: string; now?: number }) {
   const now = input.now ?? Date.now()
   const claimed = await db
     .update(plan_orders)
     .set({ status: "paid", paid_at: now, bank_event_id: input.bankEventID })
-    .where(and(eq(plan_orders.id, order.id), eq(plan_orders.status, "pending")))
+    .where(and(eq(plan_orders.id, order.id), inArray(plan_orders.status, PAYABLE)))
     .returning({ id: plan_orders.id })
   if (claimed.length === 0) return false
+  const unclaim = (status: Order["status"]) =>
+    db
+      .update(plan_orders)
+      .set({ status, paid_at: null, bank_event_id: null })
+      .where(and(eq(plan_orders.id, order.id), eq(plan_orders.bank_event_id, input.bankEventID)))
+  const applied = await apply(db, order, now).catch(async (error: unknown) => {
+    await unclaim(order.status)
+    throw error
+  })
+  // Money for something no longer sold (a pack or plan since removed): a person looks at it.
+  if (!applied) await unclaim("pending_review")
+  return applied
+}
 
+// A delivery that marked its order paid and then wrote nothing more, not even the claim's return:
+// the order is paid by this bank event and has no record of what it bought. Applies it now. True when
+// there was such an order.
+export async function finishActivation(db: Database, bankEventID: string, now = Date.now()) {
+  const order = await db
+    .select()
+    .from(plan_orders)
+    .where(and(eq(plan_orders.bank_event_id, bankEventID), eq(plan_orders.status, "paid")))
+    .get()
+  if (!order) return false
+  const recorded = await db
+    .select({ id: plan_events.id })
+    .from(plan_events)
+    .where(and(eq(plan_events.order_id, order.id), eq(plan_events.user_id, order.user_id)))
+    .get()
+  if (recorded) return false
+  return apply(db, order, order.paid_at ?? now)
+}
+
+async function apply(db: Database, order: Order, now: number) {
+  const balanceBefore = await balance(db, order.user_id, now)
   if (order.kind === "topup") {
     const pack = TOPUP_PACKS.find((p) => p.id === order.item_id)
     if (!pack) return false
-    await grant(db, {
-      userID: order.user_id,
-      source: "topup",
-      amount: pack.credits,
-      expiresAt: now + TOPUP_TTL_MS,
-      reason: `top-up ${pack.id} order ${order.id}`,
-    })
-    await db.insert(plan_events).values({
-      id: ulid(),
-      user_id: order.user_id,
-      type: "topup",
-      order_id: order.id,
-      payload: JSON.stringify({ pack: pack.id, credits: pack.credits }),
-    })
+    await db.batch([
+      ...grantWrites(db, {
+        userID: order.user_id,
+        source: "topup",
+        amount: pack.credits,
+        expiresAt: now + TOPUP_TTL_MS,
+        reason: `top-up ${pack.id} order ${order.id}`,
+        balanceBefore,
+      }),
+      db.insert(plan_events).values({
+        id: ulid(),
+        user_id: order.user_id,
+        type: "topup",
+        order_id: order.id,
+        payload: JSON.stringify({ pack: pack.id, credits: pack.credits }),
+      }),
+    ])
     return true
   }
 
@@ -48,42 +92,107 @@ export async function activateOrder(db: Database, order: Order, input: { bankEve
     .where(and(eq(subscriptions.user_id, order.user_id), eq(subscriptions.status, "active")))
     .get()
   // Renewing the same plan stacks onto the current period; any other case starts a fresh one.
-  const renewal = current && current.plan_id === tier && current.period_end > now
+  const renewal = current !== undefined && current.plan_id === tier && current.period_end > now
+  const referral = await referralWrites(db, order, balanceBefore + plan.credits, now)
   const periodStart = renewal ? current.period_end : now
   const periodEnd = periodStart + PERIOD_MS
-  if (current) {
-    await db
-      .update(subscriptions)
-      .set({ status: renewal ? "active" : "expired", period_end: renewal ? periodEnd : now })
-      .where(eq(subscriptions.id, current.id))
-  }
-  if (!renewal) {
-    await db.insert(subscriptions).values({
+  await db.batch([
+    db.update(users).set({ tier, tier_until: periodEnd }).where(eq(users.id, order.user_id)),
+    ...(current
+      ? [
+          db
+            .update(subscriptions)
+            .set({ status: renewal ? "active" : "expired", period_end: renewal ? periodEnd : now })
+            .where(eq(subscriptions.id, current.id)),
+        ]
+      : []),
+    ...(renewal
+      ? []
+      : [
+          db.insert(subscriptions).values({
+            id: ulid(),
+            user_id: order.user_id,
+            plan_id: tier,
+            period_start: periodStart,
+            period_end: periodEnd,
+            status: "active",
+            order_id: order.id,
+          }),
+        ]),
+    ...grantWrites(db, {
+      userID: order.user_id,
+      source: "plan",
+      amount: plan.credits,
+      expiresAt: periodEnd,
+      reason: `${renewal ? "renewal" : "activation"} ${tier} order ${order.id}`,
+      balanceBefore,
+    }),
+    ...referral,
+    db.insert(plan_events).values({
       id: ulid(),
       user_id: order.user_id,
-      plan_id: tier,
-      period_start: periodStart,
-      period_end: periodEnd,
-      status: "active",
+      type: renewal ? "renewed" : current ? "upgraded" : "activated",
       order_id: order.id,
-    })
-  }
-  await db.update(users).set({ tier, tier_until: periodEnd }).where(eq(users.id, order.user_id))
-  await grant(db, {
-    userID: order.user_id,
-    source: "plan",
-    amount: plan.credits,
-    expiresAt: periodEnd,
-    reason: `${renewal ? "renewal" : "activation"} ${tier} order ${order.id}`,
-  })
-  await db.insert(plan_events).values({
-    id: ulid(),
-    user_id: order.user_id,
-    type: renewal ? "renewed" : current ? "upgraded" : "activated",
-    order_id: order.id,
-    payload: JSON.stringify({ plan: tier, period_start: periodStart, period_end: periodEnd }),
-  })
+      payload: JSON.stringify({ plan: tier, period_start: periodStart, period_end: periodEnd }),
+    }),
+  ])
   return true
+}
+
+// The credits a referral earns, written in the batch that activates the invited account's first plan:
+// to whoever invited it, and to the account itself on top of its plan. Nothing for a later plan, an
+// account nobody invited, or an inviter whose account is gone.
+async function referralWrites(db: Database, order: Order, friendBalance: number, now: number) {
+  const buyer = await db.select({ referred_by: users.referred_by }).from(users).where(eq(users.id, order.user_id)).get()
+  if (!buyer?.referred_by) return []
+  const earlier = await db
+    .select({ id: plan_orders.id })
+    .from(plan_orders)
+    .where(
+      and(
+        eq(plan_orders.user_id, order.user_id),
+        eq(plan_orders.kind, "plan"),
+        eq(plan_orders.status, "paid"),
+        ne(plan_orders.id, order.id),
+      ),
+    )
+    .get()
+  if (earlier) return []
+  const referrer = await db.select({ id: users.id }).from(users).where(eq(users.id, buyer.referred_by)).get()
+  if (!referrer) return []
+  const rewards = await referralRewards(db)
+  const expiresAt = now + REFERRAL_TTL_MS
+  return [
+    ...(rewards.referrer > 0
+      ? [
+          ...grantWrites(db, {
+            userID: referrer.id,
+            source: "referral",
+            amount: rewards.referrer,
+            expiresAt,
+            reason: `referral: invited account paid, order ${order.id}`,
+            balanceBefore: await balance(db, referrer.id, now),
+          }),
+          db.insert(plan_events).values({
+            id: ulid(),
+            user_id: referrer.id,
+            type: "referral",
+            order_id: order.id,
+            payload: JSON.stringify({ invited: order.user_id, credits: rewards.referrer }),
+          }),
+        ]
+      : []),
+    ...(rewards.friend > 0
+      ? grantWrites(db, {
+          userID: order.user_id,
+          source: "referral",
+          amount: rewards.friend,
+          expiresAt,
+          reason: `referral: welcome credits, order ${order.id}`,
+          balanceBefore: friendBalance,
+        })
+      : []),
+  ]
 }
 
 // Daily: subscriptions past their period end drop the user back to free unless a renewal
@@ -92,10 +201,9 @@ export async function expireSubscriptions(db: Database, now = Date.now()) {
   const rows = await db
     .select()
     .from(subscriptions)
-    .where(and(eq(subscriptions.status, "active")))
+    .where(and(eq(subscriptions.status, "active"), lte(subscriptions.period_end, now)))
   let count = 0
   for (const sub of rows) {
-    if (sub.period_end > now) continue
     await db.update(subscriptions).set({ status: "expired" }).where(eq(subscriptions.id, sub.id))
     const user = await db.select({ tier_until: users.tier_until }).from(users).where(eq(users.id, sub.user_id)).get()
     if (user?.tier_until && user.tier_until > now) continue

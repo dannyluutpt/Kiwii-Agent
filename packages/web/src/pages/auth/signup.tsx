@@ -3,6 +3,7 @@ import { createSignal } from "solid-js"
 import { api } from "@/api"
 import { useLanguage } from "@/context/language"
 import { withNext } from "@/lib/next"
+import { referral } from "@/lib/referral"
 import { Turnstile } from "@/components/turnstile"
 import { AuthForm, Field } from "./form"
 
@@ -19,7 +20,9 @@ export default function Signup() {
       title={t("auth.signup.title")}
       submit={t("auth.signup")}
       onSubmit={async () => {
-        await api("/auth/signup", { body: { email: email(), password: password(), turnstile: turnstile() } })
+        await api("/auth/signup", {
+          body: { email: email(), password: password(), turnstile: turnstile(), ref: referral() },
+        })
         navigate(withNext(`/signup/verify?email=${encodeURIComponent(email().trim().toLowerCase())}`, search.next))
       }}
       footer={
@@ -49,6 +52,17 @@ export default function Signup() {
         hint={t("auth.signup.hint")}
       />
       <Turnstile onToken={setTurnstile} />
+      <p class="text-footnote text-label-3">
+        {t("auth.signup.agree")}{" "}
+        <A href="/terms" target="_blank" class="text-label-2 underline">
+          {t("legal.terms")}
+        </A>{" "}
+        {t("common.and")}{" "}
+        <A href="/privacy" target="_blank" class="text-label-2 underline">
+          {t("legal.privacy")}
+        </A>
+        .
+      </p>
     </AuthForm>
   )
 }

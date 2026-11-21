@@ -14,6 +14,7 @@ import { Menu, MenuContent, MenuItem, MenuSeparator } from "@/ui/menu"
 import { Skeleton } from "@/ui/skeleton"
 import {
   IconCharacter,
+  IconWand,
   IconClose,
   IconEllipsis,
   IconImage,
@@ -38,6 +39,7 @@ const INACTIVE = "text-label [&_svg]:text-label-2"
 
 // The characters and locations saved to use in every scene, and everything made so far.
 const TOOLS: Array<{ href: string; label: I18nKey; icon: () => JSX.Element }> = [
+  { href: "/templates", label: "templates.title", icon: () => <IconWand class="size-5" /> },
   { href: "/characters", label: "characters.title", icon: () => <IconCharacter class="size-5" /> },
   { href: "/locations", label: "locations.title", icon: () => <IconPlace class="size-5" /> },
   { href: "/library", label: "nav.assets", icon: () => <IconLibrary class="size-5" /> },

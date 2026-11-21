@@ -8,6 +8,8 @@ import {
   IconArrowUp,
   IconChat,
   IconCheck,
+  IconImage,
+  IconVideo,
   IconChevronDown,
   IconPause,
   IconPerson,
@@ -20,6 +22,7 @@ import { SitePage } from "@/components/site"
 import { useLanguage } from "@/context/language"
 import type { I18nKey } from "@/i18n/vi"
 import { CLIPS, MODEL_NAMES, sample, sampleSrc, sampleSrcset, type Clip, type Sample } from "@/showcase"
+import { TEMPLATES } from "@/templates"
 import { buttonClass } from "@/ui/button"
 import { IconButton } from "@/ui/icon-button"
 import { Tag } from "@/ui/tag"
@@ -115,6 +118,11 @@ const tryPath = (s: Sample) =>
 // The public home page, for visitors who are not signed in: what Amberpix makes, how the assistant
 // works, edits to compare, the models, pictures made with it, prices and questions. Every picture
 // here was made with Amberpix (src/showcase.ts).
+// The templates a seller reaches for first, shown before signing up.
+const SELLER_TEMPLATES = ["white-background", "lifestyle", "sale-poster", "lookbook", "tet", "product-spin"].flatMap(
+  (id) => TEMPLATES.filter((template) => template.id === id),
+)
+
 export default function Landing() {
   const { t, locale } = useLanguage()
   const [prices] = createResource(() => api<{ plans: PlanInfo[]; topups: Topup[]; trial: Trial }>("/billing/plans"))
@@ -204,6 +212,37 @@ export default function Landing() {
                   <h3 class="text-headline text-label">{t(feature.title)}</h3>
                   <p class="text-subhead text-label-2">{t(feature.lead)}</p>
                 </div>
+              </li>
+            )}
+          </For>
+        </ul>
+      </Section>
+
+      {/* Templates for sellers */}
+      <Section
+        id="mau"
+        badge={t("landing.new")}
+        title={t("landing.templates.title")}
+        lead={t("landing.templates.lead")}
+      >
+        <ul class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <For each={SELLER_TEMPLATES}>
+            {(template) => (
+              <li>
+                <A
+                  href={`/signup?next=${encodeURIComponent("/templates")}`}
+                  class="flex h-full items-start gap-3 rounded-card bg-surface bg-sheen p-4 shadow-raised transition-[background-color,box-shadow,translate] duration-(--motion-standard) ease-standard hover:-translate-y-0.5 hover:bg-surface-2 hover:shadow-lift"
+                >
+                  <span class="flex size-10 shrink-0 items-center justify-center rounded-[12px] bg-accent-soft bg-amber-soft-gloss text-accent shadow-tinted">
+                    <Show when={template.kind === "video"} fallback={<IconImage class="size-5" />}>
+                      <IconVideo class="size-5" />
+                    </Show>
+                  </span>
+                  <span class="flex min-w-0 flex-col gap-1">
+                    <span class="text-headline text-label">{template.title[locale()]}</span>
+                    <span class="text-subhead text-label-2">{template.lead[locale()]}</span>
+                  </span>
+                </A>
               </li>
             )}
           </For>

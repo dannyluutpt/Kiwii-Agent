@@ -1,13 +1,42 @@
 import { A } from "@solidjs/router"
-import { For, Show, type JSX } from "solid-js"
+import { createMemo, createSignal, For, onCleanup, onMount, Show, type JSX } from "solid-js"
 import { useLanguage } from "@/context/language"
 import type { I18nKey } from "@/i18n/vi"
 import { aspectStyle, type Generation, type ModelsResponse, type VideoModel } from "@/images"
-import { buttonClass } from "@/ui/button"
+import { columnOf, tileHeight } from "@/lib/masonry"
+import { createMediaQuery } from "@/lib/media"
+import { Button, buttonClass } from "@/ui/button"
 import { Skeleton } from "@/ui/skeleton"
 import { GenerationTile } from "./generation-tile"
 import { IconGlobe, IconImage, IconPencil, IconSparkles, IconVideo } from "./icons"
 import { LoadMore } from "./load-more"
+
+// The gallery's grid is made of rows this thin; a tile spans as many as its height takes.
+const ROW = 4
+
+// One tile's place in the grid: the column it was given, and as many rows as the tile is tall, measured
+// as it renders and again whenever it changes size (its pictures land, the window is resized).
+function Cell(props: { column: number; children: JSX.Element }) {
+  const [rows, setRows] = createSignal(60)
+  let cell: HTMLDivElement | undefined
+  onMount(() => {
+    const tile = cell?.firstElementChild
+    if (!(tile instanceof HTMLElement)) return
+    const measure = () => {
+      const gap = Number.parseFloat(getComputedStyle(tile).marginBottom) || 0
+      setRows(Math.max(1, Math.ceil((tile.offsetHeight + gap) / ROW)))
+    }
+    const observer = new ResizeObserver(measure)
+    observer.observe(tile)
+    measure()
+    onCleanup(() => observer.disconnect())
+  })
+  return (
+    <div ref={cell} class="min-w-0" style={{ "grid-column": props.column + 1, "grid-row": `span ${rows()}` }}>
+      {props.children}
+    </div>
+  )
+}
 
 const PLACEHOLDER_RATIOS = ["1:1", "3:4", "16:9", "1:1", "9:16", "4:3"]
 
@@ -40,6 +69,8 @@ const SUGGESTIONS: Array<{ icon: () => JSX.Element; title: I18nKey; prompt: I18n
 export function Gallery(props: {
   items: Generation[]
   loading: boolean
+  // The last page did not load: the list says so and offers to try again, instead of looking empty.
+  failed?: boolean
   more: boolean
   config: ModelsResponse | undefined
   videoModels: VideoModel[] | undefined
@@ -57,7 +88,13 @@ export function Gallery(props: {
   onNextScene: (g: Generation) => void
 }) {
   const { t } = useLanguage()
-  const empty = () => !props.loading && props.items.length === 0
+  // Two columns, three from 1024px, four from 1536px; a tile keeps the column it was first put in.
+  const three = createMediaQuery("(min-width: 64rem)")
+  const four = createMediaQuery("(min-width: 96rem)")
+  const placed = new Map<string, number>()
+  const count = () => (four() ? 4 : three() ? 3 : 2)
+  const column = createMemo(() => columnOf(props.items, count(), tileHeight, placed))
+  const empty = () => !props.loading && !props.failed && props.items.length === 0
 
   return (
     <div class="flex min-h-full w-full flex-col gap-4 px-3 py-3 md:px-5 md:py-5">
@@ -79,6 +116,14 @@ export function Gallery(props: {
           <A href="/pricing" class={buttonClass("primary", "md", "mt-2")}>
             {t("images.locked.cta")}
           </A>
+        </div>
+      </Show>
+      <Show when={props.failed && !props.loading && props.items.length === 0}>
+        <div class="mx-auto flex max-w-md flex-1 flex-col items-center justify-center gap-3 py-10 text-center">
+          <p class="text-callout text-label-2">{t("error.network")}</p>
+          <Button variant="secondary" onClick={() => props.onLoadMore()}>
+            {t("common.retry")}
+          </Button>
         </div>
       </Show>
       <Show when={empty() && props.clipsOnly}>
@@ -120,29 +165,44 @@ export function Gallery(props: {
               )}
             </For>
           </ul>
+          <A href="/templates" class={buttonClass("tinted", "md", "self-center")}>
+            {t("templates.browse")}
+          </A>
         </div>
       </Show>
       <Show when={props.items.length > 0 || props.loading}>
-        <div class="columns-2 gap-2 md:gap-3 lg:columns-3 2xl:columns-4" aria-label={t("images.gallery")}>
+        <div
+          class="grid gap-x-2 md:gap-x-3"
+          style={{
+            "grid-template-columns": `repeat(${count()}, minmax(0, 1fr))`,
+            "grid-auto-rows": `${ROW}px`,
+            "grid-auto-flow": "dense",
+          }}
+          aria-label={t("images.gallery")}
+        >
           <For each={props.items}>
             {(g) => (
-              <GenerationTile
-                generation={g}
-                model={
-                  g.kind === "video"
-                    ? props.videoModels?.find((m) => m.id === g.model)
-                    : props.config?.models.find((m) => m.id === g.model)
-                }
-                onOpen={(index) => props.onOpen(g, index)}
-                onReuse={() => props.onReuse(g)}
-                onRetry={() => props.onRetry(g)}
-                onDelete={() => props.onDelete(g)}
-                onCharacter={() => props.onCharacter(g)}
-                onLocation={() => props.onLocation(g)}
-                onNextScene={() => props.onNextScene(g)}
-              />
+              <Cell column={column()(g.id)}>
+                <GenerationTile
+                  generation={g}
+                  model={
+                    g.kind === "video"
+                      ? props.videoModels?.find((m) => m.id === g.model)
+                      : props.config?.models.find((m) => m.id === g.model)
+                  }
+                  onOpen={(index) => props.onOpen(g, index)}
+                  onReuse={() => props.onReuse(g)}
+                  onRetry={() => props.onRetry(g)}
+                  onDelete={() => props.onDelete(g)}
+                  onCharacter={() => props.onCharacter(g)}
+                  onLocation={() => props.onLocation(g)}
+                  onNextScene={() => props.onNextScene(g)}
+                />
+              </Cell>
             )}
           </For>
+        </div>
+        <div class="columns-2 gap-2 md:gap-3 lg:columns-3 2xl:columns-4" aria-hidden="true">
           <Show when={props.loading && props.items.length === 0}>
             <For each={PLACEHOLDER_RATIOS}>
               {(ratio) => (
@@ -155,7 +215,7 @@ export function Gallery(props: {
         </div>
       </Show>
       <Show when={props.items.length > 0}>
-        <LoadMore more={props.more} loading={props.loading} onLoad={props.onLoadMore} />
+        <LoadMore more={props.more} loading={props.loading} failed={props.failed} onLoad={props.onLoadMore} />
       </Show>
     </div>
   )

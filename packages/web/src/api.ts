@@ -30,14 +30,28 @@ export async function api<T>(
 
 export type SSEEvent = { event: string; data: unknown }
 
+// The server writes a line every 15 seconds while a run renders. This long without a byte, the
+// connection is dead (a phone that slept, a network that dropped it) and the stream ends with a
+// StreamStalled instead of holding its caller for good.
+export const STREAM_IDLE_MS = 45_000
+
+export class StreamStalled extends Error {}
+
 // POST + SSE response; EventSource only does GET so the stream is parsed by hand.
-export async function* apiStream(path: string, body: unknown, signal?: AbortSignal): AsyncGenerator<SSEEvent> {
+export async function* apiStream(
+  path: string,
+  body: unknown,
+  signal?: AbortSignal,
+  idleMs = STREAM_IDLE_MS,
+): AsyncGenerator<SSEEvent> {
+  const stalled = new AbortController()
+  signal?.addEventListener("abort", () => stalled.abort(signal.reason), { once: true })
   const res = await fetch(`/api${path}`, {
     method: "POST",
     headers: { "content-type": "application/json", accept: "text/event-stream" },
     body: JSON.stringify(body),
     credentials: "same-origin",
-    signal,
+    signal: stalled.signal,
   })
   if (!res.ok) {
     const parsed = (await res.json().catch(() => ({}))) as ErrorBody
@@ -48,7 +62,8 @@ export async function* apiStream(path: string, body: unknown, signal?: AbortSign
   const reader = res.body.pipeThrough(new TextDecoderStream()).getReader()
   let buffer = ""
   while (true) {
-    const { value, done } = await reader.read()
+    const idle = setTimeout(() => stalled.abort(new StreamStalled("stream stalled")), idleMs)
+    const { value, done } = await reader.read().finally(() => clearTimeout(idle))
     if (done) break
     buffer += value
     const frames = buffer.split("\n\n")
@@ -61,8 +76,18 @@ export async function* apiStream(path: string, body: unknown, signal?: AbortSign
         if (line.startsWith("data:")) data.push(line.slice(5).trimStart())
       }
       if (data.length === 0) continue
-      yield { event, data: JSON.parse(data.join("\n")) }
+      // One frame cut short must not end a stream whose run is still going.
+      const parsed = parseFrame(data.join("\n"))
+      if (parsed !== undefined) yield { event, data: parsed }
     }
+  }
+}
+
+function parseFrame(text: string): unknown {
+  try {
+    return JSON.parse(text)
+  } catch {
+    return undefined
   }
 }
 

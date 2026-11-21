@@ -26,6 +26,14 @@ type Entry = {
   createdAt: number
 }
 
+type Referral = {
+  link: string
+  rewards: { referrer: number; friend: number }
+  invited: number
+  paid: number
+  credits: number
+}
+
 const ORDER_TONES = { pending: "info", paid: "success", expired: "neutral", pending_review: "warning" } as const
 const LEDGER_PAGE = 8
 
@@ -38,6 +46,15 @@ export default function Account() {
   const [ledger] = createResource(() =>
     api<{ entries: Entry[] }>("/billing/ledger").then((r) => r.entries.filter((e) => e.delta !== 0)),
   )
+  const [invite] = createResource(() => api<Referral>("/account/referral").catch(() => undefined))
+  const copyInvite = async () => {
+    const link = invite()?.link
+    if (!link) return
+    await navigator.clipboard
+      .writeText(link)
+      .then(() => toast.success(t("referral.copied")))
+      .catch(() => toast.error(t("error.generic")))
+  }
   const [orders] = createResource(() => api<{ orders: Order[] }>("/billing/orders").then((r) => r.orders.slice(0, 5)))
   const [shown, setShown] = createSignal(LEDGER_PAGE)
   const [current, setCurrent] = createSignal("")
@@ -103,6 +120,26 @@ export default function Account() {
             href="/pricing"
           />
         </ListGroup>
+
+        <Show when={invite()}>
+          {(mine) => (
+            <ListSection
+              title={t("referral.title")}
+              footer={t("referral.lead", { referrer: mine().rewards.referrer, friend: mine().rewards.friend })}
+            >
+              <ListGroup>
+                <ListRow label={mine().link.replace(/^https?:\/\//, "")}>
+                  <Button variant="tinted" size="sm" onClick={() => void copyInvite()}>
+                    {t("referral.copy")}
+                  </Button>
+                </ListRow>
+                <ListRow label={t("referral.stats", { invited: mine().invited, paid: mine().paid })}>
+                  <span class="text-headline text-label tabular-nums">+{mine().credits}</span>
+                </ListRow>
+              </ListGroup>
+            </ListSection>
+          )}
+        </Show>
 
         <ListSection title={t("account.settings")}>
           <ListGroup>

@@ -1,4 +1,4 @@
-import { and, eq, lt, or } from "drizzle-orm"
+import { and, eq, gt, inArray, lt, or } from "drizzle-orm"
 import { ulid } from "ulid"
 import { BRAND_SLUG } from "../brand"
 import { refund, settle } from "../credits/ledger"
@@ -13,6 +13,7 @@ import {
   type ImageReference,
 } from "./openrouter-images"
 import { objectKey, putObject } from "./r2"
+import { deleteObjects } from "./thumb"
 
 export type GenerationEvent =
   | { type: "partial"; index: number; b64: string }
@@ -127,14 +128,12 @@ export async function runGeneration(input: RunInput) {
     lastError = describe(error)
   }
 
+  // The run ends once: whoever moves it out of "running" (this, or the reaper for a run it took for
+  // dead) is the one that refunds it, so no credit goes back twice.
   const now = Date.now()
+  const running = and(eq(generations.id, generation.id), eq(generations.status, "running"))
   if (stored === 0) {
-    const refunded = await refund(db, {
-      userID: generation.user_id,
-      generationID: generation.id,
-      reason: "generation failed",
-    })
-    await db
+    const claimed = await db
       .update(generations)
       .set({
         status: "failed",
@@ -143,31 +142,62 @@ export async function runGeneration(input: RunInput) {
         cost_usd: cost,
         finished_at: now,
       })
-      .where(eq(generations.id, generation.id))
-    await input.emit({ type: "error", message: friendly(lastError), refunded })
+      .where(running)
+      .returning({ id: generations.id })
+    if (claimed.length) {
+      await refund(db, { userID: generation.user_id, generationID: generation.id, reason: "generation failed" })
+    }
+    await input.emit({ type: "error", message: friendly(lastError), refunded: generation.credits_reserved })
     return
   }
-  const missing = generation.n - stored
+  // A provider that sends more pictures than asked for is owed nothing extra.
+  const missing = Math.max(0, generation.n - stored)
+  const owed = missing * input.perImageCredits
+  const creditsFinal = generation.credits_reserved - owed
+  const claimed = await db
+    .update(generations)
+    .set({ status: "done", credits_final: creditsFinal, cost_usd: cost, error: lastError ?? null, finished_at: now })
+    .where(running)
+    .returning({ id: generations.id })
+  // The reaper got there first and refunded the run: its pictures go too, as a clip's would.
+  if (claimed.length === 0) {
+    const rows = await db
+      .select({ id: files.id, r2_key: files.r2_key })
+      .from(files)
+      .where(eq(files.generation_id, generation.id))
+    if (rows.length) {
+      await deleteObjects(
+        input.bucket,
+        rows.map((row) => row.r2_key),
+      )
+      await db.delete(generation_images).where(eq(generation_images.generation_id, generation.id))
+      await db.delete(files).where(
+        inArray(
+          files.id,
+          rows.map((row) => row.id),
+        ),
+      )
+    }
+    await input.emit({ type: "error", message: friendly("timeout"), refunded: generation.credits_reserved })
+    return
+  }
   const refunded =
-    missing > 0
+    owed > 0
       ? await refund(db, {
           userID: generation.user_id,
           generationID: generation.id,
           reason: `${missing} of ${generation.n} images failed`,
-          amount: missing * input.perImageCredits,
+          amount: owed,
         })
       : 0
   await settle(db, { userID: generation.user_id, generationID: generation.id, costUsd: cost })
-  const creditsFinal = generation.credits_reserved - refunded
-  await db
-    .update(generations)
-    .set({ status: "done", credits_final: creditsFinal, cost_usd: cost, error: lastError ?? null, finished_at: now })
-    .where(eq(generations.id, generation.id))
   await input.emit({ type: "done", creditsFinal, refunded })
 }
 
 function describe(error: unknown) {
   if (error instanceof ImageProviderError) return `${error.status}: ${error.message}`
+  // The provider did not answer within IMAGE_TIMEOUT_MS.
+  if (error instanceof Error && error.name === "TimeoutError") return "timeout"
   if (error instanceof Error) return error.message
   return String(error)
 }
@@ -213,4 +243,20 @@ export async function reapStaleGenerations(db: Database, now = Date.now()) {
     await refund(db, { userID: row.user_id, generationID: row.id, reason: "generation timed out" })
   }
   return rows.length
+}
+
+// A run is marked failed before its credits go back, so that only one of the run and the reaper
+// refunds it. If that refund then fails (the database went away), nothing else would return the
+// credits: this gives back whatever a run that failed in the last three days still holds. A run
+// already refunded is owed nothing, so it is safe to call daily.
+export async function refundFailed(db: Database, now = Date.now()) {
+  const rows = await db
+    .select({ id: generations.id, user_id: generations.user_id })
+    .from(generations)
+    .where(and(eq(generations.status, "failed"), gt(generations.finished_at, now - 3 * 24 * 60 * 60 * 1000)))
+  let returned = 0
+  for (const row of rows) {
+    returned += await refund(db, { userID: row.user_id, generationID: row.id, reason: "failed run still held credits" })
+  }
+  return returned
 }

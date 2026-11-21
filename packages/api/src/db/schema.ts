@@ -20,9 +20,17 @@ export const users = sqliteTable(
     tier: text({ enum: Tier }).notNull().default("free"),
     tier_until: integer(),
     locale: text().notNull().default("vi"),
+    // The code this account shares to invite others, made when first asked for.
+    referral_code: text(),
+    // users.id of whoever's code this account signed up with.
+    referred_by: text(),
     ...Timestamps,
   },
-  (t) => [uniqueIndex("users_email").on(t.email)],
+  (t) => [
+    uniqueIndex("users_email").on(t.email),
+    uniqueIndex("users_referral_code").on(t.referral_code),
+    index("users_referred_by").on(t.referred_by),
+  ],
 )
 
 export const pending_signups = sqliteTable("pending_signups", {
@@ -34,6 +42,7 @@ export const pending_signups = sqliteTable("pending_signups", {
   attempts: integer().notNull().default(0),
   expires_at: integer().notNull(),
   last_sent_at: integer().notNull(),
+  referred_by: text(),
 })
 
 export const password_resets = sqliteTable("password_resets", {
@@ -155,7 +164,7 @@ export const plan_events = sqliteTable(
   {
     id: text().primaryKey(),
     user_id: text().notNull(),
-    type: text({ enum: ["activated", "renewed", "upgraded", "expired", "topup"] }).notNull(),
+    type: text({ enum: ["activated", "renewed", "upgraded", "expired", "topup", "referral"] }).notNull(),
     order_id: text(),
     payload: text().notNull(),
     ...Timestamps,
@@ -163,7 +172,7 @@ export const plan_events = sqliteTable(
   (t) => [index("plan_events_user").on(t.user_id, t.created_at)],
 )
 
-export const GrantSource = ["plan", "topup", "bonus"] as const
+export const GrantSource = ["plan", "topup", "bonus", "referral"] as const
 
 export const credit_grants = sqliteTable(
   "credit_grants",
