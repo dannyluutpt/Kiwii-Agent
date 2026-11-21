@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <!-- One slide of the carousel, 1080 × 1350. build.mjs fills it from carousel.json. -->
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+      }
+      body {
+        width: 1080px;
+        height: 1350px;
+        background: radial-gradient(circle at 20% 0%, rgb(255 214 10 / 0.16), transparent 55%), #0a0a0a;
+        color: #f5f5f5;
+        font-family: "Inter Display", Inter, system-ui, sans-serif;
+        -webkit-font-smoothing: antialiased;
+        padding: 80px 72px;
+        display: flex;
+        flex-direction: column;
+      }
+      #step {
+        font-size: 34px;
+        font-weight: 700;
+        color: #ffd60a;
+      }
+      h1 {
+        margin-top: 18px;
+        font-size: 84px;
+        line-height: 1.06;
+        font-weight: 800;
+        letter-spacing: -0.035em;
+      }
+      body.cover h1,
+      body.end h1 {
+        font-size: 122px;
+        margin-top: auto;
+      }
+      #lead {
+        margin-top: 22px;
+        font-size: 40px;
+        line-height: 1.3;
+        color: #a3a3a3;
+      }
+      #prompt {
+        margin-top: 44px;
+        padding: 40px 44px;
+        border-radius: 40px;
+        background: #161616;
+        border: 1px solid rgb(255 255 255 / 0.1);
+        font-size: 37px;
+        line-height: 1.42;
+        color: #e5e5e5;
+      }
+      body.cover #prompt,
+      body.end #prompt,
+      body.cover #step,
+      body.end #step {
+        display: none;
+      }
+      #foot {
+        margin-top: auto;
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        font-size: 34px;
+        font-weight: 700;
+      }
+      body.cover #foot,
+      body.end #foot {
+        margin-top: 60px;
+      }
+      #foot img {
+        width: 64px;
+        height: 64px;
+        border-radius: 16px;
+      }
+      #url {
+        margin-left: auto;
+        color: #ffd60a;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="step"></div>
+    <h1 id="title"></h1>
+    <div id="lead"></div>
+    <div id="prompt"></div>
+    <div id="foot">
+      <img src="../../packages/web/public/logo.svg" alt="" /><span>Amberpix</span><span id="url">amberpix.com</span>
+    </div>
+    <script>
+      window.fill = (slide) => {
+        document.body.className = slide.kind
+        document.getElementById("step").textContent = slide.step ? `CÂU LỆNH ${slide.step}` : ""
+        document.getElementById("title").textContent = slide.title
+        document.getElementById("lead").textContent = slide.lead
+        document.getElementById("prompt").textContent = slide.prompt ? `“${slide.prompt}”` : ""
+      }
+    </script>
+  </body>
+</html>
