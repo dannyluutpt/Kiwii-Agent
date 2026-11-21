@@ -8,6 +8,9 @@ Amberpix tạo trên production, và câu lệnh in trên bài là câu lệnh t
 | `marketing/out/amberpix-launch-9x16.mp4` | Phim ra mắt 30 giây, dọc 1080 × 1920, không tiếng | `node marketing/promo/render.mjs` |
 | `marketing/out/social/*.png` | 8 ảnh bài đăng 1080 × 1350: ảnh kèm câu lệnh đã tạo ra nó | `bun marketing/social/posts.ts && node marketing/social/build.mjs` |
 
+| `marketing/out/cover-launch.png` | Ảnh bìa cho phim khi đăng TikTok, Reels | cắt từ giây 2,6 của phim |
+| `marketing/out/social/carousel-*.png` | Bài 6 slide "4 câu lệnh ảnh sản phẩm", lấy từ trang Mẫu | `bun marketing/social/carousel.ts && node marketing/social/build.mjs` |
+
 Phim không có nhạc: khi đăng, chọn nhạc trong thư viện của TikTok hoặc Reels, vì nhạc của nền tảng
 được cấp phép sẵn cho bài đăng trên chính nền tảng đó. Bật nhãn "Nội dung do AI tạo" khi đăng
 (TikTok bắt buộc với nội dung trông như thật; Meta có nhãn "AI info").
@@ -76,6 +79,19 @@ Tệp: `marketing/out/social/<tên>.png`. Mỗi bài dùng chung khung caption, 
 
 Dưới mỗi bài, bình luận đầu tiên ghim liên kết: `https://amberpix.com/?ref=<mã của bạn>` (mã lấy ở
 trang Tài khoản; ai đăng ký qua liên kết và mua gói thì cả hai được cộng credit).
+
+## Bài bổ sung. Carousel "4 câu lệnh ảnh sản phẩm"
+
+Tệp: `marketing/out/social/carousel-1.png` tới `carousel-6.png`, đăng theo thứ tự làm một album.
+
+> 4 câu lệnh ảnh sản phẩm bạn chép về dùng được ngay 👇
+>
+> Nền trắng cho sàn, ảnh đặt trong bối cảnh, poster khuyến mãi có chữ tiếng Việt, và clip máy quay lượn
+> quanh sản phẩm. Lướt qua từng ảnh, đổi tên sản phẩm của bạn vào là xong.
+>
+> Trong Amberpix có sẵn 14 mẫu như vậy: amberpix.com
+>
+> #amberpix #anhsanpham #AI #banhangonline #tiktokshop #shopee
 
 ## Bài 3 và 8. Hai bản cắt từ phim
 

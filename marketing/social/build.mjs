@@ -20,4 +20,13 @@ for (const post of posts) {
   await page.screenshot({ path: join(out, `${post.key}.png`) })
   console.log(post.key)
 }
+// The carousel: carousel.json, one picture a slide, in order.
+const slides = JSON.parse(readFileSync(join(here, "carousel.json"), "utf8"))
+await page.goto(`file://${join(here, "slide.html")}`)
+await page.evaluate(() => document.fonts.ready)
+for (const [index, slide] of slides.entries()) {
+  await page.evaluate((item) => window.fill(item), slide)
+  await page.screenshot({ path: join(out, `carousel-${index + 1}.png`) })
+}
+console.log(`carousel ${slides.length}`)
 await browser.close()

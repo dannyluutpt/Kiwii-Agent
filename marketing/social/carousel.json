@@ -1,0 +1,40 @@
+[
+  {
+    "kind": "cover",
+    "title": "4 câu lệnh ảnh sản phẩm",
+    "lead": "Chép lại, đổi tên sản phẩm của bạn, dùng được ngay."
+  },
+  {
+    "kind": "prompt",
+    "step": "1/4",
+    "title": "Sản phẩm nền trắng",
+    "lead": "Ảnh sạch cho Shopee, TikTok Shop, Lazada.",
+    "prompt": "Ảnh sản phẩm thương mại điện tử của chai serum thuỷ tinh nắp vàng, đặt giữa khung trên nền trắng tinh, ánh sáng studio mềm đều từ hai bên, bóng đổ nhẹ dưới chân sản phẩm, chi tiết sắc nét, màu sắc trung thực, không có chữ, không có vật trang trí."
+  },
+  {
+    "kind": "prompt",
+    "step": "2/4",
+    "title": "Sản phẩm trong bối cảnh",
+    "lead": "Đặt sản phẩm vào khung cảnh đời thường.",
+    "prompt": "Ảnh quảng cáo phong cách đời thường của hũ nến thơm màu hổ phách đặt trên bàn gỗ cạnh cửa sổ buổi sáng, ánh sáng tự nhiên ấm, độ sâu trường ảnh nông làm nền mờ nhẹ, vài đạo cụ đơn giản cùng tông màu xung quanh, sản phẩm là điểm nhấn rõ nhất, không có chữ."
+  },
+  {
+    "kind": "prompt",
+    "step": "3/4",
+    "title": "Poster khuyến mãi",
+    "lead": "Poster có chữ tiếng Việt rõ ràng.",
+    "prompt": "Poster khuyến mãi dọc cho ly trà sữa trân châu. Sản phẩm lớn ở nửa dưới, nền màu đậm nổi bật với ánh sáng rực. Nửa trên là dòng chữ lớn in đậm, viết đúng chính tả tiếng Việt có dấu: \"MUA 1 TẶNG 1\". Bên dưới là dòng chữ nhỏ hơn: \"Chỉ cuối tuần này\". Bố cục hiện đại, tương phản cao, không thêm chữ nào khác."
+  },
+  {
+    "kind": "prompt",
+    "step": "4/4",
+    "title": "Xoay quanh sản phẩm",
+    "lead": "Máy quay lượn quanh sản phẩm trên bục.",
+    "prompt": "Clip quảng cáo sản phẩm: chai nước hoa thuỷ tinh đứng trên bục tròn giữa studio tối, ánh sáng viền làm nổi đường nét. Máy quay lượn chậm một vòng cung quanh sản phẩm từ trái sang phải, giữ sản phẩm ở giữa khung, phản chiếu lấp lánh trên bề mặt. Chuyển động mượt, không có chữ."
+  },
+  {
+    "kind": "end",
+    "title": "Có sẵn 14 mẫu như vậy",
+    "lead": "Điền tên sản phẩm, phần còn lại đã viết sẵn. Dùng thử miễn phí."
+  }
+]

@@ -6,6 +6,22 @@ không tốn gì. Dưới đây là những việc chỉ bạn làm được, ho
 Số tiền là ước tính từ giá đo ngày 2026-10-27 ghi trong `packages/api/README.md`, tỷ giá khoảng
 25.500 đ/USD. Giá thật có thể lệch.
 
+## Tạo ảnh trên production đang không chạy được (2026-11-21)
+
+Bạn đã duyệt tạo ảnh và clip minh hoạ cho 14 mẫu. Lượt đầu tiên (một ảnh món ăn, GPT Image mức high)
+bị từ chối hai lần liên tiếp ở bước kiểm duyệt nội dung, trước khi trừ credit:
+`SCREENING_UNAVAILABLE`. Bước này gọi model ngôn ngữ qua OpenRouter (`anthropic/claude-haiku-5.5`, rồi
+dự phòng `google/gemini-2.5-flash-lite`); cả hai đều không trả lời. Lượt tạo gần nhất thành công trên
+production là 14 ngày trước.
+
+Nguyên nhân có khả năng nhất là tài khoản OpenRouter hết số dư hoặc khoá API có vấn đề, vì cả hai
+model cùng hỏng. Tôi không đọc được log của Worker nên chưa xác nhận được. Điều này có nghĩa là
+**khách hàng hiện cũng không tạo được ảnh**.
+
+Việc cần làm: xem số dư ở openrouter.ai (mục Credits) và nạp thêm nếu hết; sau đó chạy
+`AMBERPIX_SESSION=<giá trị cookie kiwii_session của bạn> bun marketing/templates/generate.ts` để tạo
+14 ví dụ (khoảng 120 credit Amberpix), hoặc báo tôi chạy lại.
+
 ## Kiểm tra trên production (cần tài khoản đăng nhập)
 
 Tôi không tự làm được: đăng ký tài khoản cần vượt Turnstile và đọc mã trong hộp thư.
