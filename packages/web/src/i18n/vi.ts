@@ -62,7 +62,7 @@ export const dict = {
   "video.frame.last": "Khung cuối",
   "video.frame.removeFirst": "Bỏ khung đầu",
   "video.frame.removeLast": "Bỏ khung cuối",
-  "video.castOrFrames": "Video dùng khung hình hoặc nhân vật và bối cảnh, không dùng cùng lúc.",
+  "video.castOrFrames": "Video dùng khung hình hoặc nhân vật và bối cảnh, không dùng cùng lúc. Clip có người thì chọn nhân vật đã lưu sẽ giữ đúng gương mặt hơn khung hình đầu.",
   "video.nextScene": "Cảnh tiếp theo",
   "video.useFrame": "Dùng khung đang xem làm cảnh mới",
   "video.nextScene.failed": "Không lấy được khung hình của clip này. Bạn thử lại nhé.",
@@ -89,7 +89,7 @@ export const dict = {
   "characters.addPhoto": "Thêm ảnh",
   "characters.removePhoto": "Bỏ ảnh",
   "characters.tip":
-    "Nên dùng 3–4 ảnh: chính diện, góc nghiêng và toàn thân, đủ sáng, không đeo kính râm, mỗi ảnh chỉ một người.",
+    "Nên dùng 3–4 ảnh, trong đó có một ảnh cận mặt: cắt sát gương mặt nếu ảnh gốc chụp xa. Thêm góc nghiêng và toàn thân, đủ sáng, không đeo kính râm, mỗi ảnh chỉ một người.",
   "characters.rights": "Chỉ dùng ảnh của bạn hoặc ảnh bạn có quyền sử dụng.",
   "characters.saved": "Đã lưu nhân vật {{name}}",
   "characters.use": "Dùng",

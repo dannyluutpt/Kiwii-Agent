@@ -64,7 +64,7 @@ export const dict: Record<I18nKey, string> = {
   "video.frame.last": "Last frame",
   "video.frame.removeFirst": "Remove the first frame",
   "video.frame.removeLast": "Remove the last frame",
-  "video.castOrFrames": "A clip uses frames or characters and a location, not both.",
+  "video.castOrFrames": "A clip uses frames or characters and a location, not both. For a clip with a person, a saved character keeps the face better than a first frame.",
   "video.nextScene": "Next scene",
   "video.useFrame": "Start a new scene from this frame",
   "video.nextScene.failed": "Couldn't take a frame from this clip. Please try again.",
@@ -92,7 +92,7 @@ export const dict: Record<I18nKey, string> = {
   "characters.addPhoto": "Add a photo",
   "characters.removePhoto": "Remove photo",
   "characters.tip":
-    "Best with 3–4 photos: front, three-quarter and full length, in even light, without sunglasses, one person per photo.",
+    "Best with 3–4 photos, one of them a close-up of the face: crop in tight if the original was shot from far away. Add a three-quarter and a full-length view, in even light, without sunglasses, one person per photo.",
   "characters.rights": "Only use photos of yourself or photos you have the right to use.",
   "characters.saved": "Saved {{name}}",
   "characters.use": "Use",
