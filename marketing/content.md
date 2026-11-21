@@ -11,6 +11,8 @@ Amberpix tạo trên production, và câu lệnh in trên bài là câu lệnh t
 | `marketing/out/cover-launch.png` | Ảnh bìa cho phim khi đăng TikTok, Reels | cắt từ giây 2,6 của phim |
 | `marketing/out/social/carousel-*.png` | Bài 6 slide "4 câu lệnh ảnh sản phẩm", lấy từ trang Mẫu | `bun marketing/social/carousel.ts && node marketing/social/build.mjs` |
 
+| `marketing/out/templates/*.webp`, `*.mp4` | 11 ảnh và 3 clip do chính các mẫu ở trang Mẫu tạo ra trên production | `marketing/templates/generate.ts` (tốn credit) |
+
 Phim không có nhạc: khi đăng, chọn nhạc trong thư viện của TikTok hoặc Reels, vì nhạc của nền tảng
 được cấp phép sẵn cho bài đăng trên chính nền tảng đó. Bật nhãn "Nội dung do AI tạo" khi đăng
 (TikTok bắt buộc với nội dung trông như thật; Meta có nhãn "AI info").
@@ -92,6 +94,17 @@ Tệp: `marketing/out/social/carousel-1.png` tới `carousel-6.png`, đăng theo
 > Trong Amberpix có sẵn 14 mẫu như vậy: amberpix.com
 >
 > #amberpix #anhsanpham #AI #banhangonline #tiktokshop #shopee
+
+## Ba clip sản phẩm, đăng TikTok và Reels
+
+Tệp: `marketing/out/templates/product-spin.mp4`, `food-steam.mp4`, `model-walk.mp4` (dọc 9:16, 5 giây, có tiếng).
+
+> Clip này làm từ đúng một câu: tên sản phẩm. Máy quay, ánh sáng, chuyển động đã viết sẵn trong mẫu
+> "Xoay quanh sản phẩm". Thử với sản phẩm của bạn: amberpix.com/video-san-pham-ai
+> #amberpix #videosanpham #AI #tiktokshop
+
+Đổi tên mẫu và liên kết cho hai clip còn lại: "Món ăn nóng hổi" (amberpix.com/anh-mon-an-ai) và
+"Người mẫu bước đi" (amberpix.com/anh-thoi-trang-ai).
 
 ## Bài 3 và 8. Hai bản cắt từ phim
 

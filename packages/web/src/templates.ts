@@ -23,9 +23,6 @@ export type Template = {
   // The image model it suits; a clip keeps the model the person last chose.
   model?: string
   aspectRatio: string
-  // A picture from the showcase (its key in src/showcase.ts) of the kind this template makes, shown on
-  // its card. It was made on production from its own prompt, not from this template.
-  example?: string
   // The person attaches this in the composer after the template is applied.
   needsPhoto?: Text
   slots: TemplateSlot[]
@@ -67,7 +64,6 @@ export const TEMPLATES: Template[] = [
   },
   {
     id: "lifestyle",
-    example: "nuoc-hoa",
     category: "product",
     kind: "image",
     title: { vi: "Sản phẩm trong bối cảnh", en: "Product in a scene" },
@@ -109,7 +105,6 @@ export const TEMPLATES: Template[] = [
   },
   {
     id: "food",
-    example: "pho",
     category: "product",
     kind: "image",
     title: { vi: "Món ăn hấp dẫn", en: "Appetising food" },
@@ -128,7 +123,6 @@ export const TEMPLATES: Template[] = [
   },
   {
     id: "sale-poster",
-    example: "poster",
     category: "ads",
     kind: "image",
     title: { vi: "Poster khuyến mãi", en: "Sale poster" },
@@ -154,7 +148,6 @@ export const TEMPLATES: Template[] = [
   },
   {
     id: "banner",
-    example: "ha-long",
     category: "ads",
     kind: "image",
     title: { vi: "Banner ngang", en: "Wide banner" },
@@ -225,7 +218,6 @@ export const TEMPLATES: Template[] = [
   },
   {
     id: "lookbook",
-    example: "ao-dai",
     category: "people",
     kind: "image",
     title: { vi: "Lookbook thời trang", en: "Fashion lookbook" },
@@ -424,3 +416,7 @@ export function fillTemplate(template: Template, values: Record<string, string>,
 export function templateReady(template: Template, values: Record<string, string>) {
   return template.slots.every((slot) => slot.optional || (values[slot.id] ?? "").trim().length > 0)
 }
+
+// The picture on a template's card: what the template made on production with a seller's words in its
+// slots (marketing/templates/generate.ts). For a clip, a frame of it.
+export const templateExample = (template: Template) => `/templates/${template.id}.webp`
