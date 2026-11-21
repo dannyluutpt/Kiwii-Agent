@@ -340,6 +340,8 @@ export const dict: Record<I18nKey, string> = {
   "support.placeholder": "For a payment, include the transfer code (it starts with KW).",
   "support.send": "Send",
   "support.sent": "Sent. We will answer at {{email}} within 3 working days.",
+  "landing.templates.title": "Ready-made templates for sellers",
+  "landing.templates.lead": "Not sure where to start? Pick a template, name your product, the rest is written.",
   "error.generic": "Something went wrong, try again",
   "error.network": "Connection lost, check your network and try again",
   "common.copied": "Copied",

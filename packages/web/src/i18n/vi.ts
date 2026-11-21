@@ -339,6 +339,8 @@ export const dict = {
   "support.placeholder": "Nếu hỏi về một khoản thanh toán, hãy ghi kèm mã chuyển khoản (bắt đầu bằng KW).",
   "support.send": "Gửi",
   "support.sent": "Đã gửi. Chúng tôi sẽ trả lời về {{email}} trong 3 ngày làm việc.",
+  "landing.templates.title": "Mẫu có sẵn cho người bán hàng",
+  "landing.templates.lead": "Không biết bắt đầu từ đâu? Chọn một mẫu, điền tên sản phẩm, phần còn lại đã viết sẵn.",
   "error.generic": "Có lỗi xảy ra, thử lại",
   "error.network": "Mất kết nối, kiểm tra mạng rồi thử lại",
   "common.copied": "Đã sao chép",
