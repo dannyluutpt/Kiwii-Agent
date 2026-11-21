@@ -190,3 +190,33 @@ test("a sheet left in the Library saves as a character from there", async ({ pag
   await page.goto("/characters")
   await expect(characterCard(page, name)).toContainText("3 ảnh")
 })
+
+test("a close-up of the face can be cut from a full-length photo, and goes first", async ({ page }) => {
+  await page.goto("/characters")
+  await page.getByRole("button", { name: "Tải ảnh lên" }).click()
+  const dialog = page.getByRole("dialog", { name: "Tạo nhân vật" })
+  await dialog.locator('input[type="file"]').setInputFiles(await photo(page))
+  const photos = dialog.getByRole("list", { name: "Ảnh nhân vật" })
+  await expect(photos.getByRole("img")).toHaveCount(1)
+
+  await dialog.getByRole("button", { name: "Cắt ảnh cận mặt từ ảnh 1" }).click()
+  const crop = dialog.getByRole("group", { name: "Cắt ảnh cận mặt" })
+  // Nothing can be saved half way through a cut.
+  await dialog.getByRole("textbox", { name: "Tên nhân vật" }).fill("Lan")
+  await expect(dialog.getByRole("button", { name: "Lưu", exact: true })).toBeDisabled()
+  const square = crop.getByRole("slider", { name: /^Khung cắt/ })
+  await square.focus()
+  await page.keyboard.press("ArrowDown")
+  await page.keyboard.press("ArrowRight")
+  await crop.getByRole("slider", { name: "Cỡ khung" }).fill("30")
+  await crop.getByRole("button", { name: "Thêm ảnh cận mặt" }).click()
+
+  await expect(crop).toBeHidden()
+  await expect(photos.getByRole("img")).toHaveCount(2)
+  // The 600 × 800 photo gave a square 30% of its shorter edge, placed first.
+  const first = photos.getByRole("img").first()
+  await expect.poll(() => first.evaluate((img: HTMLImageElement) => [img.naturalWidth, img.naturalHeight])).toEqual([
+    180, 180,
+  ])
+  await expect(dialog.getByRole("button", { name: "Lưu", exact: true })).toBeEnabled()
+})

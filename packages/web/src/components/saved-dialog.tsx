@@ -8,6 +8,7 @@ import { IconButton } from "@/ui/icon-button"
 import { Spinner } from "@/ui/spinner"
 import { TextField } from "@/ui/text-field"
 import { toast } from "@/ui/toast"
+import { FaceCrop } from "./face-crop"
 import { IconClose, IconPlus } from "./icons"
 import { createReferenceUploads } from "./references"
 
@@ -24,6 +25,8 @@ export function SavedDialog(props: { store: SavedStore; max: number }) {
   const [name, setName] = createSignal("")
   const [photos, setPhotos] = createSignal<Reference[]>([])
   const [saving, setSaving] = createSignal(false)
+  // The photo a close-up of the face is being cut from, if any.
+  const [cropping, setCropping] = createSignal<Reference>()
   let fileInput: HTMLInputElement | undefined
   const uploads = createReferenceUploads({
     references: photos,
@@ -38,9 +41,23 @@ export function SavedDialog(props: { store: SavedStore; max: number }) {
     if (!draft) return
     setName("")
     setPhotos(draft.slice(0, MAX_PHOTOS))
+    setCropping(undefined)
   })
 
-  const canSave = () => name().trim().length > 0 && photos().length > 0 && !uploads.uploading() && !saving()
+  // The close-up goes first, where a character's face is read from. With four photos already, it
+  // takes the place of the one it was cut from.
+  const addFace = async (file: File, from: Reference) => {
+    setCropping(undefined)
+    const before = photos().length < MAX_PHOTOS ? photos() : photos().filter((photo) => photo.id !== from.id)
+    setPhotos(before)
+    await uploads.upload([file])
+    const face = photos().find((photo) => !before.some((old) => old.id === photo.id))
+    if (face) setPhotos([face, ...photos().filter((photo) => photo.id !== face.id)])
+    else setPhotos(photos().some((photo) => photo.id === from.id) ? photos() : [...photos(), from])
+  }
+
+  const canSave = () =>
+    name().trim().length > 0 && photos().length > 0 && !uploads.uploading() && !saving() && !cropping()
   const save = async () => {
     if (!canSave()) return
     setSaving(true)
@@ -90,7 +107,16 @@ export function SavedDialog(props: { store: SavedStore; max: number }) {
         />
         <div class="flex flex-col gap-1.5">
           <p class="text-subhead font-medium text-label">{t(`${kind}.photos`)}</p>
-          <ul class="grid grid-cols-4 gap-2" aria-label={t(`${kind}.photos`)}>
+          <Show when={cropping()}>
+            {(photo) => (
+              <FaceCrop
+                photo={photo()}
+                onDone={(file) => void addFace(file, photo())}
+                onCancel={() => setCropping(undefined)}
+              />
+            )}
+          </Show>
+          <ul class={`grid grid-cols-4 gap-2 ${cropping() ? "hidden" : ""}`} aria-label={t(`${kind}.photos`)}>
             <For each={photos()}>
               {(photo, index) => (
                 <li class="rim relative aspect-square overflow-hidden rounded-[12px] bg-fill animate-fade-in">
@@ -106,6 +132,16 @@ export function SavedDialog(props: { store: SavedStore; max: number }) {
                       onClick={() => setPhotos(photos().filter((item) => item.id !== photo.id))}
                     />
                   </span>
+                  <Show when={kind === "characters" && !uploads.uploading()}>
+                    <button
+                      type="button"
+                      class="absolute inset-x-0 bottom-0 bg-black/60 py-1 text-caption font-medium text-white backdrop-blur-sm transition-colors duration-(--motion-micro) hover:bg-black/75"
+                      aria-label={t("characters.crop.open", { n: index() + 1 })}
+                      onClick={() => setCropping(photo)}
+                    >
+                      {t("characters.crop.short")}
+                    </button>
+                  </Show>
                 </li>
               )}
             </For>
@@ -139,7 +175,9 @@ export function SavedDialog(props: { store: SavedStore; max: number }) {
               event.currentTarget.value = ""
             }}
           />
-          <p class="text-footnote text-label-2">{t(`${kind}.tip`)}</p>
+          <Show when={!cropping()}>
+            <p class="text-footnote text-label-2">{t(`${kind}.tip`)}</p>
+          </Show>
         </div>
         <p class="rounded-[12px] bg-fill px-3 py-2 text-footnote text-label-2">{t(`${kind}.rights`)}</p>
       </form>
