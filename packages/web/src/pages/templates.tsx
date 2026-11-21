@@ -54,11 +54,26 @@ export default function Templates() {
                         class="flex h-full w-full items-start gap-3 rounded-card bg-surface bg-sheen p-4 text-left shadow-raised transition-[background-color,box-shadow,translate,scale] duration-(--motion-standard) ease-standard hover:-translate-y-0.5 hover:bg-surface-2 hover:shadow-lift active:scale-[0.99]"
                         onClick={() => pick(template)}
                       >
-                        <span class="flex size-10 shrink-0 items-center justify-center rounded-[12px] bg-accent-soft bg-amber-soft-gloss text-accent shadow-tinted">
-                          <Show when={template.kind === "video"} fallback={<IconImage class="size-5" />}>
-                            <IconVideo class="size-5" />
-                          </Show>
-                        </span>
+                        <Show
+                          when={template.example}
+                          fallback={
+                            <span class="flex size-10 shrink-0 items-center justify-center rounded-[12px] bg-accent-soft bg-amber-soft-gloss text-accent shadow-tinted">
+                              <Show when={template.kind === "video"} fallback={<IconImage class="size-5" />}>
+                                <IconVideo class="size-5" />
+                              </Show>
+                            </span>
+                          }
+                        >
+                          {(key) => (
+                            <img
+                              src={`/showcase/${key()}-s.webp`}
+                              alt=""
+                              loading="lazy"
+                              decoding="async"
+                              class="size-16 shrink-0 rounded-[12px] object-cover shadow-raised"
+                            />
+                          )}
+                        </Show>
                         <span class="flex min-w-0 flex-col gap-1">
                           <span class="text-headline text-label">{template.title[locale()]}</span>
                           <span class="text-footnote text-label-2">{template.lead[locale()]}</span>

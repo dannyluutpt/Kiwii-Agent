@@ -1,4 +1,6 @@
 import { describe, expect, test } from "bun:test"
+import { existsSync } from "node:fs"
+import { sample } from "./showcase"
 import { CATEGORIES, fillTemplate, MOVES, STYLES, TEMPLATES, templateReady } from "./templates"
 
 const poster = TEMPLATES.find((template) => template.id === "sale-poster")!
@@ -49,5 +51,12 @@ describe("templates", () => {
       )
     }
     expect(STYLES[0]?.prompt).toBe("")
+  })
+
+  test("a template's example is a picture the showcase has", () => {
+    for (const template of TEMPLATES.filter((item) => item.example)) {
+      expect(sample(template.example!).key).toBe(template.example!)
+      expect(existsSync(new URL(`../public/showcase/${template.example}-s.webp`, import.meta.url))).toBe(true)
+    }
   })
 })
