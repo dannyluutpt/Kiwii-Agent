@@ -112,6 +112,8 @@ describe("video prices", () => {
     expect(videoCreditCost(VIDEO_MODELS, { model: "seedance-2.5", option: "720p", duration: 10 })).toBe(122)
     expect(videoCreditCost(VIDEO_MODELS, { model: "kling-3.0-std", option: "720p", duration: 5 })).toBe(33)
     expect(videoCreditCost(VIDEO_MODELS, { model: "kling-3.0-std", option: "720p", duration: 10 })).toBe(66)
+    expect(videoCreditCost(VIDEO_MODELS, { model: "omni-1.2-flash", option: "720p", duration: 5 })).toBe(19)
+    expect(videoCreditCost(VIDEO_MODELS, { model: "omni-1.2-flash", option: "1080p", duration: 10 })).toBe(55)
     expect(videoCreditCost(VIDEO_MODELS, { model: "wan-3.0", option: "720p", duration: 7 })).toBeUndefined()
     expect(videoCreditCost(VIDEO_MODELS, { model: "minimax-h3", option: "1080p", duration: 5 })).toBeUndefined()
     // No model bills the one picture a clip starts from (MiniMax's first five are free); a model that
