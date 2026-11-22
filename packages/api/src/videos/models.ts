@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm"
 import type { Database } from "../db/client"
 import { app_config } from "../db/schema"
 
-export const VideoModelID = ["wan-3.0", "minimax-h3", "seedance-2.5", "kling-3.0-std"] as const
+export const VideoModelID = ["wan-3.0", "minimax-h3", "seedance-2.5", "kling-3.0-std", "omni-1.2-flash"] as const
 export type VideoModelID = (typeof VideoModelID)[number]
 
 // Photos of a clip's characters and location sent as references (input_references), each scaled to
@@ -50,7 +50,8 @@ export type VideoModel = {
 // 2026-10-29: Wan 3.0 0.10 USD/s at 720p and 0.20 at 1080p; MiniMax H3 0.13 USD/s at 2K, its first
 // five reference pictures free; Seedance 2.5 0.0000107 USD a video token, with (width × height ×
 // seconds × 24) / 1024 tokens, so 0.233 USD/s at 720p in its largest frame (1112×834). Kling 3.0
-// Standard, on 2026-10-30: 0.126 USD/s with sound, at 720p only.
+// Standard, on 2026-10-30: 0.126 USD/s with sound, at 720p only. Gemini Omni 1.2 Flash, on 2026-11-22:
+// 0.069504 USD/s at 720p and 0.104256 at 1080p, with sound.
 export const VIDEO_MODELS: VideoModel[] = [
   {
     id: "wan-3.0",
@@ -114,6 +115,25 @@ export const VIDEO_MODELS: VideoModel[] = [
     options: [{ id: "720p", label_vi: "720p", label_en: "720p", credits: { 5: 33, 10: 66 } }],
     durations: [5, 10],
     aspectRatios: ["16:9", "9:16", "1:1"],
+    sound: true,
+    maxReferences: 1,
+    maxReferenceEdge: 1920,
+    firstFrameCredits: 0,
+    lastFrame: true,
+    hidden: true,
+  },
+  {
+    id: "omni-1.2-flash",
+    slug: "google/gemini-omni-1.2-flash",
+    name: "Gemini Omni 1.2 Flash",
+    tagline_vi: "Omni của Google, rẻ, có âm thanh",
+    tagline_en: "Google's Omni: inexpensive, with sound",
+    options: [
+      { id: "720p", label_vi: "720p", label_en: "720p", credits: { 5: 19, 10: 37 } },
+      { id: "1080p", label_vi: "1080p", label_en: "1080p", credits: { 5: 28, 10: 55 } },
+    ],
+    durations: [5, 10],
+    aspectRatios: ["16:9", "9:16"],
     sound: true,
     maxReferences: 1,
     maxReferenceEdge: 1920,
